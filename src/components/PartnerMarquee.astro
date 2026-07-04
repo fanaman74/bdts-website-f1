@@ -1,0 +1,35 @@
+---
+/** "Trusted by" style logo marquee — text wordmarks of partner insurers. */
+const partners = [
+  'AG Insurance',
+  'AXA',
+  'Baloise',
+  'Allianz',
+  'DKV',
+  'NN',
+  'Vivium',
+  'Ethias',
+  'ARAG',
+  'Europ Assistance'
+];
+---
+
+<section class="border-b border-ink-100 bg-white py-10" aria-label="Nos compagnies partenaires">
+  <div class="container-site mb-6">
+    <p class="eyebrow text-ink-400">Ils assurent nos clients</p>
+  </div>
+  <div class="marquee" aria-hidden="true">
+    {
+      [0, 1].map(() => (
+        <div class="marquee-track">
+          {partners.map((name) => (
+            <span class="mx-8 font-display text-2xl font-bold whitespace-nowrap text-ink-300 transition hover:text-ink-800 sm:mx-12">
+              {name}
+            </span>
+          ))}
+        </div>
+      ))
+    }
+  </div>
+  <p class="sr-only">{partners.join(', ')}</p>
+</section>

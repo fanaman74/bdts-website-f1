@@ -1,56 +1,68 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/inter';
-@import '@fontsource-variable/space-grotesk';
+@import '@fontsource-variable/manrope';
+@import '@fontsource/space-mono/400.css';
+@import '@fontsource/space-mono/700.css';
 
+/*
+  Design language replicated from steamhaus.co.uk:
+  deep green-black surfaces, peach accent, Manrope + Space Mono,
+  pill mono buttons, dot-grid decor, 0.75rem card radius.
+*/
 @theme {
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Space Grotesk Variable', 'Inter Variable', ui-sans-serif, sans-serif;
+  --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
 
-  /* Ink navy base */
-  --color-ink-50: #f3f5fb;
-  --color-ink-100: #e4e8f4;
-  --color-ink-200: #c5cde6;
-  --color-ink-300: #97a4cf;
-  --color-ink-400: #6375b3;
-  --color-ink-500: #405397;
-  --color-ink-600: #2e3d7c;
-  --color-ink-700: #253063;
-  --color-ink-800: #1b2249;
-  --color-ink-900: #131734;
-  --color-ink-950: #0a0d21;
+  /* Ink — deep green-black neutral scale (#001b12 family) */
+  --color-ink-50: #f7f7f7;
+  --color-ink-100: #e6e8e7;
+  --color-ink-200: #ccd2cf;
+  --color-ink-300: #99a6a1;
+  --color-ink-400: #667671;
+  --color-ink-500: #334941;
+  --color-ink-600: #23342e;
+  --color-ink-700: #152023;
+  --color-ink-800: #002f1e;
+  --color-ink-900: #001b12;
+  --color-ink-950: #00160e;
 
-  /* Vivid indigo→violet accent */
-  --color-pulse-50: #f0f1ff;
-  --color-pulse-100: #e2e4ff;
-  --color-pulse-200: #cacdff;
-  --color-pulse-300: #a5a8ff;
-  --color-pulse-400: #7e7bff;
-  --color-pulse-500: #6555fb;
-  --color-pulse-600: #5636f0;
-  --color-pulse-700: #4a2ad4;
-  --color-pulse-800: #3d25ab;
-  --color-pulse-900: #342487;
+  /* Pulse — forest green interactive scale (anchored on nightly-woods #002f1e) */
+  --color-pulse-50: #eaf3ef;
+  --color-pulse-100: #d3e7dd;
+  --color-pulse-200: #a8cfbc;
+  --color-pulse-300: #74b096;
+  --color-pulse-400: #46916f;
+  --color-pulse-500: #2a7554;
+  --color-pulse-600: #145c40;
+  --color-pulse-700: #0a4530;
+  --color-pulse-800: #043525;
+  --color-pulse-900: #002f1e;
 
-  /* Coral energy accent */
-  --color-coral-50: #fff2ee;
-  --color-coral-100: #ffe3da;
-  --color-coral-200: #ffc3b3;
-  --color-coral-300: #ff9a80;
-  --color-coral-400: #ff6a45;
-  --color-coral-500: #fc4a1c;
-  --color-coral-600: #ea3510;
-  --color-coral-700: #c2270e;
-  --color-coral-800: #9a2213;
-  --color-coral-900: #7c2013;
+  /* Coral — peach accent scale (#e7a38b) */
+  --color-coral-50: #fdf3ee;
+  --color-coral-100: #fbe4d9;
+  --color-coral-200: #f5c9b5;
+  --color-coral-300: #eeb69e;
+  --color-coral-400: #e7a38b;
+  --color-coral-500: #db8a6d;
+  --color-coral-600: #c06f52;
+  --color-coral-700: #9d573e;
+  --color-coral-800: #7c4531;
+  --color-coral-900: #5f3626;
 
-  /* Fresh mint for positive badges */
-  --color-mint-100: #d8fbee;
-  --color-mint-300: #7fedc5;
-  --color-mint-500: #1fc98d;
-  --color-mint-700: #0e8f61;
+  /* Mint — success */
+  --color-mint-100: #ecfdf3;
+  --color-mint-300: #a6e9c8;
+  --color-mint-500: #12b76a;
+  --color-mint-700: #027a48;
 
-  --shadow-card: 0 1px 2px rgb(19 23 52 / 0.06), 0 8px 24px -8px rgb(19 23 52 / 0.14);
-  --shadow-card-hover: 0 2px 4px rgb(19 23 52 / 0.08), 0 20px 40px -12px rgb(86 54 240 / 0.28);
+  /* Sun — secondary yellow highlight */
+  --color-sun-200: #fbe7b0;
+  --color-sun-300: #f8d47a;
+  --color-sun-600: #b8912f;
+
+  --shadow-card: 0 1px 2px rgb(0 27 18 / 0.05), 0 6px 20px -8px rgb(0 27 18 / 0.1);
+  --shadow-card-hover: 0 2px 4px rgb(0 27 18 / 0.06), 0 14px 32px -12px rgb(0 47 30 / 0.22);
 }
 
 /* ---------- Base ---------- */
@@ -64,13 +76,13 @@ body {
 }
 
 ::selection {
-  background: var(--color-pulse-200);
+  background: var(--color-coral-200);
   color: var(--color-ink-950);
 }
 
 /* Visible focus for keyboard users */
 :focus-visible {
-  outline: 3px solid var(--color-pulse-500);
+  outline: 3px solid var(--color-coral-400);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -80,45 +92,54 @@ body {
   @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
 }
 
+/* Pill buttons in Space Mono — signature Steamhaus component */
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-display text-sm font-semibold tracking-wide transition-all duration-200;
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-mono text-sm font-normal tracking-[0.05em] transition-all duration-200;
 }
 
 .btn-primary {
-  @apply btn bg-coral-500 text-white shadow-lg shadow-coral-500/30;
+  @apply btn bg-coral-400 text-ink-950;
 }
 .btn-primary:hover {
-  @apply -translate-y-0.5 bg-coral-600 shadow-xl shadow-coral-500/40;
+  @apply -translate-y-0.5 bg-coral-300 shadow-lg shadow-coral-400/25;
 }
 
 .btn-secondary {
-  @apply btn bg-white/10 text-white ring-1 ring-white/30 backdrop-blur-sm;
+  @apply btn bg-transparent text-white ring-1 ring-white/35;
 }
 .btn-secondary:hover {
-  @apply bg-white/20 ring-white/50;
+  @apply bg-white/10 ring-white/60;
 }
 
 .btn-ghost {
-  @apply btn text-ink-800 ring-1 ring-ink-200;
+  @apply btn text-ink-900 ring-1 ring-ink-200;
 }
 .btn-ghost:hover {
-  @apply bg-ink-50 ring-ink-300;
+  @apply bg-ink-50 ring-ink-400;
 }
 
 .card {
-  @apply rounded-2xl bg-white shadow-[var(--shadow-card)] ring-1 ring-ink-100 transition-all duration-300;
+  @apply rounded-xl bg-white shadow-[var(--shadow-card)] ring-1 ring-ink-100 transition-all duration-300;
 }
 .card:hover {
   box-shadow: var(--shadow-card-hover);
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
+/* Mono uppercase eyebrow — letter-spacing .1em like the reference */
 .eyebrow {
-  @apply font-display text-xs font-bold tracking-[0.2em] uppercase;
+  @apply font-mono text-xs font-normal tracking-[0.1em] uppercase;
 }
 
 .section-title {
-  @apply font-display text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl;
+  @apply font-display text-3xl font-bold tracking-[-0.03em] text-ink-800 sm:text-4xl;
+  line-height: 1.1;
+}
+
+/* Dot-grid decor (replica of section_decor svg: 1.5px dots in #334941) */
+.dot-grid {
+  background-image: radial-gradient(circle, #334941 1.5px, transparent 1.5px);
+  background-size: 34px 34px;
 }
 
 /* ---------- Animated hero background ---------- */
@@ -126,56 +147,52 @@ body {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background:
-    radial-gradient(120% 90% at 80% -10%, #342487 0%, transparent 55%),
-    linear-gradient(160deg, #0a0d21 0%, #131734 45%, #1b2249 100%);
+  background: linear-gradient(165deg, #00160e 0%, #001b12 55%, #002f1e 100%);
 }
 
 .hero-blob {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(70px);
-  opacity: 0.55;
-  mix-blend-mode: screen;
+  filter: blur(80px);
   will-change: transform;
 }
 
-.hero-blob--violet {
-  width: 44rem;
-  height: 44rem;
-  top: -14rem;
-  right: -10rem;
-  background: radial-gradient(circle at 30% 30%, #6555fb, transparent 65%);
-  animation: blob-drift-a 26s ease-in-out infinite alternate;
+.hero-blob--forest {
+  width: 46rem;
+  height: 46rem;
+  top: -16rem;
+  right: -12rem;
+  background: radial-gradient(circle at 35% 35%, #334941, transparent 65%);
+  opacity: 0.9;
+  animation: blob-drift-a 28s ease-in-out infinite alternate;
 }
 
-.hero-blob--coral {
-  width: 34rem;
-  height: 34rem;
-  bottom: -12rem;
-  left: -8rem;
-  background: radial-gradient(circle at 60% 40%, #fc4a1c, transparent 65%);
-  animation: blob-drift-b 22s ease-in-out infinite alternate;
+.hero-blob--peach {
+  width: 32rem;
+  height: 32rem;
+  bottom: -14rem;
+  left: -6rem;
+  background: radial-gradient(circle at 60% 40%, #e7a38b, transparent 65%);
+  opacity: 0.22;
+  animation: blob-drift-b 24s ease-in-out infinite alternate;
 }
 
-.hero-blob--cyan {
-  width: 28rem;
-  height: 28rem;
-  top: 30%;
-  left: 34%;
-  background: radial-gradient(circle at 50% 50%, #2dd4bf, transparent 65%);
-  opacity: 0.32;
-  animation: blob-drift-c 30s ease-in-out infinite alternate;
+.hero-blob--sun {
+  width: 24rem;
+  height: 24rem;
+  top: 34%;
+  left: 46%;
+  background: radial-gradient(circle at 50% 50%, #f8d47a, transparent 65%);
+  opacity: 0.1;
+  animation: blob-drift-c 32s ease-in-out infinite alternate;
 }
 
 .hero-grid {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, black 30%, transparent 75%);
+  background-image: radial-gradient(circle, rgb(102 118 113 / 0.5) 1.5px, transparent 1.5px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(ellipse 75% 85% at 78% 40%, black 20%, transparent 72%);
 }
 
 @keyframes blob-drift-a {
@@ -183,7 +200,7 @@ body {
     transform: translate3d(0, 0, 0) scale(1);
   }
   to {
-    transform: translate3d(-8rem, 6rem, 0) scale(1.15);
+    transform: translate3d(-7rem, 5rem, 0) scale(1.12);
   }
 }
 
@@ -192,34 +209,46 @@ body {
     transform: translate3d(0, 0, 0) scale(1);
   }
   to {
-    transform: translate3d(9rem, -5rem, 0) scale(0.9);
+    transform: translate3d(8rem, -4rem, 0) scale(0.92);
   }
 }
 
 @keyframes blob-drift-c {
   from {
-    transform: translate3d(-3rem, 2rem, 0) rotate(0deg);
+    transform: translate3d(-2rem, 2rem, 0);
   }
   to {
-    transform: translate3d(4rem, -4rem, 0) rotate(40deg);
+    transform: translate3d(3rem, -4rem, 0);
   }
 }
 
-/* Floating hero chips */
-.float-slow {
-  animation: float-y 7s ease-in-out infinite;
-}
-.float-slower {
-  animation: float-y 9s ease-in-out infinite reverse;
+/* ---------- Partner marquee ---------- */
+.marquee {
+  display: flex;
+  overflow: hidden;
+  user-select: none;
+  gap: 0;
+  mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
 }
 
-@keyframes float-y {
-  0%,
-  100% {
-    transform: translateY(0);
+.marquee-track {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-width: 100%;
+  animation: marquee-scroll 36s linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
   }
-  50% {
-    transform: translateY(-14px);
+  to {
+    transform: translateX(-100%);
   }
 }
 
@@ -241,8 +270,7 @@ body {
     scroll-behavior: auto;
   }
   .hero-blob,
-  .float-slow,
-  .float-slower {
+  .marquee-track {
     animation: none !important;
   }
   .reveal {
@@ -260,23 +288,23 @@ body {
 
 /* Prose defaults for markdown bodies */
 .prose-service h2 {
-  @apply mt-10 mb-4 font-display text-2xl font-bold text-ink-900;
+  @apply mt-10 mb-4 font-display text-2xl font-bold tracking-[-0.02em] text-ink-800;
 }
 .prose-service h3 {
-  @apply mt-8 mb-3 font-display text-xl font-semibold text-ink-900;
+  @apply mt-8 mb-3 font-display text-xl font-semibold text-ink-800;
 }
 .prose-service p {
-  @apply mb-4 leading-relaxed text-ink-700;
+  @apply mb-4 leading-relaxed text-ink-600;
 }
 .prose-service ul {
-  @apply mb-6 list-disc space-y-2 pl-6 text-ink-700;
+  @apply mb-6 list-disc space-y-2 pl-6 text-ink-600;
 }
 .prose-service strong {
-  @apply font-semibold text-ink-900;
+  @apply font-semibold text-ink-800;
 }
 .prose-service a {
-  @apply font-medium text-pulse-600 underline decoration-pulse-300 underline-offset-2;
+  @apply font-medium text-pulse-600 underline decoration-coral-400 underline-offset-2;
 }
 .prose-service a:hover {
-  @apply text-pulse-700 decoration-pulse-500;
+  @apply text-pulse-800 decoration-coral-600;
 }

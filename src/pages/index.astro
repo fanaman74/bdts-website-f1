@@ -5,6 +5,7 @@ import Hero from '../components/Hero.astro';
 import ServiceCard from '../components/ServiceCard.astro';
 import NewsCard from '../components/NewsCard.astro';
 import ClientPortalBlock from '../components/ClientPortalBlock.astro';
+import PartnerMarquee from '../components/PartnerMarquee.astro';
 import ContactCTA from '../components/ContactCTA.astro';
 import { t } from '../i18n/fr';
 
@@ -29,6 +30,8 @@ const accents = ['pulse', 'coral', 'mint'] as const;
 
 <BaseLayout title={t.site.name} description={t.site.description}>
   <Hero />
+
+  <PartnerMarquee />
 
   <!-- Featured categories -->
   <section class="container-site py-16 sm:py-20" aria-labelledby="featured-title">
