@@ -1,0 +1,115 @@
+---
+import { t } from '../i18n/fr';
+
+interface Props {
+  formType: 'contact' | 'devis' | 'declaration';
+  messageLabel?: string;
+  messagePlaceholder?: string;
+}
+
+const { formType, messageLabel = t.forms.message, messagePlaceholder = '' } = Astro.props;
+
+const inputClass =
+  'w-full rounded-xl border-0 bg-white px-4 py-3 text-sm text-ink-900 ring-1 ring-ink-200 placeholder:text-ink-400 focus:ring-2 focus:ring-pulse-500';
+---
+
+<form class="inquiry-form space-y-5" method="POST" action="/api/contact" novalidate data-form-type={formType}>
+  <input type="hidden" name="formType" value={formType} />
+  <!-- Honeypot: hidden from humans, bots fill it -->
+  <div class="absolute -left-[9999px]" aria-hidden="true">
+    <label>
+      Ne pas remplir ce champ
+      <input type="text" name="website" tabindex="-1" autocomplete="off" />
+    </label>
+  </div>
+
+  <div class="grid gap-5 sm:grid-cols-2">
+    <div>
+      <label for={`${formType}-name`} class="mb-1.5 block text-sm font-semibold text-ink-800">{t.forms.name} *</label>
+      <input id={`${formType}-name`} name="name" type="text" required autocomplete="name" class={inputClass} />
+    </div>
+    <div>
+      <label for={`${formType}-email`} class="mb-1.5 block text-sm font-semibold text-ink-800">{t.forms.email} *</label>
+      <input id={`${formType}-email`} name="email" type="email" required autocomplete="email" class={inputClass} />
+    </div>
+  </div>
+
+  <div>
+    <label for={`${formType}-phone`} class="mb-1.5 block text-sm font-semibold text-ink-800">{t.forms.phone} *</label>
+    <input id={`${formType}-phone`} name="phone" type="tel" required autocomplete="tel" class={inputClass} />
+  </div>
+
+  <div>
+    <label for={`${formType}-message`} class="mb-1.5 block text-sm font-semibold text-ink-800">{messageLabel} *</label>
+    <textarea
+      id={`${formType}-message`}
+      name="message"
+      rows={5}
+      required
+      placeholder={messagePlaceholder}
+      class={inputClass}></textarea>
+  </div>
+
+  <div class="flex items-start gap-3">
+    <input
+      id={`${formType}-consent`}
+      name="consent"
+      type="checkbox"
+      required
+      class="mt-0.5 h-5 w-5 rounded border-ink-300 text-pulse-600 focus:ring-pulse-500"
+    />
+    <label for={`${formType}-consent`} class="text-sm leading-relaxed text-ink-600">
+      {t.forms.consent}
+      <a href="/vie-privee" class="font-medium text-pulse-600 underline underline-offset-2">Politique de confidentialité</a>
+    </label>
+  </div>
+
+  <button type="submit" class="btn-primary w-full sm:w-auto" data-submit>
+    <span data-label>{t.forms.submit}</span>
+  </button>
+
+  <p class="hidden rounded-xl bg-mint-100 p-4 text-sm font-medium text-mint-700" data-status="success" role="status">
+    {t.forms.success}
+  </p>
+  <p class="hidden rounded-xl bg-coral-50 p-4 text-sm font-medium text-coral-800" data-status="error" role="alert">
+    {t.forms.error}
+  </p>
+</form>
+
+<script>
+  document.querySelectorAll<HTMLFormElement>('.inquiry-form').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector<HTMLButtonElement>('[data-submit]')!;
+      const label = btn.querySelector('[data-label]')!;
+      const success = form.querySelector('[data-status="success"]')!;
+      const error = form.querySelector('[data-status="error"]')!;
+      success.classList.add('hidden');
+      error.classList.add('hidden');
+
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      btn.disabled = true;
+      label.textContent = 'Envoi en cours…';
+
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.fromEntries(new FormData(form)))
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        form.reset();
+        success.classList.remove('hidden');
+      } catch {
+        error.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        label.textContent = 'Envoyer';
+      }
+    });
+  });
+</script>

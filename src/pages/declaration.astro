@@ -1,0 +1,51 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import InquiryForm from '../components/InquiryForm.astro';
+---
+
+<BaseLayout
+  title="Déclarer un sinistre"
+  description="Déclarez votre sinistre en ligne : nous gérons le dossier auprès de la compagnie et défendons vos intérêts."
+>
+  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
+    <div class="absolute -top-32 right-1/4 h-80 w-80 rounded-full bg-coral-500/30 blur-[100px]" aria-hidden="true"></div>
+    <div class="container-site relative py-16 sm:py-20">
+      <p class="eyebrow text-coral-300">Sinistre</p>
+      <h1 class="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">Déclarer un sinistre</h1>
+      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">
+        Décrivez ce qui s'est passé : nous ouvrons le dossier, contactons la compagnie et suivons l'indemnisation pour
+        vous.
+      </p>
+    </div>
+  </div>
+
+  <div class="container-site grid gap-12 py-14 lg:grid-cols-[1fr_340px]">
+    <section aria-label="Formulaire de déclaration" class="card p-6 sm:p-8">
+      <InquiryForm
+        formType="declaration"
+        messageLabel="Description du sinistre"
+        messagePlaceholder="Date, lieu, circonstances, dégâts constatés, éventuels tiers impliqués…"
+      />
+    </section>
+
+    <aside class="space-y-6">
+      <div class="card p-6">
+        <p class="eyebrow text-coral-600">Les bons réflexes</p>
+        <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-ink-700">
+          <li>Mettez les personnes en sécurité avant toute chose.</li>
+          <li>Photographiez les dégâts avant de nettoyer ou réparer.</li>
+          <li>En cas d'accident auto : remplissez le constat amiable, même sans accord.</li>
+          <li>Vol ou vandalisme : déposez plainte à la police dans les 24 h.</li>
+          <li>Conservez les factures des biens endommagés.</li>
+        </ul>
+      </div>
+      <div class="card p-6">
+        <p class="eyebrow text-pulse-600">Documents utiles</p>
+        <p class="mt-2 text-sm leading-relaxed text-ink-600">
+          Constat amiable, formulaires de déclaration par compagnie : tout se trouve dans notre bibliothèque.
+        </p>
+        <a href="/documents" class="btn-ghost mt-4 w-full !py-2.5 text-xs">Voir les documents</a>
+      </div>
+    </aside>
+  </div>
+</BaseLayout>

@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import InquiryForm from '../components/InquiryForm.astro';
+
+const steps = [
+  ['1', 'Vous décrivez votre besoin', 'Auto, habitation, pension… quelques lignes suffisent pour démarrer.'],
+  ['2', 'Nous comparons pour vous', 'Nos compagnies partenaires sont mises en concurrence sur les garanties et le prix.'],
+  ['3', 'Vous choisissez en connaissance de cause', 'Une proposition claire, expliquée, sans jargon ni engagement.']
+];
+---
+
+<BaseLayout
+  title="Demander un devis"
+  description="Demandez un devis d'assurance gratuit et sans engagement : auto, habitation, famille, pension, entreprise."
+>
+  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
+    <div class="absolute -top-32 left-10 h-80 w-80 rounded-full bg-coral-500/25 blur-[100px]" aria-hidden="true"></div>
+    <div class="container-site relative py-16 sm:py-20">
+      <p class="eyebrow text-coral-300">Devis gratuit</p>
+      <h1 class="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">Demander un devis</h1>
+      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">
+        Gratuit, sans engagement, et comparé pour vous parmi une quinzaine de compagnies. Réponse sous un jour ouvrable.
+      </p>
+    </div>
+  </div>
+
+  <div class="container-site grid gap-12 py-14 lg:grid-cols-[1fr_340px]">
+    <section aria-label="Formulaire de devis" class="card p-6 sm:p-8">
+      <InquiryForm
+        formType="devis"
+        messageLabel="Votre besoin"
+        messagePlaceholder="Ex. : omnium pour une Golf 2024, 28 ans, bonus-malus 3, usage privé + trajets domicile-travail…"
+      />
+    </section>
+
+    <aside>
+      <ol class="space-y-5">
+        {
+          steps.map(([n, title, body]) => (
+            <li class="card flex gap-4 p-5">
+              <span
+                class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-pulse-500 to-coral-500 font-display font-bold text-white"
+                aria-hidden="true"
+              >
+                {n}
+              </span>
+              <div>
+                <p class="font-display font-semibold text-ink-900">{title}</p>
+                <p class="mt-1 text-sm leading-relaxed text-ink-600">{body}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </aside>
+  </div>
+</BaseLayout>

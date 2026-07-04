@@ -1,0 +1,62 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import InquiryForm from '../components/InquiryForm.astro';
+---
+
+<BaseLayout
+  title="Contact"
+  description="Contactez Meridian Courtage : conseils en assurances, devis et gestion de contrats à Bruxelles."
+>
+  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
+    <div class="absolute -top-32 right-10 h-80 w-80 rounded-full bg-pulse-600/30 blur-[100px]" aria-hidden="true"></div>
+    <div class="container-site relative py-16 sm:py-20">
+      <p class="eyebrow text-pulse-300">Contact</p>
+      <h1 class="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">Parlons de vos assurances</h1>
+      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">
+        Une question, un conseil, un contrat à revoir ? Écrivez-nous ou passez au bureau — on vous répond vite, et en
+        français clair.
+      </p>
+    </div>
+  </div>
+
+  <div class="container-site grid gap-12 py-14 lg:grid-cols-[1fr_340px]">
+    <section aria-label="Formulaire de contact" class="card p-6 sm:p-8">
+      <InquiryForm formType="contact" messagePlaceholder="Décrivez votre question ou votre situation…" />
+    </section>
+
+    <aside class="space-y-6">
+      <div class="card p-6">
+        <p class="eyebrow text-pulse-600">Coordonnées</p>
+        <ul class="mt-3 space-y-3 text-sm text-ink-700">
+          <li class="flex gap-3">
+            <span aria-hidden="true">📍</span>
+            <span>Avenue des Arts 12<br />1000 Bruxelles</span>
+          </li>
+          <li class="flex gap-3">
+            <span aria-hidden="true">📞</span>
+            <a href="tel:+3221234567" class="hover:text-pulse-700">+32 2 123 45 67</a>
+          </li>
+          <li class="flex gap-3">
+            <span aria-hidden="true">✉️</span>
+            <a href="mailto:info@meridian-courtage.be" class="hover:text-pulse-700">info@meridian-courtage.be</a>
+          </li>
+        </ul>
+      </div>
+      <div class="card p-6">
+        <p class="eyebrow text-coral-600">Horaires</p>
+        <dl class="mt-3 space-y-1.5 text-sm text-ink-700">
+          <div class="flex justify-between"><dt>Lundi – jeudi</dt><dd>8h30 – 17h30</dd></div>
+          <div class="flex justify-between"><dt>Vendredi</dt><dd>8h30 – 16h00</dd></div>
+          <div class="flex justify-between"><dt>Samedi</dt><dd>Sur rendez-vous</dd></div>
+        </dl>
+      </div>
+      <div class="card p-6">
+        <p class="eyebrow text-mint-700">Urgence sinistre</p>
+        <p class="mt-2 text-sm leading-relaxed text-ink-600">
+          Un sinistre ne prévient pas. Déclarez-le en ligne, nous prenons le relais dès l'ouverture du bureau.
+        </p>
+        <a href="/declaration" class="btn-ghost mt-4 w-full !py-2.5 text-xs">Déclarer un sinistre</a>
+      </div>
+    </aside>
+  </div>
+</BaseLayout>

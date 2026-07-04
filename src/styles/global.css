@@ -1,0 +1,282 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/space-grotesk';
+
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk Variable', 'Inter Variable', ui-sans-serif, sans-serif;
+
+  /* Ink navy base */
+  --color-ink-50: #f3f5fb;
+  --color-ink-100: #e4e8f4;
+  --color-ink-200: #c5cde6;
+  --color-ink-300: #97a4cf;
+  --color-ink-400: #6375b3;
+  --color-ink-500: #405397;
+  --color-ink-600: #2e3d7c;
+  --color-ink-700: #253063;
+  --color-ink-800: #1b2249;
+  --color-ink-900: #131734;
+  --color-ink-950: #0a0d21;
+
+  /* Vivid indigo→violet accent */
+  --color-pulse-50: #f0f1ff;
+  --color-pulse-100: #e2e4ff;
+  --color-pulse-200: #cacdff;
+  --color-pulse-300: #a5a8ff;
+  --color-pulse-400: #7e7bff;
+  --color-pulse-500: #6555fb;
+  --color-pulse-600: #5636f0;
+  --color-pulse-700: #4a2ad4;
+  --color-pulse-800: #3d25ab;
+  --color-pulse-900: #342487;
+
+  /* Coral energy accent */
+  --color-coral-50: #fff2ee;
+  --color-coral-100: #ffe3da;
+  --color-coral-200: #ffc3b3;
+  --color-coral-300: #ff9a80;
+  --color-coral-400: #ff6a45;
+  --color-coral-500: #fc4a1c;
+  --color-coral-600: #ea3510;
+  --color-coral-700: #c2270e;
+  --color-coral-800: #9a2213;
+  --color-coral-900: #7c2013;
+
+  /* Fresh mint for positive badges */
+  --color-mint-100: #d8fbee;
+  --color-mint-300: #7fedc5;
+  --color-mint-500: #1fc98d;
+  --color-mint-700: #0e8f61;
+
+  --shadow-card: 0 1px 2px rgb(19 23 52 / 0.06), 0 8px 24px -8px rgb(19 23 52 / 0.14);
+  --shadow-card-hover: 0 2px 4px rgb(19 23 52 / 0.08), 0 20px 40px -12px rgb(86 54 240 / 0.28);
+}
+
+/* ---------- Base ---------- */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-white font-sans text-ink-900 antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-pulse-200);
+  color: var(--color-ink-950);
+}
+
+/* Visible focus for keyboard users */
+:focus-visible {
+  outline: 3px solid var(--color-pulse-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- Reusable primitives ---------- */
+.container-site {
+  @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-display text-sm font-semibold tracking-wide transition-all duration-200;
+}
+
+.btn-primary {
+  @apply btn bg-coral-500 text-white shadow-lg shadow-coral-500/30;
+}
+.btn-primary:hover {
+  @apply -translate-y-0.5 bg-coral-600 shadow-xl shadow-coral-500/40;
+}
+
+.btn-secondary {
+  @apply btn bg-white/10 text-white ring-1 ring-white/30 backdrop-blur-sm;
+}
+.btn-secondary:hover {
+  @apply bg-white/20 ring-white/50;
+}
+
+.btn-ghost {
+  @apply btn text-ink-800 ring-1 ring-ink-200;
+}
+.btn-ghost:hover {
+  @apply bg-ink-50 ring-ink-300;
+}
+
+.card {
+  @apply rounded-2xl bg-white shadow-[var(--shadow-card)] ring-1 ring-ink-100 transition-all duration-300;
+}
+.card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-3px);
+}
+
+.eyebrow {
+  @apply font-display text-xs font-bold tracking-[0.2em] uppercase;
+}
+
+.section-title {
+  @apply font-display text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl;
+}
+
+/* ---------- Animated hero background ---------- */
+.hero-mesh {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 80% -10%, #342487 0%, transparent 55%),
+    linear-gradient(160deg, #0a0d21 0%, #131734 45%, #1b2249 100%);
+}
+
+.hero-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.hero-blob--violet {
+  width: 44rem;
+  height: 44rem;
+  top: -14rem;
+  right: -10rem;
+  background: radial-gradient(circle at 30% 30%, #6555fb, transparent 65%);
+  animation: blob-drift-a 26s ease-in-out infinite alternate;
+}
+
+.hero-blob--coral {
+  width: 34rem;
+  height: 34rem;
+  bottom: -12rem;
+  left: -8rem;
+  background: radial-gradient(circle at 60% 40%, #fc4a1c, transparent 65%);
+  animation: blob-drift-b 22s ease-in-out infinite alternate;
+}
+
+.hero-blob--cyan {
+  width: 28rem;
+  height: 28rem;
+  top: 30%;
+  left: 34%;
+  background: radial-gradient(circle at 50% 50%, #2dd4bf, transparent 65%);
+  opacity: 0.32;
+  animation: blob-drift-c 30s ease-in-out infinite alternate;
+}
+
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, black 30%, transparent 75%);
+}
+
+@keyframes blob-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-8rem, 6rem, 0) scale(1.15);
+  }
+}
+
+@keyframes blob-drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(9rem, -5rem, 0) scale(0.9);
+  }
+}
+
+@keyframes blob-drift-c {
+  from {
+    transform: translate3d(-3rem, 2rem, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(4rem, -4rem, 0) rotate(40deg);
+  }
+}
+
+/* Floating hero chips */
+.float-slow {
+  animation: float-y 7s ease-in-out infinite;
+}
+.float-slower {
+  animation: float-y 9s ease-in-out infinite reverse;
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+/* Scroll reveal (progressive enhancement, JS adds .revealed) */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease;
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .hero-blob,
+  .float-slow,
+  .float-slower {
+    animation: none !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Prose defaults for markdown bodies */
+.prose-service h2 {
+  @apply mt-10 mb-4 font-display text-2xl font-bold text-ink-900;
+}
+.prose-service h3 {
+  @apply mt-8 mb-3 font-display text-xl font-semibold text-ink-900;
+}
+.prose-service p {
+  @apply mb-4 leading-relaxed text-ink-700;
+}
+.prose-service ul {
+  @apply mb-6 list-disc space-y-2 pl-6 text-ink-700;
+}
+.prose-service strong {
+  @apply font-semibold text-ink-900;
+}
+.prose-service a {
+  @apply font-medium text-pulse-600 underline decoration-pulse-300 underline-offset-2;
+}
+.prose-service a:hover {
+  @apply text-pulse-700 decoration-pulse-500;
+}

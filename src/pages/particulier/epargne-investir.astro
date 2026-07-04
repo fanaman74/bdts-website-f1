@@ -1,0 +1,9 @@
+---
+import { getEntry } from 'astro:content';
+import ServiceLayout from '../../layouts/ServiceLayout.astro';
+
+const service = await getEntry('services', 'particulier/epargne-investir');
+if (!service) throw new Error('Service épargne-investir introuvable');
+---
+
+<ServiceLayout service={service} />

@@ -1,0 +1,87 @@
+---
+import { mainNav, topNav } from '../data/navigation';
+import { t } from '../i18n/fr';
+
+const year = new Date().getFullYear();
+const legalLinks = [
+  { label: 'Mentions légales', href: '/mentions-legales' },
+  { label: 'Vie privée', href: '/vie-privee' },
+  { label: 'Cookies', href: '/cookies' },
+  { label: 'Durabilité', href: '/durabilite' },
+  { label: 'Protection du client', href: '/protection-du-client' }
+];
+---
+
+<footer class="bg-ink-950 text-ink-200">
+  <div class="container-site grid gap-10 py-14 md:grid-cols-4">
+    <div class="md:col-span-1">
+      <p class="font-display text-xl font-bold text-white">
+        Meridian<span class="text-coral-400">.</span>
+      </p>
+      <p class="mt-3 text-sm leading-relaxed text-ink-300">{t.site.tagline}</p>
+      <address class="mt-4 text-sm not-italic leading-relaxed text-ink-300">
+        Avenue des Arts 12, 1000 Bruxelles<br />
+        <a href="tel:+3221234567" class="hover:text-white">+32 2 123 45 67</a><br />
+        <a href="mailto:info@meridian-courtage.be" class="hover:text-white">info@meridian-courtage.be</a>
+      </address>
+    </div>
+
+    {
+      mainNav
+        .filter((s) => s.slug !== 'autres')
+        .map((section) => (
+          <nav aria-label={`Liens ${section.label}`}>
+            <p class="eyebrow mb-3 text-pulse-300">{section.label}</p>
+            <ul class="space-y-2 text-sm">
+              {section.groups.slice(0, 6).map((group) => (
+                <li>
+                  <a href={group.items[0]!.href} class="text-ink-300 transition hover:text-white">
+                    {group.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))
+    }
+
+    <nav aria-label="Liens pratiques">
+      <p class="eyebrow mb-3 text-pulse-300">Pratique</p>
+      <ul class="space-y-2 text-sm">
+        {
+          topNav.map((item) => (
+            <li>
+              <a href={item.href} class="text-ink-300 transition hover:text-white">
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+        <li><a href="/contact" class="text-ink-300 transition hover:text-white">Contact</a></li>
+        <li><a href="/declaration" class="text-ink-300 transition hover:text-white">Déclarer un sinistre</a></li>
+        <li><a href="/devis" class="text-ink-300 transition hover:text-white">Demander un devis</a></li>
+      </ul>
+    </nav>
+  </div>
+
+  <div class="border-t border-white/10">
+    <div class="container-site space-y-4 py-6">
+      <p class="max-w-4xl text-xs leading-relaxed text-ink-400">{t.footer.disclaimer}</p>
+      <p class="text-xs text-ink-400">{t.footer.fsma}</p>
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <p class="text-xs text-ink-400">© {year} {t.site.name}. Tous droits réservés.</p>
+        <ul class="flex flex-wrap gap-x-5 gap-y-2 text-xs">
+          {
+            legalLinks.map((link) => (
+              <li>
+                <a href={link.href} class="text-ink-400 transition hover:text-white">
+                  {link.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </div>
+  </div>
+</footer>

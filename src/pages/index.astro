@@ -1,0 +1,140 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import ServiceCard from '../components/ServiceCard.astro';
+import NewsCard from '../components/NewsCard.astro';
+import ClientPortalBlock from '../components/ClientPortalBlock.astro';
+import ContactCTA from '../components/ContactCTA.astro';
+import { t } from '../i18n/fr';
+
+const services = await getCollection('services');
+const featured = services
+  .filter((s) => s.data.featured)
+  .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
+
+const particulier = services
+  .filter((s) => s.data.audience === 'particulier')
+  .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
+const professionnel = services
+  .filter((s) => s.data.audience === 'professionnel')
+  .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
+
+const news = (await getCollection('news'))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 3);
+
+const accents = ['pulse', 'coral', 'mint'] as const;
+---
+
+<BaseLayout title={t.site.name} description={t.site.description}>
+  <Hero />
+
+  <!-- Featured categories -->
+  <section class="container-site py-16 sm:py-20" aria-labelledby="featured-title">
+    <div class="reveal max-w-2xl">
+      <p class="eyebrow text-coral-600">Nos solutions</p>
+      <h2 id="featured-title" class="section-title mt-2">
+        Une couverture pour chaque moment qui compte
+      </h2>
+      <p class="mt-4 leading-relaxed text-ink-600">
+        Mobilité, habitation, famille, santé, épargne ou entreprise : nous comparons les offres de nos compagnies
+        partenaires pour construire la vôtre.
+      </p>
+    </div>
+    <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        featured.map((s, i) => (
+          <div class="reveal" style={`transition-delay: ${(i % 3) * 90}ms`}>
+            <ServiceCard
+              title={s.data.title}
+              summary={s.data.summary}
+              href={`/${s.id}`}
+              icon={s.data.icon}
+              accent={accents[i % 3]}
+            />
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <!-- Particulier -->
+  <section class="bg-ink-50 py-16 sm:py-20" aria-labelledby="particulier-title">
+    <div class="container-site">
+      <div class="reveal flex flex-wrap items-end justify-between gap-4">
+        <div class="max-w-2xl">
+          <p class="eyebrow text-pulse-600">Particulier</p>
+          <h2 id="particulier-title" class="section-title mt-2">Protéger ce qui vous est cher</h2>
+        </div>
+        <a href="/particulier/mobilite/auto" class="btn-ghost text-xs">Toutes les solutions particuliers</a>
+      </div>
+      <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {
+          particulier.slice(0, 8).map((s) => (
+            <div class="reveal">
+              <ServiceCard title={s.data.title} summary={s.data.summary} href={`/${s.id}`} icon={s.data.icon} />
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Professionnel -->
+  <section class="container-site py-16 sm:py-20" aria-labelledby="pro-title">
+    <div class="reveal flex flex-wrap items-end justify-between gap-4">
+      <div class="max-w-2xl">
+        <p class="eyebrow text-coral-600">Professionnel</p>
+        <h2 id="pro-title" class="section-title mt-2">Votre activité, couverte sous tous les angles</h2>
+      </div>
+      <a href="/professionnel/entreprise/responsabilite" class="btn-ghost text-xs">Toutes les solutions pro</a>
+    </div>
+    <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {
+        professionnel.slice(0, 8).map((s) => (
+          <div class="reveal">
+            <ServiceCard title={s.data.title} summary={s.data.summary} href={`/${s.id}`} icon={s.data.icon} accent="coral" />
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <!-- News -->
+  <section class="bg-ink-50 py-16 sm:py-20" aria-labelledby="news-title">
+    <div class="container-site">
+      <div class="reveal flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p class="eyebrow text-pulse-600">{t.nav.news}</p>
+          <h2 id="news-title" class="section-title mt-2">Dernières actualités</h2>
+        </div>
+        <a href="/actualites" class="btn-ghost text-xs">Toutes les actualités</a>
+      </div>
+      <div class="mt-10 grid gap-6 md:grid-cols-3">
+        {
+          news.map((article) => (
+            <div class="reveal">
+              <NewsCard
+                title={article.data.title}
+                summary={article.data.summary}
+                date={article.data.date}
+                tags={article.data.tags}
+                href={`/actualites/${article.id}`}
+              />
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Client portals -->
+  <section class="container-site py-16 sm:py-20">
+    <div class="reveal">
+      <ClientPortalBlock />
+    </div>
+  </section>
+
+  <ContactCTA />
+</BaseLayout>

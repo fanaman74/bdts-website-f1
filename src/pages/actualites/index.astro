@@ -1,0 +1,39 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import NewsCard from '../../components/NewsCard.astro';
+import ContactCTA from '../../components/ContactCTA.astro';
+
+const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<BaseLayout title="Actualités" description="Conseils, changements légaux et nouveautés du bureau : les actualités de Meridian Courtage.">
+  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
+    <div class="absolute -top-32 left-1/4 h-80 w-80 rounded-full bg-pulse-600/30 blur-[100px]" aria-hidden="true"></div>
+    <div class="container-site relative py-16 sm:py-20">
+      <p class="eyebrow text-pulse-300">Le blog</p>
+      <h1 class="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">Actualités</h1>
+      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">
+        Conseils pratiques, évolutions légales et nouveautés du bureau — sans jargon.
+      </p>
+    </div>
+  </div>
+
+  <section class="container-site py-14">
+    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {
+        news.map((article) => (
+          <NewsCard
+            title={article.data.title}
+            summary={article.data.summary}
+            date={article.data.date}
+            tags={article.data.tags}
+            href={`/actualites/${article.id}`}
+          />
+        ))
+      }
+    </div>
+  </section>
+
+  <ContactCTA />
+</BaseLayout>

@@ -1,0 +1,111 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { render, getCollection } from 'astro:content';
+import BaseLayout from './BaseLayout.astro';
+import ServiceCard from '../components/ServiceCard.astro';
+import ContactCTA from '../components/ContactCTA.astro';
+
+interface Props {
+  service: CollectionEntry<'services'>;
+}
+
+const { service } = Astro.props;
+const { Content } = await render(service);
+
+const related = (await getCollection('services'))
+  .filter(
+    (s) =>
+      s.id !== service.id &&
+      s.data.audience === service.data.audience &&
+      s.data.category === service.data.category
+  )
+  .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99))
+  .slice(0, 3);
+
+const audienceLabel = service.data.audience === 'particulier' ? 'Particulier' : 'Professionnel';
+---
+
+<BaseLayout title={service.data.title} description={service.data.summary}>
+  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
+    <div
+      class="absolute -top-32 right-0 h-96 w-96 rounded-full bg-pulse-600/30 blur-[100px]"
+      aria-hidden="true"
+    >
+    </div>
+    <div class="container-site relative py-16 sm:py-20">
+      <nav aria-label="Fil d'Ariane" class="mb-6 text-sm text-ink-300">
+        <ol class="flex flex-wrap items-center gap-2">
+          <li><a href="/" class="hover:text-white">Accueil</a></li>
+          <li aria-hidden="true">/</li>
+          <li>{audienceLabel}</li>
+          <li aria-hidden="true">/</li>
+          <li aria-current="page" class="font-medium text-white">{service.data.title}</li>
+        </ol>
+      </nav>
+      <div class="flex items-start gap-5">
+        {
+          service.data.icon && (
+            <span class="hidden h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/10 text-3xl ring-1 ring-white/20 sm:grid" aria-hidden="true">
+              {service.data.icon}
+            </span>
+          )
+        }
+        <div>
+          <h1 class="font-display text-3xl font-bold tracking-tight sm:text-5xl">{service.data.title}</h1>
+          <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">{service.data.summary}</p>
+        </div>
+      </div>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="/devis" class="btn-primary">Demander un devis</a>
+        <a href="/contact" class="btn-secondary">Poser une question</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-site grid gap-12 py-14 lg:grid-cols-[1fr_320px]">
+    <article class="prose-service max-w-none">
+      <Content />
+    </article>
+
+    <aside class="space-y-6 lg:pt-2">
+      <div class="card p-6">
+        <p class="eyebrow text-pulse-600">Besoin d'aide ?</p>
+        <p class="mt-2 text-sm leading-relaxed text-ink-600">
+          Nos conseillers comparent les offres de nos compagnies partenaires et vous proposent la couverture la plus
+          adaptée.
+        </p>
+        <a href="/contact" class="btn-primary mt-4 w-full !py-2.5 text-xs">Nous contacter</a>
+        <a href="tel:+3221234567" class="btn-ghost mt-2 w-full !py-2.5 text-xs">+32 2 123 45 67</a>
+      </div>
+      <div class="card p-6">
+        <p class="eyebrow text-coral-600">Un sinistre ?</p>
+        <p class="mt-2 text-sm leading-relaxed text-ink-600">
+          Déclarez votre sinistre en ligne — nous prenons le relais auprès de la compagnie.
+        </p>
+        <a href="/declaration" class="btn-ghost mt-4 w-full !py-2.5 text-xs">Déclarer un sinistre</a>
+      </div>
+    </aside>
+  </div>
+
+  {
+    related.length > 0 && (
+      <section class="bg-ink-50 py-14">
+        <div class="container-site">
+          <h2 class="section-title">À découvrir aussi</h2>
+          <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {related.map((s) => (
+              <ServiceCard
+                title={s.data.title}
+                summary={s.data.summary}
+                href={`/${s.id.replace(/\.md$/, '')}`}
+                icon={s.data.icon}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <ContactCTA />
+</BaseLayout>

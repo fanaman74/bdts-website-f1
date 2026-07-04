@@ -1,0 +1,79 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DocumentsFilter from '../components/DocumentsFilter.tsx';
+import type { DocumentItem } from '../components/DocumentsFilter.tsx';
+import DocumentCard from '../components/DocumentCard.astro';
+import ClientPortalBlock from '../components/ClientPortalBlock.astro';
+import ContactCTA from '../components/ContactCTA.astro';
+import { t } from '../i18n/fr';
+
+const entries = await getCollection('documents');
+
+const documents: DocumentItem[] = entries.map((e) => ({
+  id: e.id,
+  title: e.data.title,
+  partner: e.data.partner,
+  audience: e.data.audience,
+  category: e.data.category,
+  productType: e.data.productType,
+  documentType: e.data.documentType,
+  language: e.data.language,
+  fileUrl: e.data.fileUrl,
+  externalUrl: e.data.externalUrl,
+  source: e.data.source,
+  lastUpdated: e.data.lastUpdated?.toISOString().slice(0, 10),
+  description: e.data.description,
+  tags: e.data.tags
+}));
+---
+
+<BaseLayout title={t.documents.title} description={t.documents.intro}>
+  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
+    <div class="absolute -top-40 left-1/3 h-96 w-96 rounded-full bg-pulse-600/30 blur-[110px]" aria-hidden="true"></div>
+    <div class="absolute -right-20 -bottom-20 h-72 w-72 rounded-full bg-coral-500/20 blur-[90px]" aria-hidden="true"></div>
+    <div class="container-site relative py-16 sm:py-20">
+      <p class="eyebrow text-pulse-300">Bibliothèque</p>
+      <h1 class="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">{t.documents.title}</h1>
+      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">{t.documents.intro}</p>
+    </div>
+  </div>
+
+  <section class="bg-ink-50/60 py-10 sm:py-14" aria-label="Recherche de documents">
+    <div class="container-site">
+      <DocumentsFilter documents={documents} client:load />
+      <noscript>
+        <p class="mb-6 rounded-xl bg-coral-50 p-4 text-sm text-coral-800">
+          La recherche interactive nécessite JavaScript. Voici la liste complète des documents :
+        </p>
+        <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {
+            entries.map((e) => (
+              <DocumentCard
+                title={e.data.title}
+                partner={e.data.partner}
+                category={e.data.category}
+                documentType={e.data.documentType}
+                language={e.data.language}
+                lastUpdated={e.data.lastUpdated}
+                description={e.data.description}
+                fileUrl={e.data.fileUrl}
+                externalUrl={e.data.externalUrl}
+                source={e.data.source}
+              />
+            ))
+          }
+        </div>
+      </noscript>
+    </div>
+  </section>
+
+  <section class="container-site py-14">
+    <ClientPortalBlock />
+  </section>
+
+  <ContactCTA
+    title="Un document introuvable ?"
+    body="Dites-nous ce que vous cherchez : conditions générales, attestation, formulaire… Nous vous l'envoyons rapidement."
+  />
+</BaseLayout>

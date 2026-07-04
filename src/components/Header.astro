@@ -1,0 +1,171 @@
+---
+import { mainNav, topNav } from '../data/navigation';
+import { t } from '../i18n/fr';
+
+const current = Astro.url.pathname;
+---
+
+<header class="sticky top-0 z-50 border-b border-white/10 bg-ink-950/90 text-white backdrop-blur-lg">
+  <div class="container-site flex items-center justify-between gap-6 py-3">
+    <a href="/" class="group flex items-center gap-2.5" aria-label={t.site.name}>
+      <span
+        class="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-pulse-500 to-coral-500 font-display text-lg font-bold text-white shadow-lg shadow-pulse-500/30 transition-transform group-hover:rotate-6"
+        aria-hidden="true">M</span
+      >
+      <span class="font-display text-lg font-bold tracking-tight">
+        Meridian<span class="text-coral-400">.</span>
+        <span class="block -mt-1 text-[0.6rem] font-medium tracking-[0.25em] text-ink-300 uppercase">Courtage</span>
+      </span>
+    </a>
+
+    <!-- Desktop nav -->
+    <nav class="hidden items-center gap-1 lg:flex" aria-label="Navigation principale">
+      {
+        mainNav.map((section) => (
+          <div class="group relative">
+            <button
+              type="button"
+              class="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-ink-100 transition hover:bg-white/10 hover:text-white aria-expanded:bg-white/10"
+              aria-expanded="false"
+              aria-haspopup="true"
+              data-menu-trigger={section.slug}
+            >
+              {section.label}
+              <svg class="h-3.5 w-3.5 transition-transform group-focus-within:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div
+              class="invisible absolute left-1/2 z-50 mt-2 w-max max-w-3xl -translate-x-1/2 rounded-2xl bg-white p-6 text-ink-900 opacity-0 shadow-2xl ring-1 ring-ink-100 transition-all duration-200 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100"
+              role="menu"
+              data-menu-panel={section.slug}
+            >
+              <div
+                class:list={[
+                  'grid gap-6',
+                  section.groups.length >= 3 ? 'grid-cols-3' : section.groups.length === 2 ? 'grid-cols-2' : 'grid-cols-1'
+                ]}
+              >
+                {section.groups.map((group) => (
+                  <div class="min-w-36">
+                    <p class="eyebrow mb-2 text-pulse-600">{group.label}</p>
+                    <ul class="space-y-1">
+                      {group.items.map((item) => (
+                        <li>
+                          <a
+                            href={item.href}
+                            role="menuitem"
+                            class:list={[
+                              'block rounded-lg px-2 py-1.5 text-sm transition hover:bg-pulse-50 hover:text-pulse-700',
+                              current === item.href ? 'font-semibold text-pulse-700' : 'text-ink-700'
+                            ]}
+                          >
+                            {item.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))
+      }
+      <span class="mx-2 h-5 w-px bg-white/20" aria-hidden="true"></span>
+      {
+        topNav.map((item) => (
+          <a
+            href={item.href}
+            class:list={[
+              'rounded-full px-3.5 py-2 text-sm font-medium transition hover:bg-white/10 hover:text-white',
+              current.startsWith(item.href) && item.href !== '/' ? 'text-coral-300' : 'text-ink-100'
+            ]}
+          >
+            {item.label}
+          </a>
+        ))
+      }
+      <a href="/contact" class="btn-primary ml-3 !px-5 !py-2 text-xs">{t.nav.contact}</a>
+    </nav>
+
+    <!-- Mobile toggle -->
+    <button
+      id="mobile-toggle"
+      type="button"
+      class="rounded-lg p-2 hover:bg-white/10 lg:hidden"
+      aria-expanded="false"
+      aria-controls="mobile-menu"
+      aria-label={t.nav.menu}
+    >
+      <svg class="h-6 w-6" data-icon="open" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      </svg>
+      <svg class="hidden h-6 w-6" data-icon="close" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile menu -->
+  <div id="mobile-menu" class="hidden max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-white/10 lg:hidden">
+    <nav class="container-site space-y-4 py-6" aria-label="Navigation mobile">
+      {
+        mainNav.map((section) => (
+          <details class="group rounded-xl bg-white/5">
+            <summary class="flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 font-display font-semibold">
+              {section.label}
+              <svg class="h-4 w-4 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+              </svg>
+            </summary>
+            <div class="space-y-3 px-4 pb-4">
+              {section.groups.map((group) => (
+                <div>
+                  <p class="eyebrow mb-1.5 text-pulse-300">{group.label}</p>
+                  <ul class="space-y-1">
+                    {group.items.map((item) => (
+                      <li>
+                        <a href={item.href} class="block rounded-lg px-2 py-1.5 text-sm text-ink-100 hover:bg-white/10">
+                          {item.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </details>
+        ))
+      }
+      <div class="flex flex-wrap gap-2 pt-2">
+        {
+          topNav.map((item) => (
+            <a href={item.href} class="rounded-full bg-white/10 px-4 py-2 text-sm font-medium">
+              {item.label}
+            </a>
+          ))
+        }
+        <a href="/contact" class="btn-primary !py-2 text-xs">{t.nav.contact}</a>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const toggle = document.getElementById('mobile-toggle');
+  const menu = document.getElementById('mobile-menu');
+  toggle?.addEventListener('click', () => {
+    const open = menu?.classList.toggle('hidden') === false;
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.querySelector('[data-icon="open"]')?.classList.toggle('hidden', open);
+    toggle.querySelector('[data-icon="close"]')?.classList.toggle('hidden', !open);
+  });
+
+  // Keyboard support for desktop dropdowns: Escape closes by blurring
+  document.querySelectorAll<HTMLButtonElement>('[data-menu-trigger]').forEach((btn) => {
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') (document.activeElement as HTMLElement)?.blur();
+    });
+  });
+</script>
