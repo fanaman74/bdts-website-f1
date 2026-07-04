@@ -7,6 +7,7 @@ import NewsCard from '../components/NewsCard.astro';
 import ClientPortalBlock from '../components/ClientPortalBlock.astro';
 import PartnerMarquee from '../components/PartnerMarquee.astro';
 import ContactCTA from '../components/ContactCTA.astro';
+import { categoryImage } from '../data/cardImages';
 import { t } from '../i18n/fr';
 
 const services = await getCollection('services');
@@ -54,6 +55,7 @@ const accents = ['pulse', 'coral', 'mint'] as const;
               summary={s.data.summary}
               href={`/${s.id}`}
               icon={s.data.icon}
+              image={s.data.heroImage ?? categoryImage(s.data.category)}
               accent={accents[i % 3]}
             />
           </div>
@@ -76,7 +78,13 @@ const accents = ['pulse', 'coral', 'mint'] as const;
         {
           particulier.slice(0, 8).map((s) => (
             <div class="reveal">
-              <ServiceCard title={s.data.title} summary={s.data.summary} href={`/${s.id}`} icon={s.data.icon} />
+              <ServiceCard
+                title={s.data.title}
+                summary={s.data.summary}
+                href={`/${s.id}`}
+                icon={s.data.icon}
+                image={s.data.heroImage ?? categoryImage(s.data.category)}
+              />
             </div>
           ))
         }
@@ -97,7 +105,14 @@ const accents = ['pulse', 'coral', 'mint'] as const;
       {
         professionnel.slice(0, 8).map((s) => (
           <div class="reveal">
-            <ServiceCard title={s.data.title} summary={s.data.summary} href={`/${s.id}`} icon={s.data.icon} accent="coral" />
+            <ServiceCard
+              title={s.data.title}
+              summary={s.data.summary}
+              href={`/${s.id}`}
+              icon={s.data.icon}
+              image={s.data.heroImage ?? categoryImage(s.data.category)}
+              accent="coral"
+            />
           </div>
         ))
       }
@@ -123,6 +138,7 @@ const accents = ['pulse', 'coral', 'mint'] as const;
                 summary={article.data.summary}
                 date={article.data.date}
                 tags={article.data.tags}
+                image={article.data.image}
                 href={`/actualites/${article.id}`}
               />
             </div>

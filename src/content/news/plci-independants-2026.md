@@ -2,6 +2,7 @@
 title: "Indépendants : avez-vous rempli votre PLCI cette année ?"
 date: 2026-04-08
 summary: "La PLCI reste l'outil fiscal le plus efficace pour un indépendant : déductible, réductrice de cotisations sociales, et transformable en levier immobilier."
+image: "/images/cards/pension.svg"
 tags: ["Pension", "Indépendants"]
 ---
 

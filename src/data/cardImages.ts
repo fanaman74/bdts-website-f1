@@ -1,0 +1,16 @@
+/** Maps a service/news category to its abstract card illustration. */
+const byCategory: Record<string, string> = {
+  Mobilité: '/images/cards/mobilite.svg',
+  Habitation: '/images/cards/habitation.svg',
+  Famille: '/images/cards/famille.svg',
+  Hospitalisation: '/images/cards/hospitalisation.svg',
+  Pension: '/images/cards/pension.svg',
+  Épargne: '/images/cards/epargne.svg',
+  Entreprise: '/images/cards/entreprise.svg',
+  Personnel: '/images/cards/personnel.svg',
+  Revenu: '/images/cards/revenu.svg'
+};
+
+export function categoryImage(category: string): string {
+  return byCategory[category] ?? '/images/cards/digital.svg';
+}

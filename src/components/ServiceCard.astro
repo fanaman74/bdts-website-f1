@@ -4,10 +4,11 @@ interface Props {
   summary: string;
   href: string;
   icon?: string;
+  image?: string;
   accent?: 'pulse' | 'coral' | 'mint';
 }
 
-const { title, summary, href, icon = '✦', accent = 'pulse' } = Astro.props;
+const { title, summary, href, icon = '✦', image, accent = 'pulse' } = Astro.props;
 
 const accentClasses = {
   pulse: 'bg-pulse-50 text-pulse-700 group-hover:bg-pulse-800 group-hover:text-white',
@@ -16,19 +17,39 @@ const accentClasses = {
 }[accent];
 ---
 
-<a href={href} class="card group block p-6">
-  <span
-    class={`mb-4 grid h-12 w-12 place-items-center rounded-lg text-xl transition-all duration-300 ${accentClasses}`}
-    aria-hidden="true"
-  >
-    {icon}
-  </span>
-  <h3 class="font-display text-lg font-bold tracking-[-0.02em] text-ink-800 group-hover:text-pulse-800">{title}</h3>
-  <p class="mt-2 text-sm leading-relaxed text-ink-600">{summary}</p>
-  <span class="mt-4 inline-flex items-center gap-1.5 font-mono text-xs tracking-[0.05em] text-pulse-600 uppercase">
-    En savoir plus
-    <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd" />
-    </svg>
-  </span>
+<a href={href} class="card group flex h-full flex-col overflow-hidden">
+  {
+    image && (
+      <div class="relative aspect-[3/2] overflow-hidden bg-ink-900">
+        <img
+          src={image}
+          alt=""
+          width="900"
+          height="600"
+          loading="lazy"
+          class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+        />
+      </div>
+    )
+  }
+  <div class="flex flex-1 flex-col p-6">
+    {
+      !image && (
+        <span
+          class={`mb-4 grid h-12 w-12 place-items-center rounded-lg text-xl transition-all duration-300 ${accentClasses}`}
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+      )
+    }
+    <h3 class="font-display text-lg font-bold tracking-[-0.02em] text-ink-800 group-hover:text-pulse-800">{title}</h3>
+    <p class="mt-2 flex-1 text-sm leading-relaxed text-ink-600">{summary}</p>
+    <span class="mt-4 inline-flex items-center gap-1.5 font-mono text-xs tracking-[0.05em] text-pulse-600 uppercase">
+      En savoir plus
+      <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd" />
+      </svg>
+    </span>
+  </div>
 </a>

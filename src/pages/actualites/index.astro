@@ -28,6 +28,7 @@ const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() 
             summary={article.data.summary}
             date={article.data.date}
             tags={article.data.tags}
+            image={article.data.image}
             href={`/actualites/${article.id}`}
           />
         ))
