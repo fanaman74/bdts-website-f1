@@ -54,3 +54,4 @@ La vidéo du hero (`public/videos/hero-office.mp4`) provient de Mixkit (licence 
 - Les PDF de `public/documents/` sont des **exemples** à remplacer par les documents officiels des partenaires (avec leur autorisation).
 - Les documents personnels des clients ne sont jamais exposés : ils sont représentés par des entrées `source: "portal"` qui renvoient vers les portails sécurisés.
 - Le script de découverte respecte robots.txt, limite son débit et ne franchit aucune authentification.
+# bdts-website-f1
