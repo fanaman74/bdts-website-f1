@@ -187,45 +187,40 @@ body {
   animation: blob-drift-c 32s ease-in-out infinite alternate;
 }
 
-/* Animated dot-grid: a colour gradient pans through the dots while the grid drifts */
+/* Animated dot-grid: green dots only, with a slow wave of brighter green
+   rolling diagonally through the field */
 .hero-dots {
   position: absolute;
   inset: -34px;
-  background: linear-gradient(115deg, #e7a38b 0%, #74b096 30%, #f8d47a 55%, #46916f 80%, #e7a38b 100%);
-  background-size: 300% 300%;
+  background: linear-gradient(
+    120deg,
+    #334941 0%,
+    #334941 32%,
+    #46916f 44%,
+    #a8cfbc 50%,
+    #46916f 56%,
+    #334941 68%,
+    #334941 100%
+  );
+  background-size: 400% 400%;
   -webkit-mask-image: radial-gradient(circle, black 2.2px, transparent 2.2px);
   mask-image: radial-gradient(circle, black 2.2px, transparent 2.2px);
   -webkit-mask-size: 34px 34px;
   mask-size: 34px 34px;
-  opacity: 0.75;
-  animation:
-    dots-gradient-pan 10s ease-in-out infinite,
-    dots-drift 30s linear infinite;
-  will-change: background-position, transform;
+  opacity: 0.8;
+  animation: dots-wave 13s ease-in-out infinite;
+  will-change: background-position;
 }
 
-/* Second, offset dot layer that breathes — makes the field visibly twinkle */
-.hero-dots--twinkle {
-  inset: -17px;
-  background: linear-gradient(245deg, #f8d47a 0%, #e7a38b 40%, #74b096 75%, #f8d47a 100%);
-  background-size: 300% 300%;
-  -webkit-mask-size: 68px 68px;
-  mask-size: 68px 68px;
-  -webkit-mask-image: radial-gradient(circle, black 2.8px, transparent 2.8px);
-  mask-image: radial-gradient(circle, black 2.8px, transparent 2.8px);
-  animation:
-    dots-gradient-pan 7s ease-in-out infinite reverse,
-    dots-twinkle 3.5s ease-in-out infinite,
-    dots-drift 30s linear infinite reverse;
-}
-
-@keyframes dots-twinkle {
-  0%,
-  100% {
-    opacity: 0.15;
+@keyframes dots-wave {
+  0% {
+    background-position: 0% 0%;
   }
   50% {
-    opacity: 0.8;
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
   }
 }
 
@@ -234,27 +229,6 @@ body {
   position: absolute;
   inset: 0;
   background: radial-gradient(ellipse 72% 85% at 74% 42%, transparent 25%, rgb(0 22 14 / 0.92) 75%);
-}
-
-@keyframes dots-gradient-pan {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes dots-drift {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(34px, 34px, 0);
-  }
 }
 
 @keyframes blob-drift-a {
