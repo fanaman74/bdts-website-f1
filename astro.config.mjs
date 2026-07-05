@@ -8,7 +8,7 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://www.meridian-courtage.be',
+  site: 'https://www.bdts.be',
   vite: {
     plugins: [tailwindcss()]
   },

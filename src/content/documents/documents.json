@@ -316,15 +316,15 @@
     "tags": ["constat", "sinistre", "auto"]
   },
   {
-    "id": "meridian-protection-client-fr",
+    "id": "bdts-protection-client-fr",
     "title": "Politique de protection du client",
-    "partner": "Meridian Courtage",
+    "partner": "BDT Sironval",
     "audience": "both",
     "category": "Legal",
     "productType": "Informations légales",
     "documentType": "legal",
     "language": "fr",
-    "fileUrl": "/documents/meridian-protection-client-fr.pdf",
+    "fileUrl": "/documents/bdts-protection-client-fr.pdf",
     "source": "local",
     "lastUpdated": "2026-02-28",
     "description": "Règles de conduite MiFID, politique de conflits d'intérêts et traitement des plaintes.",

@@ -1,29 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0a0d21"/>
-      <stop offset="0.55" stop-color="#131734"/>
-      <stop offset="1" stop-color="#1b2249"/>
+      <stop offset="0" stop-color="#00160e"/>
+      <stop offset="0.55" stop-color="#001b12"/>
+      <stop offset="1" stop-color="#002f1e"/>
     </linearGradient>
     <radialGradient id="blob1" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#6555fb" stop-opacity="0.8"/>
-      <stop offset="1" stop-color="#6555fb" stop-opacity="0"/>
+      <stop offset="0" stop-color="#334941" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#334941" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="blob2" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#fc4a1c" stop-opacity="0.7"/>
-      <stop offset="1" stop-color="#fc4a1c" stop-opacity="0"/>
+      <stop offset="0" stop-color="#e7a38b" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#e7a38b" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6555fb"/>
-      <stop offset="1" stop-color="#fc4a1c"/>
-    </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
   <circle cx="1050" cy="80" r="340" fill="url(#blob1)"/>
   <circle cx="120" cy="560" r="300" fill="url(#blob2)"/>
-  <rect x="80" y="120" width="96" height="96" rx="24" fill="url(#mark)"/>
-  <text x="128" y="188" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="bold" fill="#ffffff" text-anchor="middle">M</text>
-  <text x="80" y="320" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="bold" fill="#ffffff">Meridian Courtage</text>
-  <text x="80" y="390" font-family="Arial, Helvetica, sans-serif" font-size="34" fill="#c5cde6">Courtier en assurances indépendant à Bruxelles</text>
-  <text x="80" y="500" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#97a4cf">Assurance · Protection · Épargne · Pension</text>
+  <g transform="translate(80,110)">
+    <rect width="96" height="96" rx="12" fill="#f2c230"/>
+    <rect x="14" y="14" width="68" height="42" rx="4" fill="#ffffff" stroke="#111111" stroke-width="2.5"/>
+    <text x="48" y="86" font-family="Arial Black, Arial, sans-serif" font-size="20" font-weight="900" font-style="italic" fill="#ffffff" stroke="#111111" stroke-width="1" text-anchor="middle">B.D.T.S.</text>
+  </g>
+  <text x="80" y="320" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="bold" fill="#ffffff" letter-spacing="-2">BDT Sironval</text>
+  <text x="80" y="390" font-family="Arial, Helvetica, sans-serif" font-size="34" fill="#ccd2cf">Courtier en assurances indépendant à Bruxelles</text>
+  <text x="80" y="500" font-family="Courier New, monospace" font-size="24" fill="#e7a38b" letter-spacing="3">ASSURANCE · PROTECTION · ÉPARGNE · PENSION</text>
 </svg>

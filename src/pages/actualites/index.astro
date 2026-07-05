@@ -7,7 +7,7 @@ import ContactCTA from '../../components/ContactCTA.astro';
 const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 ---
 
-<BaseLayout title="Actualités" description="Conseils, changements légaux et nouveautés du bureau : les actualités de Meridian Courtage.">
+<BaseLayout title="Actualités" description="Conseils, changements légaux et nouveautés du bureau : les actualités de BDT Sironval.">
   <div class="relative isolate overflow-hidden bg-ink-950 text-white">
     <div class="absolute -top-32 left-1/4 h-80 w-80 rounded-full bg-pulse-600/30 blur-[100px]" aria-hidden="true"></div>
     <div class="container-site relative py-16 sm:py-20">

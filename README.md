@@ -1,4 +1,4 @@
-# Meridian Courtage — site courtier en assurances
+# BDT Sironval — site courtier en assurances
 
 Site full-stack construit avec **Astro 7**, TypeScript, Tailwind CSS v4 et un îlot Preact.
 Structure inspirée d'un site de courtage belge de référence, avec une identité et un contenu entièrement originaux.

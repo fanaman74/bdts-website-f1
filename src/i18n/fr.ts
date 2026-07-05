@@ -4,10 +4,10 @@
  */
 export const t = {
   site: {
-    name: 'Meridian Courtage',
+    name: 'BDT Sironval',
     tagline: 'Courtier en assurances indépendant à Bruxelles',
     description:
-      "Meridian Courtage, courtier indépendant à Bruxelles : assurances particuliers et professionnels, épargne, pension et conseils personnalisés à chaque étape de votre vie."
+      "BDT Sironval, courtier indépendant à Bruxelles : assurances particuliers et professionnels, épargne, pension et conseils personnalisés à chaque étape de votre vie."
   },
   nav: {
     particulier: 'Particulier',
