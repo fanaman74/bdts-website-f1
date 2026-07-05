@@ -47,6 +47,7 @@ title,partner,audience,category,productType,documentType,language,fileUrl,extern
 Les photos des cartes (`public/images/photos/`) proviennent d'Unsplash (licence Unsplash, usage commercial autorisé).
 Le détail photo par photo — auteur, lien, requête — est consigné dans `src/data/photo-credits.json`.
 Les illustrations abstraites (`public/images/cards/`) servent de repli par catégorie.
+La vidéo du hero (`public/videos/hero-office.mp4`) provient de Mixkit (licence Mixkit gratuite, usage commercial autorisé).
 
 ## Notes de conformité
 
