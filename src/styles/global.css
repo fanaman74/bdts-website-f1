@@ -193,15 +193,40 @@ body {
   inset: -34px;
   background: linear-gradient(115deg, #e7a38b 0%, #74b096 30%, #f8d47a 55%, #46916f 80%, #e7a38b 100%);
   background-size: 300% 300%;
-  -webkit-mask-image: radial-gradient(circle, black 1.7px, transparent 1.7px);
-  mask-image: radial-gradient(circle, black 1.7px, transparent 1.7px);
+  -webkit-mask-image: radial-gradient(circle, black 2.2px, transparent 2.2px);
+  mask-image: radial-gradient(circle, black 2.2px, transparent 2.2px);
   -webkit-mask-size: 34px 34px;
   mask-size: 34px 34px;
-  opacity: 0.55;
+  opacity: 0.75;
   animation:
-    dots-gradient-pan 16s ease-in-out infinite,
-    dots-drift 40s linear infinite;
+    dots-gradient-pan 10s ease-in-out infinite,
+    dots-drift 30s linear infinite;
   will-change: background-position, transform;
+}
+
+/* Second, offset dot layer that breathes — makes the field visibly twinkle */
+.hero-dots--twinkle {
+  inset: -17px;
+  background: linear-gradient(245deg, #f8d47a 0%, #e7a38b 40%, #74b096 75%, #f8d47a 100%);
+  background-size: 300% 300%;
+  -webkit-mask-size: 68px 68px;
+  mask-size: 68px 68px;
+  -webkit-mask-image: radial-gradient(circle, black 2.8px, transparent 2.8px);
+  mask-image: radial-gradient(circle, black 2.8px, transparent 2.8px);
+  animation:
+    dots-gradient-pan 7s ease-in-out infinite reverse,
+    dots-twinkle 3.5s ease-in-out infinite,
+    dots-drift 30s linear infinite reverse;
+}
+
+@keyframes dots-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 /* Fades the dot field towards the edges so it reads as a glow, not wallpaper */
