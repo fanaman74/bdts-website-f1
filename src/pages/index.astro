@@ -7,7 +7,7 @@ import NewsCard from '../components/NewsCard.astro';
 import ClientPortalBlock from '../components/ClientPortalBlock.astro';
 import PartnerMarquee from '../components/PartnerMarquee.astro';
 import ContactCTA from '../components/ContactCTA.astro';
-import { categoryImage } from '../data/cardImages';
+import { serviceImage } from '../data/cardImages';
 import { t } from '../i18n/fr';
 
 const services = await getCollection('services');
@@ -55,7 +55,7 @@ const accents = ['pulse', 'coral', 'mint'] as const;
               summary={s.data.summary}
               href={`/${s.id}`}
               icon={s.data.icon}
-              image={s.data.heroImage ?? categoryImage(s.data.category)}
+              image={s.data.heroImage ?? serviceImage(s.id)}
               accent={accents[i % 3]}
             />
           </div>
@@ -83,7 +83,7 @@ const accents = ['pulse', 'coral', 'mint'] as const;
                 summary={s.data.summary}
                 href={`/${s.id}`}
                 icon={s.data.icon}
-                image={s.data.heroImage ?? categoryImage(s.data.category)}
+                image={s.data.heroImage ?? serviceImage(s.id)}
               />
             </div>
           ))
@@ -110,7 +110,7 @@ const accents = ['pulse', 'coral', 'mint'] as const;
               summary={s.data.summary}
               href={`/${s.id}`}
               icon={s.data.icon}
-              image={s.data.heroImage ?? categoryImage(s.data.category)}
+              image={s.data.heroImage ?? serviceImage(s.id)}
               accent="coral"
             />
           </div>

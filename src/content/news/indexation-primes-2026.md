@@ -2,7 +2,7 @@
 title: "Indexation des primes habitation en 2026 : ce qui change pour vous"
 date: 2026-06-15
 summary: "L'indice ABEX de reconstruction évolue et vos capitaux assurés suivent automatiquement. On vous explique le mécanisme — et pourquoi c'est une protection, pas une simple hausse."
-image: "/images/cards/habitation.svg"
+image: "/images/photos/news-indexation-primes.jpg"
 tags: ["Habitation", "Conseils"]
 ---
 

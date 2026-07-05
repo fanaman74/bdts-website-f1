@@ -42,6 +42,12 @@ title,partner,audience,category,productType,documentType,language,fileUrl,extern
 
 `tags` accepte plusieurs valeurs séparées par `;`. Les entrées existantes (même id généré) sont mises à jour.
 
+## Images
+
+Les photos des cartes (`public/images/photos/`) proviennent d'Unsplash (licence Unsplash, usage commercial autorisé).
+Le détail photo par photo — auteur, lien, requête — est consigné dans `src/data/photo-credits.json`.
+Les illustrations abstraites (`public/images/cards/`) servent de repli par catégorie.
+
 ## Notes de conformité
 
 - Les PDF de `public/documents/` sont des **exemples** à remplacer par les documents officiels des partenaires (avec leur autorisation).

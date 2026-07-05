@@ -31,6 +31,25 @@ for (const doc of docs) {
   }
 }
 
+// --- every service has a card photo ---
+import { readdirSync, statSync } from 'node:fs';
+
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((f) => {
+    const full = join(dir, f);
+    return statSync(full).isDirectory() ? walk(full) : [full];
+  });
+}
+
+const serviceIds = walk(join(ROOT, 'src/content/services'))
+  .filter((f) => f.endsWith('.md'))
+  .map((f) => f.slice(join(ROOT, 'src/content/services').length + 1, -3));
+
+for (const id of serviceIds) {
+  const photo = join(ROOT, 'public/images/photos', `${id.replaceAll('/', '-')}.jpg`);
+  if (!existsSync(photo)) errors.push(`services: "${id}" has no card photo at public/images/photos/`);
+}
+
 // --- navigation → content/pages ---
 const nav = readFileSync(join(ROOT, 'src/data/navigation.ts'), 'utf8');
 const hrefs = [...nav.matchAll(/href:\s*'([^']+)'/g)].map((m) => m[1]!);

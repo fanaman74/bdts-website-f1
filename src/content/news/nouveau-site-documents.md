@@ -2,7 +2,7 @@
 title: "Nouveau : retrouvez tous vos documents d'assurance en un clic"
 date: 2026-03-12
 summary: "Notre nouvel espace Documents centralise conditions générales, fiches produits et formulaires de nos partenaires — avec recherche et filtres puissants."
-image: "/images/cards/digital.svg"
+image: "/images/photos/news-nouveau-site-documents.jpg"
 tags: ["Bureau", "Digital"]
 ---
 

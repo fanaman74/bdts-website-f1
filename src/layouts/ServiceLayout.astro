@@ -4,7 +4,7 @@ import { render, getCollection } from 'astro:content';
 import BaseLayout from './BaseLayout.astro';
 import ServiceCard from '../components/ServiceCard.astro';
 import ContactCTA from '../components/ContactCTA.astro';
-import { categoryImage } from '../data/cardImages';
+import { serviceImage } from '../data/cardImages';
 
 interface Props {
   service: CollectionEntry<'services'>;
@@ -100,7 +100,7 @@ const audienceLabel = service.data.audience === 'particulier' ? 'Particulier' : 
                 summary={s.data.summary}
                 href={`/${s.id.replace(/\.md$/, '')}`}
                 icon={s.data.icon}
-                image={s.data.heroImage ?? categoryImage(s.data.category)}
+                image={s.data.heroImage ?? serviceImage(s.id)}
               />
             ))}
           </div>

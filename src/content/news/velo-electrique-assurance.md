@@ -2,7 +2,7 @@
 title: "Vélo électrique et speed pedelec : êtes-vous bien assuré ?"
 date: 2026-05-20
 summary: "Le boom du vélo électrique s'accompagne de règles d'assurance méconnues. RC obligatoire ou pas, vol, casse : le point complet selon le type de vélo."
-image: "/images/cards/mobilite.svg"
+image: "/images/photos/news-velo-electrique.jpg"
 tags: ["Mobilité", "Conseils"]
 ---
 
