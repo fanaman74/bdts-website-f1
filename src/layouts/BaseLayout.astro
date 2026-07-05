@@ -34,6 +34,30 @@ const fullTitle = title === t.site.name ? title : `${title} — ${t.site.name}`;
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="sitemap" href="/sitemap-index.xml" />
 
+    <!-- Google Analytics 4 with Consent Mode: everything denied until the
+         visitor accepts via the Silktide banner below, which flips the flags. -->
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('consent', 'default', {
+        analytics_storage: 'denied',
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      });
+      gtag('js', new Date());
+      gtag('config', 'G-MLGJ8RJB83', { anonymize_ip: true });
+      // Don't pollute the property with dev traffic
+      if (!['localhost', '127.0.0.1'].includes(location.hostname)) {
+        var gaScript = document.createElement('script');
+        gaScript.async = true;
+        gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-MLGJ8RJB83';
+        document.head.appendChild(gaScript);
+      }
+    </script>
+
     <!-- Silktide consent manager -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link
