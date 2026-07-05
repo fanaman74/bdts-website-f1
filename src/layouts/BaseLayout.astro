@@ -33,6 +33,95 @@ const fullTitle = title === t.site.name ? title : `${title} — ${t.site.name}`;
     <meta property="og:locale" content="fr_BE" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="sitemap" href="/sitemap-index.xml" />
+
+    <!-- Silktide consent manager -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      id="silktide-consent-manager-css"
+      href="https://cdn.jsdelivr.net/gh/silktide/consent-manager@v2.0.1/silktide-consent-manager.css"
+      integrity="sha384-EdMq+R+YOnsbelo08wPenoTlnxbAyxI11NMIxzugx/qAsbh64KcOkqxYqq6pfvO/"
+      crossorigin="anonymous"
+    />
+    <style is:inline id="silktide-consent-manager-overrides">
+      #stcm-wrapper {
+        --boxShadow: -5px 5px 10px 0px #00000012, 0px 0px 50px 0px #0000001a;
+        --fontFamily: 'Manrope Variable', Helvetica Neue, Segoe UI, Arial, sans-serif;
+        --primaryColor: #145c40;
+        --backgroundColor: #ffffff;
+        --textColor: #002f1e;
+        --backdropBackgroundColor: #00160e55;
+        --backdropBackgroundBlur: 2px;
+        --iconColor: #145c40;
+        --iconBackgroundColor: #ffffff;
+      }
+    </style>
+    <script
+      is:inline
+      src="https://cdn.jsdelivr.net/gh/silktide/consent-manager@v2.0.1/silktide-consent-manager.js"
+      integrity="sha384-5Pt34uiIbCsvfiiZXoLi4HRf/YBXjr9c8e+gYeVo9smUaInNHYVtc8NZ8wUnXJIq"
+      crossorigin="anonymous"></script>
+    <script is:inline>
+      window.silktideConsentManager.init({
+        backdrop: {
+          show: true
+        },
+        icon: {
+          position: 'bottomLeft'
+        },
+        prompt: {
+          position: 'bottomRight'
+        },
+        consentTypes: [
+          {
+            id: 'essential',
+            label: 'Essentiels',
+            description:
+              '<p>Ces cookies sont nécessaires au bon fonctionnement du site et ne peuvent pas être désactivés. Ils servent par exemple à la connexion et à l’enregistrement de vos préférences de confidentialité.</p>',
+            required: true,
+            onAccept: function () {
+              // Essential consent granted — nothing extra to load today.
+            }
+          },
+          {
+            id: 'analytics',
+            label: 'Statistiques',
+            description:
+              '<p>Ces cookies nous aident à améliorer le site en mesurant les pages les plus consultées et la manière dont les visiteurs naviguent.</p>',
+            defaultValue: true,
+            gtag: 'analytics_storage'
+          },
+          {
+            id: 'marketing',
+            label: 'Marketing',
+            description:
+              '<p>Ces cookies sont utilisés par nous et nos partenaires publicitaires pour vous proposer des publicités pertinentes, ici et ailleurs, et pour mesurer la performance de ces campagnes.</p>',
+            gtag: ['ad_storage', 'ad_user_data', 'ad_personalization']
+          }
+        ],
+        text: {
+          prompt: {
+            description:
+              '<p>Nous utilisons des cookies pour améliorer votre expérience, personnaliser le contenu et analyser notre trafic.</p>',
+            acceptAllButtonText: 'Tout accepter',
+            acceptAllButtonAccessibleLabel: 'Accepter tous les cookies',
+            rejectNonEssentialButtonText: 'Refuser les non essentiels',
+            rejectNonEssentialButtonAccessibleLabel: 'Refuser tous les cookies non essentiels',
+            preferencesButtonText: 'Préférences',
+            preferencesButtonAccessibleLabel: 'Ouvrir les préférences'
+          },
+          preferences: {
+            title: 'Personnalisez vos préférences en matière de cookies',
+            description:
+              '<p>Nous respectons votre droit à la vie privée. Vous pouvez refuser certains types de cookies. Vos préférences s’appliqueront à l’ensemble du site.</p>',
+            saveButtonText: 'Enregistrer et fermer',
+            saveButtonAccessibleLabel: 'Enregistrer vos préférences de cookies',
+            creditLinkText: 'Obtenir cette bannière gratuitement',
+            creditLinkAccessibleLabel: 'Obtenir cette bannière gratuitement'
+          }
+        }
+      });
+    </script>
   </head>
   <body class="flex min-h-screen flex-col">
     <a
