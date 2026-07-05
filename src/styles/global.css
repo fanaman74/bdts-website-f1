@@ -158,13 +158,21 @@ body {
   object-fit: cover;
 }
 
-/* Dark green brand tint so the white/peach text stays readable over the footage */
+/* Dark green brand tint so the white/peach text stays readable over the footage.
+   Heavy on the text side, still darker than mid-grey on the brightest window areas. */
 .hero-video-overlay {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(100deg, rgb(0 22 14 / 0.92) 0%, rgb(0 27 18 / 0.78) 45%, rgb(0 47 30 / 0.55) 100%),
-    linear-gradient(to top, rgb(0 22 14 / 0.85) 0%, transparent 30%);
+    linear-gradient(100deg, rgb(0 22 14 / 0.96) 0%, rgb(0 27 18 / 0.9) 55%, rgb(0 34 22 / 0.78) 100%),
+    linear-gradient(to top, rgb(0 22 14 / 0.9) 0%, transparent 40%);
+}
+
+/* Lift hero copy off the footage on the spots the scrim can't fully tame */
+.hero-copy {
+  text-shadow:
+    0 1px 2px rgb(0 22 14 / 0.55),
+    0 4px 28px rgb(0 22 14 / 0.65);
 }
 
 /* ---------- Partner marquee ---------- */
