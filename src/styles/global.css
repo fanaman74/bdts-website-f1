@@ -187,12 +187,49 @@ body {
   animation: blob-drift-c 32s ease-in-out infinite alternate;
 }
 
-.hero-grid {
+/* Animated dot-grid: a colour gradient pans through the dots while the grid drifts */
+.hero-dots {
+  position: absolute;
+  inset: -34px;
+  background: linear-gradient(115deg, #e7a38b 0%, #74b096 30%, #f8d47a 55%, #46916f 80%, #e7a38b 100%);
+  background-size: 300% 300%;
+  -webkit-mask-image: radial-gradient(circle, black 1.7px, transparent 1.7px);
+  mask-image: radial-gradient(circle, black 1.7px, transparent 1.7px);
+  -webkit-mask-size: 34px 34px;
+  mask-size: 34px 34px;
+  opacity: 0.55;
+  animation:
+    dots-gradient-pan 16s ease-in-out infinite,
+    dots-drift 40s linear infinite;
+  will-change: background-position, transform;
+}
+
+/* Fades the dot field towards the edges so it reads as a glow, not wallpaper */
+.hero-dots-fade {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgb(102 118 113 / 0.5) 1.5px, transparent 1.5px);
-  background-size: 34px 34px;
-  mask-image: radial-gradient(ellipse 75% 85% at 78% 40%, black 20%, transparent 72%);
+  background: radial-gradient(ellipse 72% 85% at 74% 42%, transparent 25%, rgb(0 22 14 / 0.92) 75%);
+}
+
+@keyframes dots-gradient-pan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes dots-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(34px, 34px, 0);
+  }
 }
 
 @keyframes blob-drift-a {
@@ -270,6 +307,7 @@ body {
     scroll-behavior: auto;
   }
   .hero-blob,
+  .hero-dots,
   .marquee-track {
     animation: none !important;
   }
