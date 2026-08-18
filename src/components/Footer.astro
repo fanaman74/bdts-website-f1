@@ -12,77 +12,45 @@ const legalLinks = [
 ];
 ---
 
-<footer class="bg-ink-950 text-ink-200">
-  <div class="container-site grid gap-10 py-14 md:grid-cols-4">
-    <div class="md:col-span-1">
-      <p class="font-display text-xl font-bold text-white">
-        <img src="/images/logo-bdts.png" alt="" width="222" height="246" class="mb-2 h-10 w-auto" />
-        BDT Sironval
-      </p>
-      <p class="mt-3 text-sm leading-relaxed text-ink-300">{t.site.tagline}</p>
-      <address class="mt-4 text-sm not-italic leading-relaxed text-ink-300">
-        Rue de Wand 29, 1020 Bruxelles<br />
-        <a href="tel:+3224631925" class="hover:text-white">+32 2 463 19 25</a><br />
-        <a href="mailto:bdts@bdts.be" class="hover:text-white">bdts@bdts.be</a>
-      </address>
+<footer class="site-footer">
+  <div class="site-footer__shell">
+    <div class="site-footer__lead">
+      <div class="site-footer__brand">
+        <img src="/images/logo-bdts.png" alt="" width="222" height="246" />
+        <div><strong>BDT Sironval</strong><span>Courtiers en assurances à Bruxelles</span></div>
+      </div>
+      <p>{t.site.tagline}</p>
+      <a href="/contact" class="organic-button organic-button--sand">Prendre contact</a>
     </div>
 
-    {
-      mainNav
-        .filter((s) => s.slug !== 'autres')
-        .map((section) => (
-          <nav aria-label={`Liens ${section.label}`}>
-            <p class="eyebrow mb-3 text-pulse-300">{section.label}</p>
-            <ul class="space-y-2 text-sm">
-              {section.groups.slice(0, 6).map((group) => (
-                <li>
-                  <a href={group.items[0]!.href} class="text-ink-300 transition hover:text-white">
-                    {group.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))
-    }
-
-    <nav aria-label="Liens pratiques">
-      <p class="eyebrow mb-3 text-pulse-300">Pratique</p>
-      <ul class="space-y-2 text-sm">
-        {
-          topNav.map((item) => (
-            <li>
-              <a href={item.href} class="text-ink-300 transition hover:text-white">
-                {item.label}
-              </a>
-            </li>
-          ))
-        }
-        <li><a href="/contact" class="text-ink-300 transition hover:text-white">Contact</a></li>
-        <li><a href="/declaration" class="text-ink-300 transition hover:text-white">Déclarer un sinistre</a></li>
-        <li><a href="/devis" class="text-ink-300 transition hover:text-white">Demander un devis</a></li>
-      </ul>
-    </nav>
-  </div>
-
-  <div class="border-t border-white/10">
-    <div class="container-site space-y-4 py-6">
-      <p class="max-w-4xl text-xs leading-relaxed text-ink-400">{t.footer.disclaimer}</p>
-      <p class="text-xs text-ink-400">{t.footer.fsma}</p>
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <p class="text-xs text-ink-400">© {year} {t.site.name}. Tous droits réservés.</p>
-        <ul class="flex flex-wrap gap-x-5 gap-y-2 text-xs">
-          {
-            legalLinks.map((link) => (
-              <li>
-                <a href={link.href} class="text-ink-400 transition hover:text-white">
-                  {link.label}
-                </a>
-              </li>
-            ))
-          }
-        </ul>
+    <div class="site-footer__columns">
+      <div>
+        <h2>Bureau de Bruxelles</h2>
+        <address>
+          Rue de Wand 29<br />1020 Bruxelles<br />
+          <a href="tel:+3224631925">+32 2 463 19 25</a><br />
+          <a href="mailto:bdts@bdts.be">bdts@bdts.be</a>
+        </address>
       </div>
+      {mainNav.filter((s) => s.slug !== 'autres').map((section) => (
+        <nav aria-label={`Liens ${section.label}`}>
+          <h2>{section.label}</h2>
+          <ul>{section.groups.map((group) => <li><a href={group.items[0]!.href}>{group.label}</a></li>)}</ul>
+        </nav>
+      ))}
+      <nav aria-label="Liens pratiques">
+        <h2>Pratique</h2>
+        <ul>
+          {topNav.map((item) => <li><a href={item.href}>{item.label}</a></li>)}
+          <li><a href="/contact">Contact</a></li>
+          <li><a href="/declaration">Sinistre</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="site-footer__legal">
+      <div><p>{t.footer.fsma}</p><p>{t.footer.disclaimer}</p></div>
+      <div><p>© {year} {t.site.name}</p><ul>{legalLinks.map((link) => <li><a href={link.href}>{link.label}</a></li>)}</ul></div>
     </div>
   </div>
 </footer>

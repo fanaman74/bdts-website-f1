@@ -21,7 +21,10 @@ export interface DocumentItem {
 
 interface Props {
   documents: DocumentItem[];
+  syncedAt?: string;
 }
+
+const PAGE_SIZE = 20;
 
 const TYPE_LABELS: Record<string, string> = {
   'conditions-generales': 'Conditions générales',
@@ -62,7 +65,7 @@ function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort((a, b) => a.localeCompare(b, 'fr'));
 }
 
-export default function DocumentsFilter({ documents }: Props) {
+export default function DocumentsFilter({ documents, syncedAt }: Props) {
   const [query, setQuery] = useState('');
   const [audience, setAudience] = useState('');
   const [category, setCategory] = useState('');
@@ -72,6 +75,7 @@ export default function DocumentsFilter({ documents }: Props) {
   const [source, setSource] = useState('');
   const [accessType, setAccessType] = useState<AccessFilter>('all');
   const [sort, setSort] = useState<SortKey>('recent');
+  const [page, setPage] = useState(1);
 
   const fuse = useMemo(
     () =>
@@ -122,6 +126,15 @@ export default function DocumentsFilter({ documents }: Props) {
     return list;
   }, [documents, fuse, query, audience, category, partner, docType, language, source, accessType, sort]);
 
+  const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageDocuments = results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const updateFilter = <T,>(setter: (value: T) => void, value: T) => {
+    setter(value);
+    setPage(1);
+  };
+
   const reset = () => {
     setQuery('');
     setAudience('');
@@ -132,6 +145,7 @@ export default function DocumentsFilter({ documents }: Props) {
     setSource('');
     setAccessType('all');
     setSort('recent');
+    setPage(1);
   };
 
   const selectClass =
@@ -157,7 +171,7 @@ export default function DocumentsFilter({ documents }: Props) {
           <input
             type="search"
             value={query}
-            onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+            onInput={(e) => updateFilter(setQuery, (e.target as HTMLInputElement).value)}
             placeholder="Rechercher un document, un partenaire, un produit…"
             aria-label="Rechercher un document"
             class="w-full rounded-full border-0 bg-white py-3 pr-4 pl-12 text-sm text-ink-900 shadow-sm ring-1 ring-ink-200 placeholder:text-ink-400 focus:ring-2 focus:ring-pulse-500"
@@ -167,7 +181,7 @@ export default function DocumentsFilter({ documents }: Props) {
           <span class="shrink-0">Trier par</span>
           <select
             value={sort}
-            onChange={(e) => setSort((e.target as HTMLSelectElement).value as SortKey)}
+            onChange={(e) => updateFilter(setSort, (e.target as HTMLSelectElement).value as SortKey)}
             class="rounded-full border-0 bg-white px-4 py-3 text-sm ring-1 ring-ink-200 focus:ring-2 focus:ring-pulse-500"
           >
             <option value="recent">Plus récents</option>
@@ -183,7 +197,7 @@ export default function DocumentsFilter({ documents }: Props) {
         <legend class="sr-only">Filtres</legend>
         <label class="block">
           <span class="mb-1 block text-xs font-semibold text-ink-500">Public</span>
-          <select value={audience} onChange={(e) => setAudience((e.target as HTMLSelectElement).value)} class={selectClass}>
+          <select value={audience} onChange={(e) => updateFilter(setAudience, (e.target as HTMLSelectElement).value)} class={selectClass}>
             <option value="">Tous</option>
             {['particulier', 'professionnel', 'both'].map((a) => (
               <option value={a}>{AUDIENCE_LABELS[a]}</option>
@@ -192,7 +206,7 @@ export default function DocumentsFilter({ documents }: Props) {
         </label>
         <label class="block">
           <span class="mb-1 block text-xs font-semibold text-ink-500">Catégorie</span>
-          <select value={category} onChange={(e) => setCategory((e.target as HTMLSelectElement).value)} class={selectClass}>
+          <select value={category} onChange={(e) => updateFilter(setCategory, (e.target as HTMLSelectElement).value)} class={selectClass}>
             <option value="">Toutes</option>
             {categories.map((c) => (
               <option value={c}>{c}</option>
@@ -201,7 +215,7 @@ export default function DocumentsFilter({ documents }: Props) {
         </label>
         <label class="block">
           <span class="mb-1 block text-xs font-semibold text-ink-500">Partenaire</span>
-          <select value={partner} onChange={(e) => setPartner((e.target as HTMLSelectElement).value)} class={selectClass}>
+          <select value={partner} onChange={(e) => updateFilter(setPartner, (e.target as HTMLSelectElement).value)} class={selectClass}>
             <option value="">Tous</option>
             {partners.map((p) => (
               <option value={p}>{p}</option>
@@ -210,7 +224,7 @@ export default function DocumentsFilter({ documents }: Props) {
         </label>
         <label class="block">
           <span class="mb-1 block text-xs font-semibold text-ink-500">Type</span>
-          <select value={docType} onChange={(e) => setDocType((e.target as HTMLSelectElement).value)} class={selectClass}>
+          <select value={docType} onChange={(e) => updateFilter(setDocType, (e.target as HTMLSelectElement).value)} class={selectClass}>
             <option value="">Tous</option>
             {types.map((t) => (
               <option value={t}>{TYPE_LABELS[t] ?? t}</option>
@@ -219,7 +233,7 @@ export default function DocumentsFilter({ documents }: Props) {
         </label>
         <label class="block">
           <span class="mb-1 block text-xs font-semibold text-ink-500">Langue</span>
-          <select value={language} onChange={(e) => setLanguage((e.target as HTMLSelectElement).value)} class={selectClass}>
+          <select value={language} onChange={(e) => updateFilter(setLanguage, (e.target as HTMLSelectElement).value)} class={selectClass}>
             <option value="">Toutes</option>
             {languages.map((l) => (
               <option value={l}>{l.toUpperCase()}</option>
@@ -228,7 +242,7 @@ export default function DocumentsFilter({ documents }: Props) {
         </label>
         <label class="block">
           <span class="mb-1 block text-xs font-semibold text-ink-500">Source</span>
-          <select value={source} onChange={(e) => setSource((e.target as HTMLSelectElement).value)} class={selectClass}>
+          <select value={source} onChange={(e) => updateFilter(setSource, (e.target as HTMLSelectElement).value)} class={selectClass}>
             <option value="">Toutes</option>
             {sources.map((s) => (
               <option value={s}>{SOURCE_LABELS[s] ?? s}</option>
@@ -239,7 +253,7 @@ export default function DocumentsFilter({ documents }: Props) {
           <span class="mb-1 block text-xs font-semibold text-ink-500">Acces</span>
           <select
             value={accessType}
-            onChange={(e) => setAccessType((e.target as HTMLSelectElement).value as AccessFilter)}
+            onChange={(e) => updateFilter(setAccessType, (e.target as HTMLSelectElement).value as AccessFilter)}
             class={selectClass}
           >
             {ACCESS_FILTERS.map((value) => (
@@ -253,6 +267,7 @@ export default function DocumentsFilter({ documents }: Props) {
       <div class="mt-5 flex items-center justify-between gap-4" role="status" aria-live="polite">
         <p class="text-sm font-medium text-ink-600">
           {results.length === 1 ? '1 document trouvé' : `${results.length} documents trouvés`}
+          {syncedAt && <span class="ml-2 text-ink-400">Catalogue synchronisé le {new Date(syncedAt).toLocaleDateString('fr-BE')}</span>}
         </p>
         {hasFilters && (
           <button
@@ -268,9 +283,6 @@ export default function DocumentsFilter({ documents }: Props) {
       {/* Results */}
       {results.length === 0 ? (
         <div class="mt-8 rounded-2xl bg-ink-50 p-10 text-center">
-          <p class="text-3xl" aria-hidden="true">
-            🗂️
-          </p>
           <p class="mt-3 font-display font-semibold text-ink-800">
             Aucun document trouvé. Essayez de modifier vos filtres ou contactez-nous.
           </p>
@@ -280,7 +292,7 @@ export default function DocumentsFilter({ documents }: Props) {
         </div>
       ) : (
         <ul class="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {results.map((doc) => {
+          {pageDocuments.map((doc) => {
             const isPortal = doc.source === 'portal';
             const access = getDocumentAccessMeta(doc.source, doc.fileUrl, doc.externalUrl);
             return (
@@ -297,7 +309,7 @@ export default function DocumentsFilter({ documents }: Props) {
                   </span>
                   {isPortal && (
                     <span class="rounded-full bg-coral-50 px-2.5 py-0.5 text-xs font-semibold text-coral-700">
-                      🔒 Portail uniquement
+                      Portail uniquement
                     </span>
                   )}
                 </div>
@@ -330,6 +342,18 @@ export default function DocumentsFilter({ documents }: Props) {
             );
           })}
         </ul>
+      )}
+
+      {results.length > PAGE_SIZE && (
+        <nav class="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="Pagination des documents">
+          <button type="button" disabled={safePage === 1} onClick={() => setPage(Math.max(1, safePage - 1))} class="organic-button organic-button--sand disabled:cursor-not-allowed disabled:opacity-40">
+            Précédent
+          </button>
+          <span class="px-4 text-sm font-semibold text-ink-600">Page {safePage} sur {pageCount}</span>
+          <button type="button" disabled={safePage === pageCount} onClick={() => setPage(Math.min(pageCount, safePage + 1))} class="organic-button organic-button--moss disabled:cursor-not-allowed disabled:opacity-40">
+            Suivant
+          </button>
+        </nav>
       )}
     </div>
   );

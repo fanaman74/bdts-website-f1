@@ -2,112 +2,62 @@
 import type { CollectionEntry } from 'astro:content';
 import { render, getCollection } from 'astro:content';
 import BaseLayout from './BaseLayout.astro';
+import PageHero from '../components/PageHero.astro';
 import ServiceCard from '../components/ServiceCard.astro';
 import ContactCTA from '../components/ContactCTA.astro';
 import { serviceImage } from '../data/cardImages';
 
-interface Props {
-  service: CollectionEntry<'services'>;
-}
+interface Props { service: CollectionEntry<'services'>; }
 
 const { service } = Astro.props;
 const { Content } = await render(service);
-
 const related = (await getCollection('services'))
-  .filter(
-    (s) =>
-      s.id !== service.id &&
-      s.data.audience === service.data.audience &&
-      s.data.category === service.data.category
-  )
+  .filter((s) => s.id !== service.id && s.data.audience === service.data.audience && s.data.category === service.data.category)
   .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99))
   .slice(0, 3);
-
 const audienceLabel = service.data.audience === 'particulier' ? 'Particulier' : 'Professionnel';
+const image = service.data.heroImage ?? serviceImage(service.id);
 ---
 
 <BaseLayout title={service.data.title} description={service.data.summary}>
-  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
-    <div
-      class="absolute -top-32 right-0 h-96 w-96 rounded-full bg-pulse-600/30 blur-[100px]"
-      aria-hidden="true"
-    >
-    </div>
-    <div class="container-site relative py-16 sm:py-20">
-      <nav aria-label="Fil d'Ariane" class="mb-6 text-sm text-ink-300">
-        <ol class="flex flex-wrap items-center gap-2">
-          <li><a href="/" class="hover:text-white">Accueil</a></li>
-          <li aria-hidden="true">/</li>
-          <li>{audienceLabel}</li>
-          <li aria-hidden="true">/</li>
-          <li aria-current="page" class="font-medium text-white">{service.data.title}</li>
-        </ol>
-      </nav>
-      <div class="flex items-start gap-5">
-        {
-          service.data.icon && (
-            <span class="hidden h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/10 text-3xl ring-1 ring-white/20 sm:grid" aria-hidden="true">
-              {service.data.icon}
-            </span>
-          )
-        }
-        <div>
-          <h1 class="font-display text-3xl font-bold tracking-tight sm:text-5xl">{service.data.title}</h1>
-          <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">{service.data.summary}</p>
+  <div class="page-shell">
+    <nav aria-label="Fil d’Ariane" class="organic-breadcrumb">
+      <a href="/">Accueil</a><span>/</span><span>{audienceLabel}</span><span>/</span><span aria-current="page">{service.data.title}</span>
+    </nav>
+    <PageHero eyebrow={audienceLabel} title={service.data.title} description={service.data.summary} image={image}>
+      <div class="organic-actions">
+        <a href="/devis" class="organic-button organic-button--clay">Demander un devis</a>
+        <a href="/contact" class="organic-button organic-button--sand">Poser une question</a>
+      </div>
+    </PageHero>
+
+    <div class="service-body">
+      <article class="prose-service"><Content /></article>
+      <aside class="service-aside">
+        <div class="service-aside__card">
+          <p class="organic-kicker">Votre courtier</p>
+          <h2>Comparer avant de choisir</h2>
+          <p>Nous examinons les garanties, exclusions et tarifs des compagnies partenaires pour votre situation.</p>
+          <a href="/contact" class="organic-text-link">Nous contacter</a>
         </div>
-      </div>
-      <div class="mt-8 flex flex-wrap gap-3">
-        <a href="/devis" class="btn-primary">Demander un devis</a>
-        <a href="/contact" class="btn-secondary">Poser une question</a>
-      </div>
+        <div class="service-aside__card service-aside__card--clay">
+          <p class="organic-kicker">Contrat existant</p>
+          <h2>Un sinistre à déclarer ?</h2>
+          <p>Transmettez les premières informations en ligne. Nous reprenons ensuite le dossier avec la compagnie.</p>
+          <a href="/declaration" class="organic-text-link">Déclarer le sinistre</a>
+        </div>
+      </aside>
     </div>
-  </div>
 
-  <div class="container-site grid gap-12 py-14 lg:grid-cols-[1fr_320px]">
-    <article class="prose-service max-w-none">
-      <Content />
-    </article>
-
-    <aside class="space-y-6 lg:pt-2">
-      <div class="card p-6">
-        <p class="eyebrow text-pulse-600">Besoin d'aide ?</p>
-        <p class="mt-2 text-sm leading-relaxed text-ink-600">
-          Nos conseillers comparent les offres de nos compagnies partenaires et vous proposent la couverture la plus
-          adaptée.
-        </p>
-        <a href="/contact" class="btn-primary mt-4 w-full !py-2.5 text-xs">Nous contacter</a>
-        <a href="tel:+3224631925" class="btn-ghost mt-2 w-full !py-2.5 text-xs">+32 2 463 19 25</a>
-      </div>
-      <div class="card p-6">
-        <p class="eyebrow text-coral-600">Un sinistre ?</p>
-        <p class="mt-2 text-sm leading-relaxed text-ink-600">
-          Déclarez votre sinistre en ligne — nous prenons le relais auprès de la compagnie.
-        </p>
-        <a href="/declaration" class="btn-ghost mt-4 w-full !py-2.5 text-xs">Déclarer un sinistre</a>
-      </div>
-    </aside>
-  </div>
-
-  {
-    related.length > 0 && (
-      <section class="bg-ink-50 py-14">
-        <div class="container-site">
-          <h2 class="section-title">À découvrir aussi</h2>
-          <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {related.map((s) => (
-              <ServiceCard
-                title={s.data.title}
-                summary={s.data.summary}
-                href={`/${s.id.replace(/\.md$/, '')}`}
-                icon={s.data.icon}
-                image={s.data.heroImage ?? serviceImage(s.id)}
-              />
-            ))}
-          </div>
+    {related.length > 0 && (
+      <section class="related-section">
+        <p class="organic-kicker">Dans la même catégorie</p>
+        <h2>À découvrir aussi</h2>
+        <div class="organic-card-grid">
+          {related.map((s) => <ServiceCard title={s.data.title} summary={s.data.summary} href={`/${s.id.replace(/\.md$/, '')}`} image={s.data.heroImage ?? serviceImage(s.id)} />)}
         </div>
       </section>
-    )
-  }
-
+    )}
+  </div>
   <ContactCTA />
 </BaseLayout>

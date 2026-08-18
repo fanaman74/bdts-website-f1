@@ -3,170 +3,83 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/Hero.astro';
 import PartnerMarquee from '../components/PartnerMarquee.astro';
+import ServiceCard from '../components/ServiceCard.astro';
+import NewsCard from '../components/NewsCard.astro';
+import ContactCTA from '../components/ContactCTA.astro';
 import { portals } from '../data/portals';
 import { serviceImage } from '../data/cardImages';
 import { t } from '../i18n/fr';
 
 const services = await getCollection('services');
-const featured = services
-  .filter((service) => service.data.featured)
-  .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
-
-const particulier = services
-  .filter((service) => service.data.audience === 'particulier')
-  .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
-
-const professionnel = services
-  .filter((service) => service.data.audience === 'professionnel')
-  .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
-
-const news = (await getCollection('news'))
-  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
-  .slice(0, 3);
-
-const documentCount = 25;
-const arrowPath = 'M3 10h13M11 5l5 5-5 5';
+const featured = services.filter((service) => service.data.featured).sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99)).slice(0, 6);
+const particulier = services.filter((service) => service.data.audience === 'particulier').sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
+const professionnel = services.filter((service) => service.data.audience === 'professionnel').sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
+const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()).slice(0, 3);
 ---
 
-<BaseLayout title={t.site.name} description={t.site.description} bodyClass="home-swiss">
-  <Hero />
-  <PartnerMarquee />
+<BaseLayout title={t.site.name} description={t.site.description} bodyClass="home-organic">
+  <div class="page-shell page-shell--home">
+    <Hero />
 
-  <section class="swiss-section swiss-coverage" aria-labelledby="coverage-title">
-    <div class="swiss-frame">
-      <header class="swiss-section-header reveal">
-        <p>Domaines d'intervention</p>
-        <h2 id="coverage-title">Une lecture claire<br />de ce qui doit être protégé.</h2>
-        <p>
-          Nous examinons votre situation avant de comparer les garanties, les exclusions et le coût réel des contrats.
-        </p>
-      </header>
-
-      <ol class="swiss-coverage-index">
-        {
-          featured.map((service, index) => (
-            <li class="reveal">
-              <a href={`/${service.id}`}>
-                <span class="swiss-folio">{String(index + 1).padStart(2, '0')}</span>
-                <span class="swiss-coverage-copy">
-                  <strong>{service.data.title}</strong>
-                  <span>{service.data.summary}</span>
-                </span>
-                <span class="swiss-coverage-image" aria-hidden="true">
-                  <img src={service.data.heroImage ?? serviceImage(service.id)} alt="" width="420" height="280" loading="lazy" />
-                </span>
-                <svg viewBox="0 0 20 20" aria-hidden="true"><path d={arrowPath} /></svg>
-              </a>
-            </li>
-          ))
-        }
-      </ol>
-    </div>
-  </section>
-
-  <section class="swiss-service-directory" aria-label="Répertoire des assurances">
-    <div class="swiss-frame swiss-directory-grid">
-      <article class="reveal">
-        <div class="swiss-directory-heading">
-          <span>Particuliers</span>
-          <h2>Votre quotidien,<br />sans angle mort.</h2>
-        </div>
+    <section class="home-intro">
+      <div class="home-intro__image"><img src="/images/photos/particulier-famille-protection-assurance-familiale.jpg" alt="" width="1200" height="800" /></div>
+      <div class="home-intro__copy">
+        <p class="organic-kicker">BDT Sironval</p>
+        <h2>Un service à votre écoute, au-delà de la souscription.</h2>
+        <p>Nous comparons les contrats, expliquons leurs limites et restons votre interlocuteur lorsque votre situation change ou qu’un sinistre survient.</p>
         <ul>
-          {
-            particulier.slice(0, 8).map((service, index) => (
-              <li>
-                <a href={`/${service.id}`}>
-                  <span>{String(index + 1).padStart(2, '0')}</span>
-                  <strong>{service.data.title}</strong>
-                </a>
-              </li>
-            ))
-          }
+          <li>Un conseiller qui connaît votre dossier</li>
+          <li>Des garanties comparées avant le prix</li>
+          <li>Un suivi direct avec les compagnies</li>
         </ul>
-      </article>
-
-      <article class="reveal">
-        <div class="swiss-directory-heading swiss-directory-heading-blue">
-          <span>Professionnels</span>
-          <h2>Votre activité,<br />avec méthode.</h2>
-        </div>
-        <ul>
-          {
-            professionnel.slice(0, 8).map((service, index) => (
-              <li>
-                <a href={`/${service.id}`}>
-                  <span>{String(index + 1).padStart(2, '0')}</span>
-                  <strong>{service.data.title}</strong>
-                </a>
-              </li>
-            ))
-          }
-        </ul>
-      </article>
-    </div>
-  </section>
-
-  <section class="swiss-practical" aria-labelledby="practical-title">
-    <div class="swiss-frame swiss-practical-grid">
-      <div class="swiss-practical-lead reveal">
-        <p>Accès direct</p>
-        <h2 id="practical-title">Le contrat ne s'arrête pas à la signature.</h2>
-        <p>Retrouvez les documents utiles et accédez à vos espaces personnels sécurisés.</p>
+        <a href="/contact" class="organic-button organic-button--moss">Découvrir le bureau</a>
       </div>
+    </section>
 
-      <a href="/documents" class="swiss-document-block reveal">
-        <span>Bibliothèque</span>
-        <strong>{documentCount}</strong>
-        <h3>Documents produits classés et consultables</h3>
-        <svg viewBox="0 0 20 20" aria-hidden="true"><path d={arrowPath} /></svg>
-      </a>
-
-      <div class="swiss-portal-list reveal">
-        <p>Espaces personnels</p>
-        {portals.map((portal) => (
-          <a href={portal.url} target="_blank" rel="noopener noreferrer">
-            <span>
-              <strong>{portal.name}</strong>
-              <small>{portal.label}</small>
-            </span>
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d={arrowPath} /></svg>
-          </a>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <section class="swiss-news swiss-section" aria-labelledby="news-title">
-    <div class="swiss-frame">
-      <header class="swiss-section-header swiss-news-header reveal">
-        <p>Actualités</p>
-        <h2 id="news-title">Ce qui change,<br />ce qu'il faut retenir.</h2>
-        <a href="/actualites">Voir toutes les actualités</a>
+    <section class="home-services" aria-labelledby="home-services-title">
+      <header class="organic-section-heading">
+        <div><p class="organic-kicker">Particulier et professionnel</p><h2 id="home-services-title">Les protections que nous comparons pour vous</h2></div>
+        <p>Chaque dossier commence par votre situation réelle : ce qui doit être couvert, ce qui peut rester à votre charge et ce qui mérite d’être expliqué.</p>
       </header>
+      <div class="organic-card-grid">{featured.map((service) => <ServiceCard title={service.data.title} summary={service.data.summary} href={`/${service.id}`} image={service.data.heroImage ?? serviceImage(service.id)} />)}</div>
+    </section>
 
-      <div class="swiss-news-list">
-        {news.map((article, index) => (
-          <article class="reveal">
-            <span class="swiss-folio">{String(index + 1).padStart(2, '0')}</span>
-            <time datetime={article.data.date.toISOString()}>
-              {article.data.date.toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-            </time>
-            <h3><a href={`/actualites/${article.id}`}>{article.data.title}</a></h3>
-            <p>{article.data.summary}</p>
-          </article>
-        ))}
-      </div>
-    </div>
-  </section>
+    <section class="audience-panels" aria-label="Assurances par public">
+      <article>
+        <p class="organic-kicker">Particuliers</p>
+        <h2>Protéger le quotidien et préparer la suite.</h2>
+        <ul>{particulier.slice(0, 8).map((service) => <li><a href={`/${service.id}`}><span>{service.data.title}</span><small>Voir</small></a></li>)}</ul>
+      </article>
+      <article>
+        <p class="organic-kicker">Professionnels</p>
+        <h2>Couvrir l’activité, les équipes et les revenus.</h2>
+        <ul>{professionnel.slice(0, 8).map((service) => <li><a href={`/${service.id}`}><span>{service.data.title}</span><small>Voir</small></a></li>)}</ul>
+      </article>
+    </section>
 
-  <section class="swiss-closing" aria-labelledby="closing-title">
-    <div class="swiss-frame swiss-closing-grid">
-      <p>Une question mérite mieux qu'un formulaire anonyme.</p>
-      <h2 id="closing-title">Parlons de votre situation.</h2>
-      <div class="swiss-actions">
-        <a href="/contact" class="swiss-action swiss-action-primary">Nous contacter</a>
-        <a href="tel:+3224631925" class="swiss-action">+32 2 463 19 25</a>
+    <section class="document-feature" aria-labelledby="document-feature-title">
+      <div>
+        <p class="organic-kicker">Bibliothèque produit</p>
+        <h2 id="document-feature-title">2 957 documents d’assurance, reliés à leur source.</h2>
+        <p>Conditions générales, fiches IPID, informations commerciales et documents fiscaux issus du catalogue sectoriel et ouverts sur le site de la compagnie.</p>
+        <a href="/documents" class="organic-button organic-button--sand">Rechercher un document</a>
       </div>
-    </div>
-  </section>
+      <div class="document-feature__list">
+        <span>Recherche plein texte</span><span>Filtre par compagnie</span><span>Filtre par domaine</span><span>PDF source</span>
+      </div>
+    </section>
+
+    <section class="portal-home" aria-labelledby="portal-home-title">
+      <header><p class="organic-kicker">Vos espaces sécurisés</p><h2 id="portal-home-title">Accéder à vos contrats personnels</h2></header>
+      <div>{portals.map((portal) => <a href={portal.url} target="_blank" rel="noopener noreferrer"><span>{portal.label}</span><h3>{portal.name}</h3><p>{portal.description}</p><strong class="organic-text-link">Se connecter</strong></a>)}</div>
+    </section>
+
+    <section class="home-news" aria-labelledby="home-news-title">
+      <header class="organic-section-heading"><div><p class="organic-kicker">Infos pratiques</p><h2 id="home-news-title">Nos actualités</h2></div><a href="/actualites" class="organic-button organic-button--moss">Toutes les actualités</a></header>
+      <div class="organic-card-grid">{news.map((article) => <NewsCard title={article.data.title} summary={article.data.summary} date={article.data.date} tags={article.data.tags} image={article.data.image} href={`/actualites/${article.id}`} />)}</div>
+    </section>
+
+    <PartnerMarquee />
+  </div>
+  <ContactCTA />
 </BaseLayout>

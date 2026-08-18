@@ -1,25 +1,17 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import InquiryForm from '../components/InquiryForm.astro';
+import PageHero from '../components/PageHero.astro';
 ---
 
 <BaseLayout
   title="Contact"
   description="Contactez BDT Sironval : conseils en assurances, devis et gestion de contrats à Bruxelles."
 >
-  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
-    <div class="absolute -top-32 right-10 h-80 w-80 rounded-full bg-pulse-600/30 blur-[100px]" aria-hidden="true"></div>
-    <div class="container-site relative py-16 sm:py-20">
-      <p class="eyebrow text-pulse-300">Contact</p>
-      <h1 class="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">Parlons de vos assurances</h1>
-      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">
-        Une question, un conseil, un contrat à revoir ? Écrivez-nous ou passez au bureau — on vous répond vite, et en
-        français clair.
-      </p>
-    </div>
-  </div>
+  <div class="page-shell">
+    <PageHero eyebrow="Contact" title="Parlons de vos assurances." description="Une question, un conseil, un contrat à revoir ? Écrivez-nous ou passez au bureau : nous vous répondons en français clair." image="/images/photos/particulier-famille-protection-assurance-familiale.jpg" compact />
 
-  <div class="container-site grid gap-12 py-14 lg:grid-cols-[1fr_340px]">
+  <div class="organic-form-layout">
     <section aria-label="Formulaire de contact" class="card p-6 sm:p-8">
       <InquiryForm formType="contact" messagePlaceholder="Décrivez votre question ou votre situation…" />
     </section>
@@ -29,15 +21,12 @@ import InquiryForm from '../components/InquiryForm.astro';
         <p class="eyebrow text-pulse-600">Coordonnées</p>
         <ul class="mt-3 space-y-3 text-sm text-ink-700">
           <li class="flex gap-3">
-            <span aria-hidden="true">📍</span>
             <span>Rue de Wand 29<br />1020 Bruxelles</span>
           </li>
           <li class="flex gap-3">
-            <span aria-hidden="true">📞</span>
             <a href="tel:+3224631925" class="hover:text-pulse-700">+32 2 463 19 25</a>
           </li>
           <li class="flex gap-3">
-            <span aria-hidden="true">✉️</span>
             <a href="mailto:bdts@bdts.be" class="hover:text-pulse-700">bdts@bdts.be</a>
           </li>
         </ul>
@@ -58,5 +47,6 @@ import InquiryForm from '../components/InquiryForm.astro';
         <a href="/declaration" class="btn-ghost mt-4 w-full !py-2.5 text-xs">Déclarer un sinistre</a>
       </div>
     </aside>
+  </div>
   </div>
 </BaseLayout>

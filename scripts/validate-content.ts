@@ -31,6 +31,23 @@ for (const doc of docs) {
   }
 }
 
+// --- public Sector Catalog snapshot ---
+const sectorDocs: { id: string; url: string }[] = JSON.parse(
+  readFileSync(join(ROOT, 'src/data/sectorcatalog-documents.json'), 'utf8')
+);
+const sectorMeta: { count: number } = JSON.parse(
+  readFileSync(join(ROOT, 'src/data/sectorcatalog-documents-meta.json'), 'utf8')
+);
+const sectorIds = new Set<string>();
+for (const doc of sectorDocs) {
+  if (sectorIds.has(doc.id)) errors.push(`sector catalog: duplicate id "${doc.id}"`);
+  sectorIds.add(doc.id);
+  if (!/^https?:\/\//.test(doc.url)) errors.push(`sector catalog: "${doc.id}" has no absolute source URL`);
+}
+if (sectorDocs.length !== sectorMeta.count) {
+  errors.push(`sector catalog: metadata expects ${sectorMeta.count} records but snapshot contains ${sectorDocs.length}`);
+}
+
 // --- every service has a card photo ---
 import { readdirSync, statSync } from 'node:fs';
 
@@ -68,4 +85,4 @@ if (errors.length) {
   console.error(`✗ ${errors.length} validation error(s):\n` + errors.map((e) => `  - ${e}`).join('\n'));
   process.exit(1);
 }
-console.log(`✓ Content validation passed (${docs.length} documents, ${hrefs.length} nav links).`);
+console.log(`✓ Content validation passed (${sectorDocs.length} catalog documents, ${docs.length} curated entries, ${hrefs.length} nav links).`);

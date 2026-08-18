@@ -1,62 +1,30 @@
 ---
 import { t } from '../i18n/fr';
+
+const quickActions = [
+  { label: 'Demander un devis', href: '/devis' },
+  { label: 'Déclarer un sinistre', href: '/declaration' },
+  { label: 'Trouver un document', href: '/documents' },
+  { label: 'Prendre contact', href: '/contact' }
+];
 ---
 
-<section class="swiss-hero" aria-labelledby="home-title">
-  <div class="swiss-frame swiss-hero-grid">
-    <div class="swiss-hero-copy">
-      <div class="swiss-meta-line">
-        <span>BDT Sironval</span>
-        <span>Courtier indépendant à Bruxelles</span>
-      </div>
-
-      <h1 id="home-title">
-        Le bon contrat<br />commence par<br /><span>la bonne question.</span>
-      </h1>
-
-      <p class="swiss-hero-intro">{t.hero.subheadline}</p>
-
-      <div class="swiss-actions" aria-label="Actions principales">
-        <a href="/devis" class="swiss-action swiss-action-primary">{t.hero.ctaQuote}</a>
-        <a href="/declaration" class="swiss-action">{t.hero.ctaClaim}</a>
-      </div>
-    </div>
-
-    <div class="swiss-hero-media">
-      <video
-        class="swiss-office-film"
-        autoplay
-        muted
-        loop
-        playsinline
-        preload="metadata"
-        poster="/images/hero-poster.jpg"
-        tabindex="-1"
-      >
-        <source src="/videos/hero-office.mp4" type="video/mp4" />
-      </video>
-      <div class="swiss-film-index" aria-hidden="true">01</div>
-      <div class="swiss-film-caption">
-        <span>Rue de Wand 29</span>
-        <span>1020 Bruxelles</span>
-      </div>
-    </div>
+<section class="home-hero" aria-labelledby="home-title">
+  <img class="home-hero__image" src="/images/photos/professionnel-entreprise-responsabilite.jpg" alt="" width="1600" height="1067" fetchpriority="high" />
+  <div class="home-hero__veil" aria-hidden="true"></div>
+  <div class="home-hero__copy">
+    <p class="organic-kicker">Courtier indépendant · Bruxelles</p>
+    <h1 id="home-title">Vos assurances,<br />expliquées avant<br />d’être signées.</h1>
+    <p>{t.hero.subheadline}</p>
+    <a href="/contact" class="organic-button organic-button--clay">Parler à un conseiller</a>
   </div>
-
-  <script>
-    const heroVideo = document.querySelector<HTMLVideoElement>('.swiss-office-film');
-    if (heroVideo && matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      heroVideo.removeAttribute('autoplay');
-      heroVideo.pause();
-    }
-  </script>
-
-  <div class="swiss-contact-rail">
-    <div class="swiss-frame">
-      <a href="tel:+3224631925">+32 2 463 19 25</a>
-      <a href="mailto:bdts@bdts.be">bdts@bdts.be</a>
-      <a href="/documents">Documents produits</a>
-      <a href="/contact">Prendre contact</a>
-    </div>
-  </div>
+  <nav class="home-hero__paths" aria-label="Vos démarches">
+    {quickActions.map((action) => <a href={action.href}><span aria-hidden="true"></span>{action.label}<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg></a>)}
+  </nav>
 </section>
+
+<div class="home-contact-strip">
+  <div><strong>Rue de Wand 29</strong><span>1020 Bruxelles</span></div>
+  <a href="tel:+3224631925"><strong>+32 2 463 19 25</strong><span>Du lundi au vendredi</span></a>
+  <a href="mailto:bdts@bdts.be"><strong>bdts@bdts.be</strong><span>Écrivez-nous</span></a>
+</div>

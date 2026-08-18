@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import InquiryForm from '../components/InquiryForm.astro';
+import PageHero from '../components/PageHero.astro';
 
 const steps = [
   ['1', 'Vous décrivez votre besoin', 'Auto, habitation, pension… quelques lignes suffisent pour démarrer.'],
@@ -13,18 +14,10 @@ const steps = [
   title="Demander un devis"
   description="Demandez un devis d'assurance gratuit et sans engagement : auto, habitation, famille, pension, entreprise."
 >
-  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
-    <div class="absolute -top-32 left-10 h-80 w-80 rounded-full bg-coral-500/25 blur-[100px]" aria-hidden="true"></div>
-    <div class="container-site relative py-16 sm:py-20">
-      <p class="eyebrow text-coral-300">Devis gratuit</p>
-      <h1 class="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">Demander un devis</h1>
-      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">
-        Gratuit, sans engagement, et comparé pour vous parmi une quinzaine de compagnies. Réponse sous un jour ouvrable.
-      </p>
-    </div>
-  </div>
+  <div class="page-shell">
+    <PageHero eyebrow="Devis gratuit" title="Comparer avant de choisir." description="Décrivez votre situation. Nous comparons les garanties et les prix avant de vous présenter une proposition compréhensible, sans engagement." image="/images/photos/particulier-epargne-investir.jpg" compact />
 
-  <div class="container-site grid gap-12 py-14 lg:grid-cols-[1fr_340px]">
+  <div class="organic-form-layout">
     <section aria-label="Formulaire de devis" class="card p-6 sm:p-8">
       <InquiryForm
         formType="devis"
@@ -53,5 +46,6 @@ const steps = [
         }
       </ol>
     </aside>
+  </div>
   </div>
 </BaseLayout>

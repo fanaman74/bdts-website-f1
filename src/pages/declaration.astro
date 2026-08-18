@@ -1,25 +1,17 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import InquiryForm from '../components/InquiryForm.astro';
+import PageHero from '../components/PageHero.astro';
 ---
 
 <BaseLayout
   title="Déclarer un sinistre"
   description="Déclarez votre sinistre en ligne : nous gérons le dossier auprès de la compagnie et défendons vos intérêts."
 >
-  <div class="relative isolate overflow-hidden bg-ink-950 text-white">
-    <div class="absolute -top-32 right-1/4 h-80 w-80 rounded-full bg-coral-500/30 blur-[100px]" aria-hidden="true"></div>
-    <div class="container-site relative py-16 sm:py-20">
-      <p class="eyebrow text-coral-300">Sinistre</p>
-      <h1 class="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">Déclarer un sinistre</h1>
-      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-ink-100/90">
-        Décrivez ce qui s'est passé : nous ouvrons le dossier, contactons la compagnie et suivons l'indemnisation pour
-        vous.
-      </p>
-    </div>
-  </div>
+  <div class="page-shell">
+    <PageHero eyebrow="Sinistre" title="Nous reprenons le dossier avec vous." description="Décrivez ce qui s’est passé. Nous ouvrons le dossier, contactons la compagnie et suivons l’indemnisation avec vous." image="/images/photos/particulier-mobilite-auto.jpg" compact />
 
-  <div class="container-site grid gap-12 py-14 lg:grid-cols-[1fr_340px]">
+  <div class="organic-form-layout">
     <section aria-label="Formulaire de déclaration" class="card p-6 sm:p-8">
       <InquiryForm
         formType="declaration"
@@ -47,5 +39,6 @@ import InquiryForm from '../components/InquiryForm.astro';
         <a href="/documents" class="btn-ghost mt-4 w-full !py-2.5 text-xs">Voir les documents</a>
       </div>
     </aside>
+  </div>
   </div>
 </BaseLayout>
