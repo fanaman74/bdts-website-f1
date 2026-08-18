@@ -21,7 +21,7 @@ const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() 
   <div class="page-shell page-shell--home">
     <Hero />
 
-    <section class="home-intro">
+    <section class="home-intro" data-reveal>
       <div class="home-intro__image"><img src="/images/photos/particulier-famille-protection-assurance-familiale.jpg" alt="" width="1200" height="800" /></div>
       <div class="home-intro__copy">
         <p class="organic-kicker">BDT Sironval</p>
@@ -36,7 +36,7 @@ const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() 
       </div>
     </section>
 
-    <section class="home-services" aria-labelledby="home-services-title">
+    <section class="home-services" aria-labelledby="home-services-title" data-reveal>
       <header class="organic-section-heading">
         <div><p class="organic-kicker">Particulier et professionnel</p><h2 id="home-services-title">Les protections que nous comparons pour vous</h2></div>
         <p>Chaque dossier commence par votre situation réelle : ce qui doit être couvert, ce qui peut rester à votre charge et ce qui mérite d’être expliqué.</p>
@@ -44,7 +44,7 @@ const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() 
       <div class="organic-card-grid">{featured.map((service) => <ServiceCard title={service.data.title} summary={service.data.summary} href={`/${service.id}`} image={service.data.heroImage ?? serviceImage(service.id)} />)}</div>
     </section>
 
-    <section class="audience-panels" aria-label="Assurances par public">
+    <section class="audience-panels" aria-label="Assurances par public" data-reveal>
       <article>
         <p class="organic-kicker">Particuliers</p>
         <h2>Protéger le quotidien et préparer la suite.</h2>
@@ -57,7 +57,7 @@ const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() 
       </article>
     </section>
 
-    <section class="document-feature" aria-labelledby="document-feature-title">
+    <section class="document-feature" aria-labelledby="document-feature-title" data-reveal>
       <div>
         <p class="organic-kicker">Bibliothèque produit</p>
         <h2 id="document-feature-title">2 957 documents d’assurance, reliés à leur source.</h2>
@@ -69,12 +69,12 @@ const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() 
       </div>
     </section>
 
-    <section class="portal-home" aria-labelledby="portal-home-title">
+    <section class="portal-home" aria-labelledby="portal-home-title" data-reveal>
       <header><p class="organic-kicker">Vos espaces sécurisés</p><h2 id="portal-home-title">Accéder à vos contrats personnels</h2></header>
       <div>{portals.map((portal) => <a href={portal.url} target="_blank" rel="noopener noreferrer"><span>{portal.label}</span><h3>{portal.name}</h3><p>{portal.description}</p><strong class="organic-text-link">Se connecter</strong></a>)}</div>
     </section>
 
-    <section class="home-news" aria-labelledby="home-news-title">
+    <section class="home-news" aria-labelledby="home-news-title" data-reveal>
       <header class="organic-section-heading"><div><p class="organic-kicker">Infos pratiques</p><h2 id="home-news-title">Nos actualités</h2></div><a href="/actualites" class="organic-button organic-button--moss">Toutes les actualités</a></header>
       <div class="organic-card-grid">{news.map((article) => <NewsCard title={article.data.title} summary={article.data.summary} date={article.data.date} tags={article.data.tags} image={article.data.image} href={`/actualites/${article.id}`} />)}</div>
     </section>

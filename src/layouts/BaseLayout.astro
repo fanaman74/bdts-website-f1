@@ -175,7 +175,7 @@ const fullTitle = title === t.site.name ? title : `${title} — ${t.site.name}`;
         },
         { threshold: 0.12 }
       );
-      document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+      document.querySelectorAll('.reveal, [data-reveal], .home-organic .organic-card-grid > *').forEach((el) => io.observe(el));
     </script>
   </body>
 </html>
