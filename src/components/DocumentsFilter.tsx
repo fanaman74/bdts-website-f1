@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
 import Fuse from 'fuse.js';
+import { getDocumentAccessMeta } from '../lib/documentAccess';
 
 export interface DocumentItem {
   id: string;
@@ -44,6 +45,17 @@ const SOURCE_LABELS: Record<string, string> = {
   manual: 'Catalogue manuel'
 };
 
+const ACCESS_FILTERS = ['all', 'pdf', 'page', 'portal', 'internal'] as const;
+type AccessFilter = (typeof ACCESS_FILTERS)[number];
+
+const ACCESS_LABELS: Record<AccessFilter, string> = {
+  all: 'Tous les acces',
+  pdf: 'PDF directs',
+  page: 'Pages partenaires',
+  portal: 'Portails',
+  internal: 'Pages BDTS'
+};
+
 type SortKey = 'recent' | 'az' | 'partner' | 'category';
 
 function uniqueSorted(values: string[]): string[] {
@@ -58,6 +70,7 @@ export default function DocumentsFilter({ documents }: Props) {
   const [docType, setDocType] = useState('');
   const [language, setLanguage] = useState('');
   const [source, setSource] = useState('');
+  const [accessType, setAccessType] = useState<AccessFilter>('all');
   const [sort, setSort] = useState<SortKey>('recent');
 
   const fuse = useMemo(
@@ -76,7 +89,7 @@ export default function DocumentsFilter({ documents }: Props) {
   const types = useMemo(() => uniqueSorted(documents.map((d) => d.documentType)), [documents]);
   const sources = useMemo(() => uniqueSorted(documents.map((d) => d.source)), [documents]);
 
-  const hasFilters = query || audience || category || partner || docType || language || source;
+  const hasFilters = query || audience || category || partner || docType || language || source || accessType !== 'all';
 
   const results = useMemo(() => {
     let list = query.trim() ? fuse.search(query.trim()).map((r) => r.item) : [...documents];
@@ -87,6 +100,16 @@ export default function DocumentsFilter({ documents }: Props) {
     if (docType) list = list.filter((d) => d.documentType === docType);
     if (language) list = list.filter((d) => d.language === language);
     if (source) list = list.filter((d) => d.source === source);
+    if (accessType !== 'all') {
+      list = list.filter((d) => {
+        const access = getDocumentAccessMeta(d.source, d.fileUrl, d.externalUrl);
+        if (accessType === 'pdf') return access.accessLabel === 'PDF direct';
+        if (accessType === 'page') return access.accessLabel === 'Page partenaire';
+        if (accessType === 'portal') return access.accessLabel === 'Portail sécurisé';
+        if (accessType === 'internal') return access.accessLabel === 'Page BDTS';
+        return true;
+      });
+    }
 
     const sorters: Record<SortKey, (a: DocumentItem, b: DocumentItem) => number> = {
       recent: (a, b) => (b.lastUpdated ?? '').localeCompare(a.lastUpdated ?? ''),
@@ -97,7 +120,7 @@ export default function DocumentsFilter({ documents }: Props) {
     // Keep Fuse relevance order when searching without explicit sort change
     if (!(query.trim() && sort === 'recent')) list.sort(sorters[sort]);
     return list;
-  }, [documents, fuse, query, audience, category, partner, docType, language, source, sort]);
+  }, [documents, fuse, query, audience, category, partner, docType, language, source, accessType, sort]);
 
   const reset = () => {
     setQuery('');
@@ -107,6 +130,7 @@ export default function DocumentsFilter({ documents }: Props) {
     setDocType('');
     setLanguage('');
     setSource('');
+    setAccessType('all');
     setSort('recent');
   };
 
@@ -211,6 +235,18 @@ export default function DocumentsFilter({ documents }: Props) {
             ))}
           </select>
         </label>
+        <label class="block">
+          <span class="mb-1 block text-xs font-semibold text-ink-500">Acces</span>
+          <select
+            value={accessType}
+            onChange={(e) => setAccessType((e.target as HTMLSelectElement).value as AccessFilter)}
+            class={selectClass}
+          >
+            {ACCESS_FILTERS.map((value) => (
+              <option value={value}>{ACCESS_LABELS[value]}</option>
+            ))}
+          </select>
+        </label>
       </fieldset>
 
       {/* Result count + reset */}
@@ -246,7 +282,7 @@ export default function DocumentsFilter({ documents }: Props) {
         <ul class="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {results.map((doc) => {
             const isPortal = doc.source === 'portal';
-            const href = doc.source !== 'local' && doc.externalUrl ? doc.externalUrl : doc.fileUrl;
+            const access = getDocumentAccessMeta(doc.source, doc.fileUrl, doc.externalUrl);
             return (
               <li key={doc.id} class="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-ink-100 transition hover:shadow-lg hover:ring-pulse-200">
                 <div class="mb-3 flex flex-wrap gap-2">
@@ -255,6 +291,9 @@ export default function DocumentsFilter({ documents }: Props) {
                   </span>
                   <span class="rounded-full bg-ink-50 px-2.5 py-0.5 text-xs font-semibold text-ink-600 uppercase">
                     {doc.language}
+                  </span>
+                  <span class="rounded-full bg-mint-100 px-2.5 py-0.5 text-xs font-semibold text-mint-700">
+                    {access.accessLabel}
                   </span>
                   {isPortal && (
                     <span class="rounded-full bg-coral-50 px-2.5 py-0.5 text-xs font-semibold text-coral-700">
@@ -266,6 +305,7 @@ export default function DocumentsFilter({ documents }: Props) {
                 <p class="mt-1 text-xs font-medium text-ink-500">
                   {doc.partner} · {doc.category}
                 </p>
+                {access.hostLabel && <p class="mt-2 text-xs font-medium text-ink-400">Source : {access.hostLabel}</p>}
                 {doc.description && <p class="mt-2 flex-1 text-sm leading-relaxed text-ink-600">{doc.description}</p>}
                 <div class="mt-4 flex items-center justify-between gap-3">
                   {doc.lastUpdated ? (
@@ -276,14 +316,14 @@ export default function DocumentsFilter({ documents }: Props) {
                     <span />
                   )}
                   <a
-                    href={href}
-                    target={doc.source !== 'local' ? '_blank' : undefined}
-                    rel={doc.source !== 'local' ? 'noopener noreferrer' : undefined}
+                    href={access.href}
+                    target={access.opensExternally ? '_blank' : undefined}
+                    rel={access.opensExternally ? 'noopener noreferrer' : undefined}
                     class={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition ${
                       isPortal ? 'bg-ink-100 text-ink-800 hover:bg-ink-200' : 'bg-pulse-600 text-white hover:bg-pulse-700'
                     }`}
                   >
-                    {isPortal ? 'Accéder au portail' : doc.source === 'external' ? 'Ouvrir' : 'Télécharger'}
+                    {isPortal ? 'Accéder au portail' : access.actionLabel}
                   </a>
                 </div>
               </li>

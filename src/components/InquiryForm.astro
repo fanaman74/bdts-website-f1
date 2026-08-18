@@ -84,8 +84,11 @@ const inputClass =
       const label = btn.querySelector('[data-label]')!;
       const success = form.querySelector('[data-status="success"]')!;
       const error = form.querySelector('[data-status="error"]')!;
+      const initialLabel = label.textContent ?? 'Envoyer';
+      const initialError = error.textContent ?? '';
       success.classList.add('hidden');
       error.classList.add('hidden');
+      error.textContent = initialError;
 
       if (!form.checkValidity()) {
         form.reportValidity();
@@ -101,14 +104,24 @@ const inputClass =
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(Object.fromEntries(new FormData(form)))
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          let message = `HTTP ${res.status}`;
+          try {
+            const data = await res.json();
+            if (typeof data?.error === 'string' && data.error) message = data.error;
+          } catch {
+            // keep fallback message
+          }
+          throw new Error(message);
+        }
         form.reset();
         success.classList.remove('hidden');
-      } catch {
+      } catch (err) {
+        if (err instanceof Error && err.message) error.textContent = err.message;
         error.classList.remove('hidden');
       } finally {
         btn.disabled = false;
-        label.textContent = 'Envoyer';
+        label.textContent = initialLabel;
       }
     });
   });

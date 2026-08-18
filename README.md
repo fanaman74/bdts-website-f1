@@ -27,7 +27,7 @@ npm run dev        # http://localhost:4321
 
 - **Contenu** : collections Astro (`src/content/`) — 29 services, actualités, catalogue de documents JSON (`src/content/documents/documents.json`).
 - **Documents** : page `/documents` avec recherche Fuse.js, filtres (public, catégorie, partenaire, type, langue, source), tri, badges « portail uniquement » et fallback `<noscript>`. API : `GET /api/documents.json`.
-- **Formulaires** : contact `/contact`, devis `/devis`, sinistre `/declaration` → `POST /api/contact` (validation Zod côté serveur + honeypot). L'envoi d'e-mail est un point d'extension : voir le commentaire dans `src/pages/api/contact.ts`.
+- **Formulaires** : contact `/contact`, devis `/devis`, sinistre `/declaration` → `POST /api/contact` (validation Zod côté serveur + honeypot), puis stockage dans la table Supabase privée `inquiries`.
 - **Portails clients** : configurables dans `src/data/portals.ts` (MyBroker, My AG, extensibles).
 - **i18n** : dictionnaire `src/i18n/fr.ts`, prêt pour `nl`/`en`.
 - **SEO** : sitemap, robots.txt, Open Graph, canoniques, pages légales (mentions, vie privée, cookies, durabilité, protection du client).
@@ -41,6 +41,15 @@ title,partner,audience,category,productType,documentType,language,fileUrl,extern
 ```
 
 `tags` accepte plusieurs valeurs séparées par `;`. Les entrées existantes (même id généré) sont mises à jour.
+
+## Supabase
+
+1. Copiez `.env.example` vers `.env` et renseignez l'URL du projet ainsi qu'une clé secrète serveur `sb_secret_…`.
+2. Connectez le dépôt au projet : `npx supabase login`, puis `npx supabase link --project-ref <project-ref>`.
+3. Vérifiez la migration : `npx supabase db push --dry-run`.
+4. Appliquez-la : `npx supabase db push`.
+
+La migration `supabase/migrations/20260818000000_create_inquiries.sql` active RLS et interdit tout accès direct aux rôles navigateur. La clé secrète ne doit jamais être préfixée par `PUBLIC_` ni ajoutée au dépôt.
 
 ## Images
 

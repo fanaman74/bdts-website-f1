@@ -2,158 +2,171 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/Hero.astro';
-import ServiceCard from '../components/ServiceCard.astro';
-import NewsCard from '../components/NewsCard.astro';
-import ClientPortalBlock from '../components/ClientPortalBlock.astro';
 import PartnerMarquee from '../components/PartnerMarquee.astro';
-import ContactCTA from '../components/ContactCTA.astro';
+import { portals } from '../data/portals';
 import { serviceImage } from '../data/cardImages';
 import { t } from '../i18n/fr';
 
 const services = await getCollection('services');
 const featured = services
-  .filter((s) => s.data.featured)
+  .filter((service) => service.data.featured)
   .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
 
 const particulier = services
-  .filter((s) => s.data.audience === 'particulier')
+  .filter((service) => service.data.audience === 'particulier')
   .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
+
 const professionnel = services
-  .filter((s) => s.data.audience === 'professionnel')
+  .filter((service) => service.data.audience === 'professionnel')
   .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
 
 const news = (await getCollection('news'))
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
   .slice(0, 3);
 
-const accents = ['pulse', 'coral', 'mint'] as const;
+const documentCount = 25;
+const arrowPath = 'M3 10h13M11 5l5 5-5 5';
 ---
 
-<BaseLayout title={t.site.name} description={t.site.description}>
+<BaseLayout title={t.site.name} description={t.site.description} bodyClass="home-swiss">
   <Hero />
-
   <PartnerMarquee />
 
-  <!-- Featured categories -->
-  <section class="container-site py-16 sm:py-20" aria-labelledby="featured-title">
-    <div class="reveal max-w-2xl">
-      <p class="eyebrow text-coral-600">Nos solutions</p>
-      <h2 id="featured-title" class="section-title mt-2">
-        Une couverture pour chaque moment qui compte
-      </h2>
-      <p class="mt-4 leading-relaxed text-ink-600">
-        Mobilité, habitation, famille, santé, épargne ou entreprise : nous comparons les offres de nos compagnies
-        partenaires pour construire la vôtre.
-      </p>
-    </div>
-    <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {
-        featured.map((s, i) => (
-          <div class="reveal" style={`transition-delay: ${(i % 3) * 90}ms`}>
-            <ServiceCard
-              title={s.data.title}
-              summary={s.data.summary}
-              href={`/${s.id}`}
-              icon={s.data.icon}
-              image={s.data.heroImage ?? serviceImage(s.id)}
-              accent={accents[i % 3]}
-            />
-          </div>
-        ))
-      }
-    </div>
-  </section>
+  <section class="swiss-section swiss-coverage" aria-labelledby="coverage-title">
+    <div class="swiss-frame">
+      <header class="swiss-section-header reveal">
+        <p>Domaines d'intervention</p>
+        <h2 id="coverage-title">Une lecture claire<br />de ce qui doit être protégé.</h2>
+        <p>
+          Nous examinons votre situation avant de comparer les garanties, les exclusions et le coût réel des contrats.
+        </p>
+      </header>
 
-  <!-- Particulier -->
-  <section class="bg-ink-50 py-16 sm:py-20" aria-labelledby="particulier-title">
-    <div class="container-site">
-      <div class="reveal flex flex-wrap items-end justify-between gap-4">
-        <div class="max-w-2xl">
-          <p class="eyebrow text-pulse-600">Particulier</p>
-          <h2 id="particulier-title" class="section-title mt-2">Protéger ce qui vous est cher</h2>
-        </div>
-        <a href="/particulier/mobilite/auto" class="btn-ghost text-xs">Toutes les solutions particuliers</a>
-      </div>
-      <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <ol class="swiss-coverage-index">
         {
-          particulier.slice(0, 8).map((s) => (
-            <div class="reveal">
-              <ServiceCard
-                title={s.data.title}
-                summary={s.data.summary}
-                href={`/${s.id}`}
-                icon={s.data.icon}
-                image={s.data.heroImage ?? serviceImage(s.id)}
-              />
-            </div>
+          featured.map((service, index) => (
+            <li class="reveal">
+              <a href={`/${service.id}`}>
+                <span class="swiss-folio">{String(index + 1).padStart(2, '0')}</span>
+                <span class="swiss-coverage-copy">
+                  <strong>{service.data.title}</strong>
+                  <span>{service.data.summary}</span>
+                </span>
+                <span class="swiss-coverage-image" aria-hidden="true">
+                  <img src={service.data.heroImage ?? serviceImage(service.id)} alt="" width="420" height="280" loading="lazy" />
+                </span>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d={arrowPath} /></svg>
+              </a>
+            </li>
           ))
         }
-      </div>
+      </ol>
     </div>
   </section>
 
-  <!-- Professionnel -->
-  <section class="container-site py-16 sm:py-20" aria-labelledby="pro-title">
-    <div class="reveal flex flex-wrap items-end justify-between gap-4">
-      <div class="max-w-2xl">
-        <p class="eyebrow text-coral-600">Professionnel</p>
-        <h2 id="pro-title" class="section-title mt-2">Votre activité, couverte sous tous les angles</h2>
-      </div>
-      <a href="/professionnel/entreprise/responsabilite" class="btn-ghost text-xs">Toutes les solutions pro</a>
-    </div>
-    <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      {
-        professionnel.slice(0, 8).map((s) => (
-          <div class="reveal">
-            <ServiceCard
-              title={s.data.title}
-              summary={s.data.summary}
-              href={`/${s.id}`}
-              icon={s.data.icon}
-              image={s.data.heroImage ?? serviceImage(s.id)}
-              accent="coral"
-            />
-          </div>
-        ))
-      }
-    </div>
-  </section>
-
-  <!-- News -->
-  <section class="bg-ink-50 py-16 sm:py-20" aria-labelledby="news-title">
-    <div class="container-site">
-      <div class="reveal flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p class="eyebrow text-pulse-600">{t.nav.news}</p>
-          <h2 id="news-title" class="section-title mt-2">Dernières actualités</h2>
+  <section class="swiss-service-directory" aria-label="Répertoire des assurances">
+    <div class="swiss-frame swiss-directory-grid">
+      <article class="reveal">
+        <div class="swiss-directory-heading">
+          <span>Particuliers</span>
+          <h2>Votre quotidien,<br />sans angle mort.</h2>
         </div>
-        <a href="/actualites" class="btn-ghost text-xs">Toutes les actualités</a>
+        <ul>
+          {
+            particulier.slice(0, 8).map((service, index) => (
+              <li>
+                <a href={`/${service.id}`}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <strong>{service.data.title}</strong>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </article>
+
+      <article class="reveal">
+        <div class="swiss-directory-heading swiss-directory-heading-blue">
+          <span>Professionnels</span>
+          <h2>Votre activité,<br />avec méthode.</h2>
+        </div>
+        <ul>
+          {
+            professionnel.slice(0, 8).map((service, index) => (
+              <li>
+                <a href={`/${service.id}`}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <strong>{service.data.title}</strong>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="swiss-practical" aria-labelledby="practical-title">
+    <div class="swiss-frame swiss-practical-grid">
+      <div class="swiss-practical-lead reveal">
+        <p>Accès direct</p>
+        <h2 id="practical-title">Le contrat ne s'arrête pas à la signature.</h2>
+        <p>Retrouvez les documents utiles et accédez à vos espaces personnels sécurisés.</p>
       </div>
-      <div class="mt-10 grid gap-6 md:grid-cols-3">
-        {
-          news.map((article) => (
-            <div class="reveal">
-              <NewsCard
-                title={article.data.title}
-                summary={article.data.summary}
-                date={article.data.date}
-                tags={article.data.tags}
-                image={article.data.image}
-                href={`/actualites/${article.id}`}
-              />
-            </div>
-          ))
-        }
+
+      <a href="/documents" class="swiss-document-block reveal">
+        <span>Bibliothèque</span>
+        <strong>{documentCount}</strong>
+        <h3>Documents produits classés et consultables</h3>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d={arrowPath} /></svg>
+      </a>
+
+      <div class="swiss-portal-list reveal">
+        <p>Espaces personnels</p>
+        {portals.map((portal) => (
+          <a href={portal.url} target="_blank" rel="noopener noreferrer">
+            <span>
+              <strong>{portal.name}</strong>
+              <small>{portal.label}</small>
+            </span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d={arrowPath} /></svg>
+          </a>
+        ))}
       </div>
     </div>
   </section>
 
-  <!-- Client portals -->
-  <section class="container-site py-16 sm:py-20">
-    <div class="reveal">
-      <ClientPortalBlock />
+  <section class="swiss-news swiss-section" aria-labelledby="news-title">
+    <div class="swiss-frame">
+      <header class="swiss-section-header swiss-news-header reveal">
+        <p>Actualités</p>
+        <h2 id="news-title">Ce qui change,<br />ce qu'il faut retenir.</h2>
+        <a href="/actualites">Voir toutes les actualités</a>
+      </header>
+
+      <div class="swiss-news-list">
+        {news.map((article, index) => (
+          <article class="reveal">
+            <span class="swiss-folio">{String(index + 1).padStart(2, '0')}</span>
+            <time datetime={article.data.date.toISOString()}>
+              {article.data.date.toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </time>
+            <h3><a href={`/actualites/${article.id}`}>{article.data.title}</a></h3>
+            <p>{article.data.summary}</p>
+          </article>
+        ))}
+      </div>
     </div>
   </section>
 
-  <ContactCTA />
+  <section class="swiss-closing" aria-labelledby="closing-title">
+    <div class="swiss-frame swiss-closing-grid">
+      <p>Une question mérite mieux qu'un formulaire anonyme.</p>
+      <h2 id="closing-title">Parlons de votre situation.</h2>
+      <div class="swiss-actions">
+        <a href="/contact" class="swiss-action swiss-action-primary">Nous contacter</a>
+        <a href="tel:+3224631925" class="swiss-action">+32 2 463 19 25</a>
+      </div>
+    </div>
+  </section>
 </BaseLayout>

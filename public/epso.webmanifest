@@ -1,0 +1,31 @@
+{
+  "name": "EPSO Numerical Reasoning Prep",
+  "short_name": "EPSO Prep",
+  "description": "Practice EPSO numerical reasoning with calm, guided lessons and timed mock tests.",
+  "lang": "en",
+  "start_url": "/epso",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#d4b895",
+  "theme_color": "#606c38",
+  "icons": [
+    {
+      "src": "/epso-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/epso-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/epso-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
