@@ -1515,9 +1515,12 @@ body::before {
 .home-organic .home-hero { height: 650px; min-height: 650px; border-radius: 0 0 32px 32px; }
 .home-organic .home-hero__veil { background: linear-gradient(90deg, rgb(47 43 36 / .96) 0%, rgb(47 43 36 / .74) 48%, rgb(47 43 36 / .18) 100%); }
 .home-organic .home-hero__copy { max-width: 720px; padding: 142px 9% 190px; }
+.home-organic .home-hero__copy { position: relative; z-index: 3; }
+.home-organic .home-hero__copy .organic-button { transform: translateY(-14px); }
 .home-organic .home-hero__copy h1 { max-width: 15ch; font-size: clamp(2.8rem, 4.6vw, 5.2rem); line-height: .92; }
-.home-organic .home-hero__paths { right: 6%; bottom: 28px; width: 88%; max-width: 1120px; grid-template-columns: 1fr 1fr; gap: 12px; }
+.home-organic .home-hero__paths { right: 4%; bottom: 34px; width: 56%; max-width: 760px; grid-template-columns: 1fr 1fr; gap: 10px; z-index: 4; }
 .home-organic .home-hero__paths a { min-height: 100px; padding: 20px 26px; border-radius: 22px; background: rgb(242 233 217 / .94); color: var(--earth); font-size: 1.12rem; box-shadow: 0 16px 32px rgb(47 43 36 / .14); }
+.home-organic .home-hero__paths a { min-height: 76px; padding: 14px 18px; border-radius: 18px; font-size: .94rem; }
 .home-organic .home-hero__paths a:hover { background: var(--sage); transform: translateY(-3px); }
 .home-organic .home-hero__paths a span { display: block; flex: none; width: 44px; height: 44px; margin-right: 14px; border-radius: 50%; background: var(--sage); box-shadow: inset 0 0 0 7px rgb(232 220 199 / .32); }
 .home-organic .home-hero__paths a span { transition: transform .45s cubic-bezier(.2,.7,.2,1), background .3s ease; }
@@ -1533,6 +1536,9 @@ body::before {
 .home-organic .organic-service-card__image { height: 220px; }
 .home-organic .audience-panels, .home-organic .document-feature { margin-left: 14px; margin-right: 14px; border-radius: 30px; }
 .home-organic .portal-home { max-width: 1320px; margin-inline: auto; padding-top: 78px; padding-bottom: 78px; }
+.home-organic .document-feature .organic-button { margin-top: 18px; }
+.home-organic .portal-home > div > a { align-items: center; text-align: center; }
+.home-organic .portal-home > div > a strong { margin-top: auto; padding-top: 24px; }
 
 @media (max-width: 900px) {
   .home-organic .site-header { padding: 8px 8px 0; }
