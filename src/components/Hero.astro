@@ -2,10 +2,10 @@
 import { t } from '../i18n/fr';
 
 const quickActions = [
-  { label: 'Demander un devis', href: '/devis' },
-  { label: 'Déclarer un sinistre', href: '/declaration' },
-  { label: 'Trouver un document', href: '/documents' },
-  { label: 'Prendre contact', href: '/contact' }
+  { label: 'Demander un devis', href: '/devis', tone: 'terracotta', icon: 'M4 5.5h12M4 9.5h8M4 13.5h6' },
+  { label: 'Déclarer un sinistre', href: '/declaration', tone: 'ochre', icon: 'M10 3.5 17 16H3L10 3.5Zm0 4v4m0 2.2v.1' },
+  { label: 'Trouver un document', href: '/documents', tone: 'moss', icon: 'M6 3.5h6l3 3v10H6v-13Zm6 0v3h3' },
+  { label: 'Prendre contact', href: '/contact', tone: 'clay', icon: 'M4 5.5 10 10l6-4.5M4 5.5v9h12v-9' }
 ];
 ---
 
@@ -19,7 +19,7 @@ const quickActions = [
     <a href="/contact" class="organic-button organic-button--clay">Parler à un conseiller</a>
   </div>
   <nav class="home-hero__paths" aria-label="Vos démarches">
-    {quickActions.map((action) => <a href={action.href}><span aria-hidden="true"></span>{action.label}<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg></a>)}
+    {quickActions.map((action, index) => <a href={action.href} class={`home-action home-action--${action.tone}`}><span class="home-action__icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d={action.icon} /></svg></span><span class="home-action__label"><small>0{index + 1}</small>{action.label}</span><svg class="home-action__arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg></a>)}
   </nav>
 </section>
 

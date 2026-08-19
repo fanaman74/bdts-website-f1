@@ -67,6 +67,7 @@
   --sage: #8b9d83;
   --clay: #b08b6e;
   --terracotta: #c66b3d;
+  --ochre: #c08e3a;
   --moss: #606c38;
   --earth: #2f2b24;
   --cream: #f2e9d9;
@@ -1522,9 +1523,20 @@ body::before {
 .home-organic .home-hero__paths a { min-height: 100px; padding: 20px 26px; border-radius: 22px; background: rgb(242 233 217 / .94); color: var(--earth); font-size: 1.12rem; box-shadow: 0 16px 32px rgb(47 43 36 / .14); }
 .home-organic .home-hero__paths a { min-height: 76px; padding: 14px 18px; border-radius: 18px; font-size: .94rem; }
 .home-organic .home-hero__paths a:hover { background: var(--sage); transform: translateY(-3px); }
-.home-organic .home-hero__paths a span { display: block; flex: none; width: 44px; height: 44px; margin-right: 14px; border-radius: 50%; background: var(--sage); box-shadow: inset 0 0 0 7px rgb(232 220 199 / .32); }
-.home-organic .home-hero__paths a span { transition: transform .45s cubic-bezier(.2,.7,.2,1), background .3s ease; }
-.home-organic .home-hero__paths a:hover span { transform: rotate(12deg) scale(1.08); background: var(--moss); }
+.home-organic .home-action__icon { display: grid; place-items: center; flex: none; width: 38px; height: 38px; margin-right: 12px; border-radius: 13px; color: var(--earth); background: rgb(242 233 217 / .42); box-shadow: inset 0 0 0 1px rgb(47 43 36 / .12); }
+.home-organic .home-action__icon svg { width: 19px; height: 19px; }
+.home-organic .home-action__icon { transition: transform .45s cubic-bezier(.2,.7,.2,1), background .3s ease; }
+.home-organic .home-hero__paths a:hover .home-action__icon { transform: rotate(-8deg) scale(1.08); background: rgb(242 233 217 / .72); }
+.home-organic .home-action__label { display: inline-flex; align-items: baseline; gap: 10px; }
+.home-organic .home-action__label small { opacity: .58; font-size: .62rem; font-weight: 800; letter-spacing: .08em; }
+.home-organic .home-action--terracotta { background: linear-gradient(135deg, #f2e9d9 0%, #e8c1aa 100%); }
+.home-organic .home-action--ochre { background: linear-gradient(135deg, #f2e9d9 0%, #e4d29f 100%); }
+.home-organic .home-action--moss { background: linear-gradient(135deg, #dfe7d9 0%, #b4c59e 100%); }
+.home-organic .home-action--clay { background: linear-gradient(135deg, #f2e9d9 0%, #d8bda6 100%); }
+.home-organic .home-action--terracotta .home-action__icon { background: var(--terracotta); color: var(--cream); }
+.home-organic .home-action--ochre .home-action__icon { background: var(--ochre); color: var(--earth); }
+.home-organic .home-action--moss .home-action__icon { background: var(--moss); color: var(--cream); }
+.home-organic .home-action--clay .home-action__icon { background: var(--clay); color: var(--earth); }
 .home-organic .home-hero__paths svg { margin-left: auto; }
 .home-organic .home-contact-strip { margin-top: 0; padding: 18px 34px; border-radius: 0 0 20px 20px; background: var(--cream); color: var(--earth); border-bottom: 1px solid rgb(47 43 36 / .14); }
 .home-organic .home-contact-strip a { color: var(--earth); }
@@ -1547,7 +1559,7 @@ body::before {
   .home-organic .home-hero__copy h1 { font-size: clamp(3rem, 14vw, 5rem); }
   .home-organic .home-hero__paths { left: 14px; right: 14px; bottom: 16px; width: auto; gap: 8px; grid-template-columns: 1fr 1fr; }
   .home-organic .home-hero__paths a { min-height: 88px; padding: 14px; border-radius: 16px; font-size: .78rem; }
-  .home-organic .home-hero__paths a span { width: 30px; height: 30px; margin-right: 7px; box-shadow: inset 0 0 0 5px rgb(232 220 199 / .32); }
+  .home-organic .home-action__icon { width: 30px; height: 30px; margin-right: 7px; box-shadow: none; }
   .home-organic .home-contact-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 18px; }
   .home-organic .home-contact-strip > :first-child { grid-column: 1 / -1; }
   .home-organic .home-intro { margin-top: 42px; }
@@ -1585,7 +1597,8 @@ body::before {
   .home-organic .home-hero__copy h1 { max-width: 12ch; font-size: clamp(2.7rem, 12vw, 4.5rem); }
   .home-organic .home-hero__paths { grid-template-columns: 1fr; bottom: 16px; }
   .home-organic .home-hero__paths a { min-height: 46px; padding: 10px 14px; border-radius: 999px; font-size: .78rem; }
-  .home-organic .home-hero__paths a span { width: 10px; height: 10px; margin-right: 10px; box-shadow: none; }
+  .home-organic .home-action__icon { width: 26px; height: 26px; margin-right: 8px; }
+  .home-organic .home-action__icon svg { width: 14px; height: 14px; }
   .home-organic .home-hero__paths svg { width: 16px; }
 }
 
