@@ -1517,7 +1517,7 @@ body::before {
 .home-organic .home-hero__veil { background: linear-gradient(90deg, rgb(47 43 36 / .96) 0%, rgb(47 43 36 / .74) 48%, rgb(47 43 36 / .18) 100%); }
 .home-organic .home-hero__copy { max-width: 720px; padding: 142px 9% 190px; }
 .home-organic .home-hero__copy { position: relative; z-index: 3; }
-.home-organic .home-hero__copy .organic-button { transform: translateY(-14px); margin-bottom: 28px; }
+.home-organic .home-hero__copy .organic-button { position: relative; top: -22px; margin-bottom: 22px; }
 .home-organic .home-hero__copy h1 { max-width: 15ch; font-size: clamp(2.8rem, 4.6vw, 5.2rem); line-height: .92; }
 .home-organic .home-hero__paths { right: 4%; bottom: 34px; width: 56%; max-width: 760px; grid-template-columns: 1fr 1fr; gap: 10px; z-index: 4; }
 .home-organic .home-hero__paths a { min-height: 100px; padding: 20px 26px; border-radius: 22px; background: rgb(242 233 217 / .94); color: var(--earth); font-size: 1.12rem; box-shadow: 0 16px 32px rgb(47 43 36 / .14); }
