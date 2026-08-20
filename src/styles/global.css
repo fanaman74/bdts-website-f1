@@ -1523,8 +1523,8 @@ body::before {
 .home-organic .home-hero__paths a { min-height: 100px; padding: 20px 26px; border-radius: 22px; background: rgb(242 233 217 / .94); color: var(--earth); font-size: 1.12rem; box-shadow: 0 16px 32px rgb(47 43 36 / .14); }
 .home-organic .home-hero__paths a { min-height: 76px; padding: 14px 18px; border-radius: 18px; font-size: .94rem; }
 .home-organic .home-hero__paths a:hover { background: var(--sage); transform: translateY(-3px); }
-.home-organic .home-action__icon { display: grid; place-items: center; flex: none; width: 38px; height: 38px; margin-right: 12px; border-radius: 13px; color: var(--earth); background: rgb(242 233 217 / .42); box-shadow: inset 0 0 0 1px rgb(47 43 36 / .12); }
-.home-organic .home-action__icon svg { width: 19px; height: 19px; }
+.home-organic .home-action__icon { display: grid; place-items: center; align-self: center; justify-self: center; flex: none; width: 38px; height: 38px; margin-right: 12px; border-radius: 13px; color: var(--earth); background: rgb(242 233 217 / .42); box-shadow: inset 0 0 0 1px rgb(47 43 36 / .12); }
+.home-organic .home-action__icon svg { display: block; width: 19px; height: 19px; margin: auto; }
 .home-organic .home-action__icon { transition: transform .45s cubic-bezier(.2,.7,.2,1), background .3s ease; }
 .home-organic .home-hero__paths a:hover .home-action__icon { transform: rotate(-8deg) scale(1.08); background: rgb(242 233 217 / .72); }
 .home-organic .home-action__label { display: inline-flex; align-items: baseline; gap: 10px; }
