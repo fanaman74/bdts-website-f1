@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
 import { getDocumentAccessMeta } from '../lib/documentAccess';
+import DocumentChat from './DocumentChat';
 
 export interface DocumentItem {
   id: string;
@@ -118,7 +119,7 @@ function PdfIcon() {
   );
 }
 
-function DocumentRow({ document }: { document: DocumentItem }) {
+function DocumentRow({ document, onChat }: { document: DocumentItem; onChat: (document: DocumentItem) => void }) {
   const access = getDocumentAccessMeta(document.source, document.fileUrl, document.externalUrl);
   const unavailable = access.accessLabel === 'Document sur demande';
   const contactHref = `/contact?document=${encodeURIComponent(document.title)}`;
@@ -140,9 +141,9 @@ function DocumentRow({ document }: { document: DocumentItem }) {
         {TYPE_LABEL[document.documentType] ?? document.documentType}
       </span>
 
-      <a href={contactHref} class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-600 transition-colors hover:border-sky-300 hover:bg-sky-100" aria-label={`Poser une question sur ${document.title}`}>
+      <button type="button" onClick={() => onChat(document)} class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-600 transition-colors hover:border-sky-300 hover:bg-sky-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500" aria-label={`Ouvrir l’assistant pour ${document.title}`} aria-haspopup="dialog">
         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-      </a>
+      </button>
 
       <a href={unavailable ? contactHref : access.href} target={access.opensExternally && !unavailable ? '_blank' : undefined} rel={access.opensExternally && !unavailable ? 'noopener noreferrer' : undefined} class={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors ${unavailable ? 'border-[#cbb990] bg-[#e8dcc7] text-[#766952] hover:bg-[#d4b895]' : 'border-orange-200 bg-orange-50 text-orange-600 hover:border-orange-300 hover:bg-orange-100'}`} aria-label={`${access.actionLabel} : ${document.title}`} title={access.actionLabel}>
         {unavailable ? <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM4 7l8 6 8-6" /></svg> : <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" /></svg>}
@@ -158,6 +159,7 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
   const [selectedType, setSelectedType] = useState('Tous');
   const [selectedYear, setSelectedYear] = useState('Toutes');
   const [page, setPage] = useState(1);
+  const [activeDocument, setActiveDocument] = useState<DocumentItem | null>(null);
 
   const domainCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -249,13 +251,15 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
         {filtered.length === 0 ? 'Aucun document trouvé' : `${(pageStart + 1).toLocaleString('fr-BE')}–${pageEnd.toLocaleString('fr-BE')} sur ${filtered.length.toLocaleString('fr-BE')} documents`}
       </p>
 
-      {filtered.length === 0 ? <div class="rounded-2xl bg-[#e8dcc7] p-10 text-center"><p class="font-semibold text-[#2f2b24]">Aucun document ne correspond à votre recherche.</p><button type="button" class="mt-4 text-sm font-semibold text-[#606c38] underline" onClick={() => { setSearch(''); setSelectedDomain('Tous'); setSelectedPartner('Tous'); setSelectedType('Tous'); setSelectedYear('Toutes'); setPage(1); }}>Réinitialiser les filtres</button></div> : <div class="space-y-2">{pageDocuments.map((document) => <DocumentRow key={document.id} document={document} />)}</div>}
+      {filtered.length === 0 ? <div class="rounded-2xl bg-[#e8dcc7] p-10 text-center"><p class="font-semibold text-[#2f2b24]">Aucun document ne correspond à votre recherche.</p><button type="button" class="mt-4 text-sm font-semibold text-[#606c38] underline" onClick={() => { setSearch(''); setSelectedDomain('Tous'); setSelectedPartner('Tous'); setSelectedType('Tous'); setSelectedYear('Toutes'); setPage(1); }}>Réinitialiser les filtres</button></div> : <div class="space-y-2">{pageDocuments.map((document) => <DocumentRow key={document.id} document={document} onChat={setActiveDocument} />)}</div>}
 
       {totalPages > 1 && <nav class="flex items-center justify-center gap-1.5" aria-label="Pagination des documents">
         <button type="button" onClick={() => setPage(Math.max(1, safePage - 1))} disabled={safePage === 1} class="rounded-xl border border-[#d8cbb6] bg-[#f2e9d9] px-3 py-2 text-sm font-medium text-[#2f2b24] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Page précédente">←</button>
         {pageNumbers().map((number, index) => number === '…' ? <span key={`ellipsis-${index}`} class="px-2 text-sm text-[#766952]">…</span> : <button type="button" key={number} onClick={() => setPage(number)} class={`min-w-9 rounded-xl border px-3 py-2 text-sm font-medium ${number === safePage ? 'border-[#606c38] bg-[#606c38] text-[#f2e9d9]' : 'border-[#d8cbb6] bg-[#f2e9d9] text-[#2f2b24]'}`} aria-current={number === safePage ? 'page' : undefined}>{number}</button>)}
         <button type="button" onClick={() => setPage(Math.min(totalPages, safePage + 1))} disabled={safePage === totalPages} class="rounded-xl border border-[#d8cbb6] bg-[#f2e9d9] px-3 py-2 text-sm font-medium text-[#2f2b24] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Page suivante">→</button>
       </nav>}
+
+      {activeDocument && <DocumentChat documentId={activeDocument.id} docTitle={activeDocument.title} company={activeDocument.partner} onClose={() => setActiveDocument(null)} />}
     </div>
   );
 }
