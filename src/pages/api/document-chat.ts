@@ -66,6 +66,7 @@ export const POST: APIRoute = async ({ request }) => {
     const selectedDocument = sectorCatalogDocuments.find((document) => document.id === body.documentId);
     if (!selectedDocument) return json('Ce document ne figure pas dans le catalogue BDTS.', 404);
 
+    const documentTitle = selectedDocument.title;
     const documentUrl = selectedDocument.externalUrl || selectedDocument.fileUrl;
     let parsedUrl: URL;
     try {
@@ -113,32 +114,43 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const history = body.messages as ChatMessage[];
-    const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://www.bdts.be',
-        'X-Title': 'BDTS Document Assistant',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Document « ${selectedDocument.title} » :\n\n---\n${pdfText}\n---\n\nUse only this source for the conversation.` },
-          { role: 'assistant', content: `J’ai lu le document « ${selectedDocument.title} ». Je répondrai uniquement à partir de son contenu.` },
-          ...history
-        ],
-        max_tokens: 1_024,
-        temperature: 0.2,
-        stream: true
-      })
-    });
+    async function requestCompletion(selectedModel: string): Promise<Response> {
+      return fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://www.bdts.be',
+          'X-Title': 'BDTS Document Assistant',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: `Document « ${documentTitle} » :\n\n---\n${pdfText}\n---\n\nUse only this source for the conversation.` },
+            { role: 'assistant', content: `J’ai lu le document « ${documentTitle} ». Je répondrai uniquement à partir de son contenu.` },
+            ...history
+          ],
+          max_tokens: 1_024,
+          temperature: 0.2,
+          stream: true
+        })
+      });
+    }
+
+    let activeModel = model;
+    let upstream = await requestCompletion(activeModel);
+    if (upstream.status === 404 && activeModel !== DEFAULT_MODEL) {
+      const staleModelError = await upstream.text();
+      console.warn('[document-chat] Configured model unavailable; trying default:', activeModel, staleModelError.slice(0, 240));
+      activeModel = DEFAULT_MODEL;
+      upstream = await requestCompletion(activeModel);
+    }
 
     if (!upstream.ok) {
       const responseText = await upstream.text();
       console.error('[document-chat] OpenRouter error:', upstream.status, responseText.slice(0, 500));
-      return json(providerErrorMessage(upstream.status, responseText, model), 502);
+      return json(providerErrorMessage(upstream.status, responseText, activeModel), 502);
     }
     if (!upstream.body) return json('Le service d’assistance n’a renvoyé aucune réponse.', 502);
 
