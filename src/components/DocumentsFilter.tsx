@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'preact/hooks';
-import Fuse from 'fuse.js';
 import { getDocumentAccessMeta } from '../lib/documentAccess';
 
 export interface DocumentItem {
@@ -26,335 +25,237 @@ interface Props {
 
 const PAGE_SIZE = 20;
 
-const TYPE_LABELS: Record<string, string> = {
+const DOMAIN_LABEL: Record<string, string> = {
+  Auto: 'Mobilité',
+  'Incendie risques simples': 'Habitation',
+  'Incendie risques spéciaux': 'Habitation',
+  'RC du particulier': 'Famille',
+  'Protection juridique': 'Protection juridique',
+  'Hospitalisation et soins de santé': 'Santé',
+  'Vie et placements': 'Épargne',
+  'Accidents du travail et assurances collectives': 'Personnel',
+  'RC autre que particuliers': 'Entreprise',
+  'Responsabilité Objective et immeuble': 'Entreprise',
+  Voyage: 'Voyage',
+  Assistance: 'Assistance',
+  Individuelle: 'Individuelle',
+  Divers: 'Divers',
+  'Multi-domaine (packages)': 'Multi-domaine',
+  'Transport & marine': 'Transport',
+  Prêt: 'Crédit',
+  'Pas de domaine': 'Autres',
+  'Sans catégorie': 'Autres'
+};
+
+const TYPE_LABEL: Record<string, string> = {
   'conditions-generales': 'Conditions générales',
-  'fiche-info': 'Fiche info',
-  commercial: 'Brochure',
-  legal: 'Légal',
+  'fiche-info': 'Fiche info / IPID',
+  commercial: 'Commercial',
+  legal: 'Légal / fiscal',
   'claim-form': 'Formulaire sinistre',
   other: 'Autre'
 };
 
-const AUDIENCE_LABELS: Record<string, string> = {
-  particulier: 'Particulier',
-  professionnel: 'Professionnel',
-  both: 'Les deux'
+const DOMAIN_DOT: Record<string, string> = {
+  Habitation: 'bg-orange-400',
+  Mobilité: 'bg-blue-500',
+  Famille: 'bg-yellow-400',
+  Santé: 'bg-emerald-500',
+  Épargne: 'bg-amber-500',
+  Entreprise: 'bg-slate-700',
+  Personnel: 'bg-violet-400',
+  'Protection juridique': 'bg-purple-400',
+  Voyage: 'bg-sky-400',
+  Assistance: 'bg-rose-400',
+  Divers: 'bg-teal-400',
+  'Multi-domaine': 'bg-fuchsia-400',
+  Individuelle: 'bg-lime-500',
+  Transport: 'bg-cyan-500',
+  Crédit: 'bg-pink-400',
+  Autres: 'bg-stone-400'
 };
 
-const SOURCE_LABELS: Record<string, string> = {
-  local: 'PDF local',
-  external: 'Lien partenaire',
-  portal: 'Portail uniquement',
-  manual: 'Catalogue manuel'
+const COMPANY_COLOR: Record<string, string> = {
+  'AG Insurance': 'bg-orange-600 text-white',
+  ARAG: 'bg-indigo-600 text-white',
+  'AXA Assistance': 'bg-cyan-700 text-white',
+  'AXA Belgium': 'bg-blue-600 text-white',
+  Aedes: 'bg-emerald-700 text-white',
+  Allianz: 'bg-teal-600 text-white',
+  Arces: 'bg-purple-600 text-white',
+  BDM: 'bg-rose-600 text-white',
+  'Baloise Insurance': 'bg-red-600 text-white',
+  DAS: 'bg-amber-600 text-white',
+  'DKV Belgium': 'bg-green-700 text-white',
+  'Euromex N.V.': 'bg-sky-600 text-white',
+  'Europ Assistance Belgium': 'bg-lime-700 text-white',
+  'JEAN VERHEYEN': 'bg-pink-600 text-white',
+  Mensura: 'bg-violet-600 text-white',
+  'NN Insurance Belgium': 'bg-orange-700 text-white',
+  'Protect nv': 'bg-slate-600 text-white',
+  VIVIUM: 'bg-fuchsia-600 text-white'
 };
 
-const ACCESS_FILTERS = ['all', 'pdf', 'page', 'portal', 'internal'] as const;
-type AccessFilter = (typeof ACCESS_FILTERS)[number];
-
-const ACCESS_LABELS: Record<AccessFilter, string> = {
-  all: 'Tous les acces',
-  pdf: 'PDF directs',
-  page: 'Pages partenaires',
-  portal: 'Portails',
-  internal: 'Pages BDTS'
+const TYPE_COLOR: Record<string, string> = {
+  'conditions-generales': 'bg-indigo-100 text-indigo-700',
+  'fiche-info': 'bg-emerald-100 text-emerald-700',
+  commercial: 'bg-amber-100 text-amber-700',
+  legal: 'bg-cyan-100 text-cyan-700',
+  'claim-form': 'bg-rose-100 text-rose-700',
+  other: 'bg-stone-100 text-stone-600'
 };
 
-type SortKey = 'recent' | 'az' | 'partner' | 'category';
+function domainLabel(value: string): string {
+  return DOMAIN_LABEL[value] ?? (value.trim() || 'Autres');
+}
 
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b, 'fr'));
+function PdfIcon() {
+  return (
+    <svg class="h-8 w-8 shrink-0 text-[#c08e3a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M9 13h6M9 17h6M9 9h2" />
+    </svg>
+  );
+}
+
+function DocumentRow({ document }: { document: DocumentItem }) {
+  const access = getDocumentAccessMeta(document.source, document.fileUrl, document.externalUrl);
+  const unavailable = access.accessLabel === 'Document sur demande';
+  const contactHref = `/contact?document=${encodeURIComponent(document.title)}`;
+
+  return (
+    <article class="group flex items-center gap-3 rounded-2xl border border-[#d8cbb6] bg-[#f2e9d9] px-4 py-4 transition-all duration-200 hover:translate-x-0.5 hover:border-[#c08e3a] hover:shadow-sm sm:gap-4">
+      <PdfIcon />
+
+      <div class="min-w-0 flex-1">
+        <h3 class="line-clamp-2 text-sm font-semibold leading-snug text-[#2f2b24]">{document.title}</h3>
+        <p class="mt-1 truncate text-xs text-[#766952]">{document.productType || document.category}</p>
+      </div>
+
+      <span class={`hidden min-w-[110px] shrink-0 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap sm:inline-flex ${COMPANY_COLOR[document.partner] ?? 'bg-[#606c38] text-[#f2e9d9]'}`}>
+        {document.partner}
+      </span>
+
+      <span class={`hidden shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap md:inline-flex ${TYPE_COLOR[document.documentType] ?? TYPE_COLOR.other}`}>
+        {TYPE_LABEL[document.documentType] ?? document.documentType}
+      </span>
+
+      <a href={contactHref} class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-600 transition-colors hover:border-sky-300 hover:bg-sky-100" aria-label={`Poser une question sur ${document.title}`}>
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+      </a>
+
+      <a href={unavailable ? contactHref : access.href} target={access.opensExternally && !unavailable ? '_blank' : undefined} rel={access.opensExternally && !unavailable ? 'noopener noreferrer' : undefined} class={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors ${unavailable ? 'border-[#cbb990] bg-[#e8dcc7] text-[#766952] hover:bg-[#d4b895]' : 'border-orange-200 bg-orange-50 text-orange-600 hover:border-orange-300 hover:bg-orange-100'}`} aria-label={`${access.actionLabel} : ${document.title}`} title={access.actionLabel}>
+        {unavailable ? <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM4 7l8 6 8-6" /></svg> : <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" /></svg>}
+      </a>
+    </article>
+  );
 }
 
 export default function DocumentsFilter({ documents, syncedAt }: Props) {
-  const [query, setQuery] = useState('');
-  const [audience, setAudience] = useState('');
-  const [category, setCategory] = useState('');
-  const [partner, setPartner] = useState('');
-  const [docType, setDocType] = useState('');
-  const [language, setLanguage] = useState('');
-  const [source, setSource] = useState('');
-  const [accessType, setAccessType] = useState<AccessFilter>('all');
-  const [sort, setSort] = useState<SortKey>('recent');
+  const [search, setSearch] = useState('');
+  const [selectedDomain, setSelectedDomain] = useState('Tous');
+  const [selectedPartner, setSelectedPartner] = useState('Tous');
+  const [selectedType, setSelectedType] = useState('Tous');
+  const [selectedYear, setSelectedYear] = useState('Toutes');
   const [page, setPage] = useState(1);
 
-  const fuse = useMemo(
-    () =>
-      new Fuse(documents, {
-        keys: ['title', 'partner', 'category', 'documentType', 'productType', 'tags', 'description'],
-        threshold: 0.35,
-        ignoreLocation: true
-      }),
-    [documents]
-  );
-
-  const categories = useMemo(() => uniqueSorted(documents.map((d) => d.category)), [documents]);
-  const partners = useMemo(() => uniqueSorted(documents.map((d) => d.partner)), [documents]);
-  const languages = useMemo(() => uniqueSorted(documents.map((d) => d.language)), [documents]);
-  const types = useMemo(() => uniqueSorted(documents.map((d) => d.documentType)), [documents]);
-  const sources = useMemo(() => uniqueSorted(documents.map((d) => d.source)), [documents]);
-
-  const hasFilters = query || audience || category || partner || docType || language || source || accessType !== 'all';
-
-  const results = useMemo(() => {
-    let list = query.trim() ? fuse.search(query.trim()).map((r) => r.item) : [...documents];
-
-    if (audience) list = list.filter((d) => d.audience === audience || d.audience === 'both');
-    if (category) list = list.filter((d) => d.category === category);
-    if (partner) list = list.filter((d) => d.partner === partner);
-    if (docType) list = list.filter((d) => d.documentType === docType);
-    if (language) list = list.filter((d) => d.language === language);
-    if (source) list = list.filter((d) => d.source === source);
-    if (accessType !== 'all') {
-      list = list.filter((d) => {
-        const access = getDocumentAccessMeta(d.source, d.fileUrl, d.externalUrl);
-        if (accessType === 'pdf') return access.accessLabel === 'PDF direct';
-        if (accessType === 'page') return access.accessLabel === 'Page partenaire';
-        if (accessType === 'portal') return access.accessLabel === 'Portail sécurisé';
-        if (accessType === 'internal') return access.accessLabel === 'Page BDTS';
-        return true;
-      });
+  const domainCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const document of documents) {
+      const label = domainLabel(document.category);
+      counts[label] = (counts[label] ?? 0) + 1;
     }
+    return counts;
+  }, [documents]);
 
-    const sorters: Record<SortKey, (a: DocumentItem, b: DocumentItem) => number> = {
-      recent: (a, b) => (b.lastUpdated ?? '').localeCompare(a.lastUpdated ?? ''),
-      az: (a, b) => a.title.localeCompare(b.title, 'fr'),
-      partner: (a, b) => a.partner.localeCompare(b.partner, 'fr') || a.title.localeCompare(b.title, 'fr'),
-      category: (a, b) => a.category.localeCompare(b.category, 'fr') || a.title.localeCompare(b.title, 'fr')
-    };
-    // Keep Fuse relevance order when searching without explicit sort change
-    if (!(query.trim() && sort === 'recent')) list.sort(sorters[sort]);
-    return list;
-  }, [documents, fuse, query, audience, category, partner, docType, language, source, accessType, sort]);
+  const domains = useMemo(() => ['Tous', ...Object.keys(domainCounts).sort((left, right) => domainCounts[right] - domainCounts[left])], [domainCounts]);
+  const partners = useMemo(() => ['Tous', ...new Set(documents.map((document) => document.partner))].sort((left, right) => left === 'Tous' ? -1 : right === 'Tous' ? 1 : left.localeCompare(right, 'fr')), [documents]);
+  const types = useMemo(() => ['Tous', ...new Set(documents.map((document) => document.documentType))].sort((left, right) => left === 'Tous' ? -1 : right === 'Tous' ? 1 : (TYPE_LABEL[left] ?? left).localeCompare(TYPE_LABEL[right] ?? right, 'fr')), [documents]);
+  const years = useMemo(() => ['Toutes', ...new Set(documents.flatMap((document) => document.lastUpdated ? [document.lastUpdated.slice(0, 4)] : []))].sort((left, right) => left === 'Toutes' ? -1 : right === 'Toutes' ? 1 : Number(right) - Number(left)), [documents]);
 
-  const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const pageDocuments = results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const filtered = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase('fr-BE');
+    return documents.filter((document) => {
+      if (selectedDomain !== 'Tous' && domainLabel(document.category) !== selectedDomain) return false;
+      if (selectedPartner !== 'Tous' && document.partner !== selectedPartner) return false;
+      if (selectedType !== 'Tous' && document.documentType !== selectedType) return false;
+      if (selectedYear !== 'Toutes' && (!document.lastUpdated || document.lastUpdated.slice(0, 4) !== selectedYear)) return false;
+      if (!query) return true;
+      return [document.title, document.partner, document.productType, document.category, ...document.tags].some((value) => value.toLocaleLowerCase('fr-BE').includes(query));
+    });
+  }, [documents, search, selectedDomain, selectedPartner, selectedType, selectedYear]);
 
-  const updateFilter = <T,>(setter: (value: T) => void, value: T) => {
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
+  const pageDocuments = filtered.slice(pageStart, pageEnd);
+
+  function updateFilter(setter: (value: string) => void, value: string) {
     setter(value);
     setPage(1);
-  };
+  }
 
-  const reset = () => {
-    setQuery('');
-    setAudience('');
-    setCategory('');
-    setPartner('');
-    setDocType('');
-    setLanguage('');
-    setSource('');
-    setAccessType('all');
-    setSort('recent');
-    setPage(1);
-  };
+  function pageNumbers(): Array<number | '…'> {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+    const pages: Array<number | '…'> = [1];
+    if (safePage > 3) pages.push('…');
+    for (let current = Math.max(2, safePage - 1); current <= Math.min(totalPages - 1, safePage + 1); current++) pages.push(current);
+    if (safePage < totalPages - 2) pages.push('…');
+    pages.push(totalPages);
+    return pages;
+  }
 
-  const selectClass =
-    'w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-ink-800 ring-1 ring-ink-200 focus:ring-2 focus:ring-pulse-500';
+  const selectClass = 'rounded-xl border border-[#d8cbb6] bg-[#f2e9d9] px-3 py-2 text-sm text-[#2f2b24] focus:border-[#c08e3a] focus:outline-none';
 
   return (
-    <div>
-      {/* Search + sort */}
-      <div class="flex flex-col gap-3 sm:flex-row">
-        <div class="relative flex-1">
-          <svg
-            class="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-ink-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          <input
-            type="search"
-            value={query}
-            onInput={(e) => updateFilter(setQuery, (e.target as HTMLInputElement).value)}
-            placeholder="Rechercher un document, un partenaire, un produit…"
-            aria-label="Rechercher un document"
-            class="w-full rounded-full border-0 bg-white py-3 pr-4 pl-12 text-sm text-ink-900 shadow-sm ring-1 ring-ink-200 placeholder:text-ink-400 focus:ring-2 focus:ring-pulse-500"
-          />
-        </div>
-        <label class="flex items-center gap-2 text-sm font-medium text-ink-600">
-          <span class="shrink-0">Trier par</span>
-          <select
-            value={sort}
-            onChange={(e) => updateFilter(setSort, (e.target as HTMLSelectElement).value as SortKey)}
-            class="rounded-full border-0 bg-white px-4 py-3 text-sm ring-1 ring-ink-200 focus:ring-2 focus:ring-pulse-500"
-          >
-            <option value="recent">Plus récents</option>
-            <option value="az">A – Z</option>
-            <option value="partner">Partenaire</option>
-            <option value="category">Catégorie</option>
-          </select>
-        </label>
+    <div class="space-y-6">
+      <div class="relative">
+        <svg class="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-[#766952]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+        <input type="search" value={search} onInput={(event) => updateFilter(setSearch, (event.target as HTMLInputElement).value)} placeholder="Rechercher un document, une compagnie ou un produit…" aria-label="Rechercher un document" class="w-full rounded-2xl border border-[#d8cbb6] bg-[#f2e9d9] py-3 pr-4 pl-12 text-sm text-[#2f2b24] placeholder:text-[#766952] focus:border-[#c08e3a] focus:outline-none" />
       </div>
 
-      {/* Filters */}
-      <fieldset class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <legend class="sr-only">Filtres</legend>
-        <label class="block">
-          <span class="mb-1 block text-xs font-semibold text-ink-500">Public</span>
-          <select value={audience} onChange={(e) => updateFilter(setAudience, (e.target as HTMLSelectElement).value)} class={selectClass}>
-            <option value="">Tous</option>
-            {['particulier', 'professionnel', 'both'].map((a) => (
-              <option value={a}>{AUDIENCE_LABELS[a]}</option>
-            ))}
-          </select>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-semibold text-ink-500">Catégorie</span>
-          <select value={category} onChange={(e) => updateFilter(setCategory, (e.target as HTMLSelectElement).value)} class={selectClass}>
-            <option value="">Toutes</option>
-            {categories.map((c) => (
-              <option value={c}>{c}</option>
-            ))}
-          </select>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-semibold text-ink-500">Partenaire</span>
-          <select value={partner} onChange={(e) => updateFilter(setPartner, (e.target as HTMLSelectElement).value)} class={selectClass}>
-            <option value="">Tous</option>
-            {partners.map((p) => (
-              <option value={p}>{p}</option>
-            ))}
-          </select>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-semibold text-ink-500">Type</span>
-          <select value={docType} onChange={(e) => updateFilter(setDocType, (e.target as HTMLSelectElement).value)} class={selectClass}>
-            <option value="">Tous</option>
-            {types.map((t) => (
-              <option value={t}>{TYPE_LABELS[t] ?? t}</option>
-            ))}
-          </select>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-semibold text-ink-500">Langue</span>
-          <select value={language} onChange={(e) => updateFilter(setLanguage, (e.target as HTMLSelectElement).value)} class={selectClass}>
-            <option value="">Toutes</option>
-            {languages.map((l) => (
-              <option value={l}>{l.toUpperCase()}</option>
-            ))}
-          </select>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-semibold text-ink-500">Source</span>
-          <select value={source} onChange={(e) => updateFilter(setSource, (e.target as HTMLSelectElement).value)} class={selectClass}>
-            <option value="">Toutes</option>
-            {sources.map((s) => (
-              <option value={s}>{SOURCE_LABELS[s] ?? s}</option>
-            ))}
-          </select>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-semibold text-ink-500">Acces</span>
-          <select
-            value={accessType}
-            onChange={(e) => updateFilter(setAccessType, (e.target as HTMLSelectElement).value as AccessFilter)}
-            class={selectClass}
-          >
-            {ACCESS_FILTERS.map((value) => (
-              <option value={value}>{ACCESS_LABELS[value]}</option>
-            ))}
-          </select>
-        </label>
-      </fieldset>
-
-      {/* Result count + reset */}
-      <div class="mt-5 flex items-center justify-between gap-4" role="status" aria-live="polite">
-        <p class="text-sm font-medium text-ink-600">
-          {results.length === 1 ? '1 document trouvé' : `${results.length} documents trouvés`}
-          {syncedAt && <span class="ml-2 text-ink-400">Catalogue synchronisé le {new Date(syncedAt).toLocaleDateString('fr-BE')}</span>}
-        </p>
-        {hasFilters && (
-          <button
-            type="button"
-            onClick={reset}
-            class="text-sm font-semibold text-pulse-600 underline decoration-pulse-300 underline-offset-2 hover:text-pulse-700"
-          >
-            Réinitialiser les filtres
-          </button>
-        )}
+      <div class="flex flex-wrap gap-2" aria-label="Filtrer par domaine">
+        {domains.map((domain) => {
+          const active = selectedDomain === domain;
+          const count = domain === 'Tous' ? documents.length : domainCounts[domain];
+          return <button type="button" key={domain} onClick={() => updateFilter(setSelectedDomain, domain)} class={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${active ? 'border-[#606c38] bg-[#606c38] text-[#f2e9d9]' : 'border-[#d8cbb6] bg-[#f2e9d9] text-[#554c3c] hover:border-[#606c38]'}`}>
+            {domain === 'Tous' ? <span class="inline-flex gap-0.5"><span class="h-1.5 w-1.5 rounded-full bg-orange-400" /><span class="h-1.5 w-1.5 rounded-full bg-blue-500" /><span class="h-1.5 w-1.5 rounded-full bg-emerald-500" /></span> : <span class={`h-2 w-2 rounded-full ${DOMAIN_DOT[domain] ?? 'bg-stone-400'}`} />}
+            {domain}<span class={`text-[10px] font-normal ${active ? 'text-[#e8dcc7]' : 'text-[#766952]'}`}>{count.toLocaleString('fr-BE')}</span>
+          </button>;
+        })}
       </div>
 
-      {/* Results */}
-      {results.length === 0 ? (
-        <div class="mt-8 rounded-2xl bg-ink-50 p-10 text-center">
-          <p class="mt-3 font-display font-semibold text-ink-800">
-            Aucun document trouvé. Essayez de modifier vos filtres ou contactez-nous.
-          </p>
-          <a href="/contact" class="mt-4 inline-block rounded-full bg-pulse-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-pulse-700">
-            Nous contacter
-          </a>
-        </div>
-      ) : (
-        <ul class="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {pageDocuments.map((doc) => {
-            const isPortal = doc.source === 'portal';
-            const access = getDocumentAccessMeta(doc.source, doc.fileUrl, doc.externalUrl);
-            return (
-              <li key={doc.id} class="flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-ink-100 transition hover:shadow-lg hover:ring-pulse-200">
-                <div class="mb-3 flex flex-wrap gap-2">
-                  <span class="rounded-full bg-pulse-50 px-2.5 py-0.5 text-xs font-semibold text-pulse-700">
-                    {TYPE_LABELS[doc.documentType] ?? doc.documentType}
-                  </span>
-                  <span class="rounded-full bg-ink-50 px-2.5 py-0.5 text-xs font-semibold text-ink-600 uppercase">
-                    {doc.language}
-                  </span>
-                  <span class="rounded-full bg-mint-100 px-2.5 py-0.5 text-xs font-semibold text-mint-700">
-                    {access.accessLabel}
-                  </span>
-                  {isPortal && (
-                    <span class="rounded-full bg-coral-50 px-2.5 py-0.5 text-xs font-semibold text-coral-700">
-                      Portail uniquement
-                    </span>
-                  )}
-                </div>
-                <h3 class="font-display text-base font-bold text-ink-900">{doc.title}</h3>
-                <p class="mt-1 text-xs font-medium text-ink-500">
-                  {doc.partner} · {doc.category}
-                </p>
-                {access.hostLabel && <p class="mt-2 text-xs font-medium text-ink-400">Source : {access.hostLabel}</p>}
-                {doc.description && <p class="mt-2 flex-1 text-sm leading-relaxed text-ink-600">{doc.description}</p>}
-                <div class="mt-4 flex items-center justify-between gap-3">
-                  {doc.lastUpdated ? (
-                    <time dateTime={doc.lastUpdated} class="text-xs text-ink-400">
-                      Mis à jour le {new Date(doc.lastUpdated).toLocaleDateString('fr-BE')}
-                    </time>
-                  ) : (
-                    <span />
-                  )}
-                  <a
-                    href={access.href}
-                    target={access.opensExternally ? '_blank' : undefined}
-                    rel={access.opensExternally ? 'noopener noreferrer' : undefined}
-                    class={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition ${
-                      isPortal ? 'bg-ink-100 text-ink-800 hover:bg-ink-200' : 'bg-pulse-600 text-white hover:bg-pulse-700'
-                    }`}
-                  >
-                    {isPortal ? 'Accéder au portail' : access.actionLabel}
-                  </a>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div class="flex flex-wrap items-center gap-3">
+        <label class="sr-only" for="documents-partner">Compagnie</label>
+        <select id="documents-partner" value={selectedPartner} onChange={(event) => updateFilter(setSelectedPartner, (event.target as HTMLSelectElement).value)} class={selectClass}>
+          {partners.map((partner) => <option key={partner} value={partner}>{partner === 'Tous' ? 'Toutes les compagnies' : partner}</option>)}
+        </select>
 
-      {results.length > PAGE_SIZE && (
-        <nav class="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="Pagination des documents">
-          <button type="button" disabled={safePage === 1} onClick={() => setPage(Math.max(1, safePage - 1))} class="organic-button organic-button--sand disabled:cursor-not-allowed disabled:opacity-40">
-            Précédent
-          </button>
-          <span class="px-4 text-sm font-semibold text-ink-600">Page {safePage} sur {pageCount}</span>
-          <button type="button" disabled={safePage === pageCount} onClick={() => setPage(Math.min(pageCount, safePage + 1))} class="organic-button organic-button--moss disabled:cursor-not-allowed disabled:opacity-40">
-            Suivant
-          </button>
-        </nav>
-      )}
+        <label class="sr-only" for="documents-type">Type de document</label>
+        <select id="documents-type" value={selectedType} onChange={(event) => updateFilter(setSelectedType, (event.target as HTMLSelectElement).value)} class={selectClass}>
+          {types.map((type) => <option key={type} value={type}>{type === 'Tous' ? 'Tous les types' : TYPE_LABEL[type] ?? type}</option>)}
+        </select>
+
+        <label class="sr-only" for="documents-year">Année</label>
+        <select id="documents-year" value={selectedYear} onChange={(event) => updateFilter(setSelectedYear, (event.target as HTMLSelectElement).value)} class={selectClass}>
+          {years.map((year) => <option key={year} value={year}>{year === 'Toutes' ? 'Toutes les années' : year}</option>)}
+        </select>
+
+        {syncedAt && <p class="ml-auto text-xs text-[#766952]">Catalogue synchronisé le {new Date(syncedAt).toLocaleDateString('fr-BE')}</p>}
+      </div>
+
+      <p class="text-sm text-[#766952]" role="status" aria-live="polite">
+        {filtered.length === 0 ? 'Aucun document trouvé' : `${(pageStart + 1).toLocaleString('fr-BE')}–${pageEnd.toLocaleString('fr-BE')} sur ${filtered.length.toLocaleString('fr-BE')} documents`}
+      </p>
+
+      {filtered.length === 0 ? <div class="rounded-2xl bg-[#e8dcc7] p-10 text-center"><p class="font-semibold text-[#2f2b24]">Aucun document ne correspond à votre recherche.</p><button type="button" class="mt-4 text-sm font-semibold text-[#606c38] underline" onClick={() => { setSearch(''); setSelectedDomain('Tous'); setSelectedPartner('Tous'); setSelectedType('Tous'); setSelectedYear('Toutes'); setPage(1); }}>Réinitialiser les filtres</button></div> : <div class="space-y-2">{pageDocuments.map((document) => <DocumentRow key={document.id} document={document} />)}</div>}
+
+      {totalPages > 1 && <nav class="flex items-center justify-center gap-1.5" aria-label="Pagination des documents">
+        <button type="button" onClick={() => setPage(Math.max(1, safePage - 1))} disabled={safePage === 1} class="rounded-xl border border-[#d8cbb6] bg-[#f2e9d9] px-3 py-2 text-sm font-medium text-[#2f2b24] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Page précédente">←</button>
+        {pageNumbers().map((number, index) => number === '…' ? <span key={`ellipsis-${index}`} class="px-2 text-sm text-[#766952]">…</span> : <button type="button" key={number} onClick={() => setPage(number)} class={`min-w-9 rounded-xl border px-3 py-2 text-sm font-medium ${number === safePage ? 'border-[#606c38] bg-[#606c38] text-[#f2e9d9]' : 'border-[#d8cbb6] bg-[#f2e9d9] text-[#2f2b24]'}`} aria-current={number === safePage ? 'page' : undefined}>{number}</button>)}
+        <button type="button" onClick={() => setPage(Math.min(totalPages, safePage + 1))} disabled={safePage === totalPages} class="rounded-xl border border-[#d8cbb6] bg-[#f2e9d9] px-3 py-2 text-sm font-medium text-[#2f2b24] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Page suivante">→</button>
+      </nav>}
     </div>
   );
 }

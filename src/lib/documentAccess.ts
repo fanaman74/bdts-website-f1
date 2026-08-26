@@ -36,6 +36,17 @@ export function getDocumentAccessMeta(
 ): DocumentAccessMeta {
   const href = source !== 'local' && externalUrl ? externalUrl : fileUrl;
   const opensExternally = source === 'external' || source === 'portal';
+  const parsedHref = parseUrl(href);
+
+  if (parsedHref?.hostname === 'connect.baloise.be') {
+    return {
+      href: '/contact',
+      opensExternally: false,
+      accessLabel: 'Document sur demande',
+      actionLabel: 'Demander le document',
+      hostLabel: 'baloise.be'
+    };
+  }
 
   if (source === 'portal') {
     return {
