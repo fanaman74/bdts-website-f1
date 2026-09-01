@@ -153,6 +153,8 @@ function DocumentRow({ document, onChat }: { document: DocumentItem; onChat: (do
 }
 
 export default function DocumentsFilter({ documents, syncedAt }: Props) {
+  const interfaceLanguage = typeof document === 'undefined' ? 'fr' : document.documentElement.lang;
+  const numberLocale = interfaceLanguage === 'nl' ? 'nl-BE' : interfaceLanguage === 'en' ? 'en-BE' : 'fr-BE';
   const [search, setSearch] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('Tous');
   const [selectedPartner, setSelectedPartner] = useState('Tous');
@@ -248,7 +250,13 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
       </div>
 
       <p class="text-sm text-[#766952]" role="status" aria-live="polite">
-        {filtered.length === 0 ? 'Aucun document trouvé' : `${(pageStart + 1).toLocaleString('fr-BE')}–${pageEnd.toLocaleString('fr-BE')} sur ${filtered.length.toLocaleString('fr-BE')} documents`}
+        {filtered.length === 0
+          ? interfaceLanguage === 'nl' ? 'Geen documenten gevonden' : interfaceLanguage === 'en' ? 'No documents found' : 'Aucun document trouvé'
+          : interfaceLanguage === 'nl'
+            ? `${(pageStart + 1).toLocaleString(numberLocale)}–${pageEnd.toLocaleString(numberLocale)} van ${filtered.length.toLocaleString(numberLocale)} documenten`
+            : interfaceLanguage === 'en'
+              ? `${(pageStart + 1).toLocaleString(numberLocale)}–${pageEnd.toLocaleString(numberLocale)} of ${filtered.length.toLocaleString(numberLocale)} documents`
+              : `${(pageStart + 1).toLocaleString(numberLocale)}–${pageEnd.toLocaleString(numberLocale)} sur ${filtered.length.toLocaleString(numberLocale)} documents`}
       </p>
 
       {filtered.length === 0 ? <div class="rounded-2xl bg-[#e8dcc7] p-10 text-center"><p class="font-semibold text-[#2f2b24]">Aucun document ne correspond à votre recherche.</p><button type="button" class="mt-4 text-sm font-semibold text-[#606c38] underline" onClick={() => { setSearch(''); setSelectedDomain('Tous'); setSelectedPartner('Tous'); setSelectedType('Tous'); setSelectedYear('Toutes'); setPage(1); }}>Réinitialiser les filtres</button></div> : <div class="space-y-2">{pageDocuments.map((document) => <DocumentRow key={document.id} document={document} onChat={setActiveDocument} />)}</div>}

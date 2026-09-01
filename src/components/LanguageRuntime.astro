@@ -1,0 +1,99 @@
+---
+import english from '../i18n/generated/en.json';
+import dutch from '../i18n/generated/nl.json';
+import { translationOverrides } from '../i18n/overrides';
+
+const translations = {
+  en: { ...english, ...translationOverrides.en },
+  nl: { ...dutch, ...translationOverrides.nl }
+};
+---
+
+<script is:inline define:vars={{ translations }}>
+  (() => {
+    const supported = ['fr', 'nl', 'en'];
+    const requested = new URLSearchParams(window.location.search).get('lang');
+    let stored = null;
+    try { stored = window.localStorage.getItem('bdts-language'); } catch { /* Storage can be blocked. */ }
+    const language = supported.includes(requested) ? requested : supported.includes(stored) ? stored : 'fr';
+    const dictionary = translations[language] || null;
+
+    document.documentElement.lang = language;
+    document.documentElement.dataset.language = language;
+    try {
+      window.localStorage.setItem('bdts-language', language);
+      document.cookie = `bdts-language=${language}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    } catch { /* Preferences still work for this page when storage is unavailable. */ }
+
+    function translateText(node) {
+      if (!dictionary) return;
+      const value = node.nodeValue || '';
+      const key = value.trim().replace(/\s+/g, ' ');
+      const translated = dictionary[key];
+      if (!translated || translated === key) return;
+      const leading = value.match(/^\s*/)?.[0] || '';
+      const trailing = value.match(/\s*$/)?.[0] || '';
+      node.nodeValue = `${leading}${translated}${trailing}`;
+    }
+
+    function translateElement(element) {
+      if (!dictionary || !(element instanceof Element)) return;
+      for (const attribute of ['aria-label', 'content', 'placeholder', 'title']) {
+        const value = element.getAttribute(attribute);
+        if (!value) continue;
+        const key = value.trim().replace(/\s+/g, ' ');
+        const translated = dictionary[key];
+        if (!translated || translated === key) continue;
+        element.setAttribute(attribute, translated);
+      }
+    }
+
+    function translateTree(root) {
+      if (!dictionary) return;
+      if (root.nodeType === Node.TEXT_NODE) {
+        translateText(root);
+        return;
+      }
+      if (!(root instanceof Element || root instanceof Document)) return;
+      if (root instanceof Element) translateElement(root);
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+      let current;
+      while ((current = walker.nextNode())) {
+        if (current.nodeType === Node.TEXT_NODE) translateText(current);
+        else translateElement(current);
+      }
+    }
+
+    function localizeLinks(root = document) {
+      root.querySelectorAll?.('a[href]').forEach((anchor) => {
+        const raw = anchor.getAttribute('href');
+        if (!raw || raw.startsWith('#') || /^(?:mailto:|tel:|javascript:)/i.test(raw)) return;
+        const url = new URL(raw, window.location.href);
+        if (url.origin !== window.location.origin) return;
+        url.searchParams.set('lang', anchor.dataset.languageCode || language);
+        anchor.setAttribute('href', `${url.pathname}${url.search}${url.hash}`);
+      });
+    }
+
+    translateTree(document);
+    localizeLinks();
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'characterData') translateText(mutation.target);
+        if (mutation.type === 'attributes') translateElement(mutation.target);
+        for (const node of mutation.addedNodes) {
+          translateTree(node);
+          if (node instanceof Element) localizeLinks(node);
+        }
+      }
+    });
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['aria-label', 'content', 'placeholder', 'title']
+    });
+  })();
+</script>
