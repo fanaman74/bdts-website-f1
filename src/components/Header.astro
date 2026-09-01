@@ -16,19 +16,19 @@ const current = Astro.url.pathname;
     </a>
 
     <div class="site-header__actions">
-      <a href="/devis" class="organic-button organic-button--moss">Demander un devis</a>
-      <a href="/declaration" class="organic-button organic-button--clay">Déclarer un sinistre</a>
-      <button id="mobile-toggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label={t.nav.menu}>
-        <span>Menu</span>
-        <svg data-icon="open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" d="M5 8h14M5 12h14M5 16h14" /></svg>
-        <svg data-icon="close" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" d="m7 7 10 10M17 7 7 17" /></svg>
+      <button id="menu-toggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu">
+        <span>{t.nav.menu}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m7 9.5 5 5 5-5" /></svg>
       </button>
     </div>
   </div>
 
-  <div id="mobile-menu" class="site-menu hidden">
+  <div id="site-menu" class="site-menu hidden">
     <div class="site-menu__inner">
-      <p class="site-menu__label">Explorer</p>
+      <div class="site-menu__heading">
+        <p class="site-menu__label">Explorer</p>
+        <a href="/contact">Nous contacter <span aria-hidden="true">→</span></a>
+      </div>
       <nav class="site-menu__grid" aria-label="Navigation principale">
         {mainNav.map((section) => (
           <section>
@@ -56,17 +56,24 @@ const current = Astro.url.pathname;
 </header>
 
 <script>
-  const toggle = document.getElementById('mobile-toggle');
-  const menu = document.getElementById('mobile-menu');
+  const header = document.querySelector('.site-header');
+  const toggle = document.getElementById('menu-toggle');
+  const menu = document.getElementById('site-menu');
   const setMenu = (open: boolean) => {
     menu?.classList.toggle('hidden', !open);
-    document.body.classList.toggle('menu-open', open);
     toggle?.setAttribute('aria-expanded', String(open));
-    toggle?.querySelector('[data-icon="open"]')?.classList.toggle('hidden', open);
-    toggle?.querySelector('[data-icon="close"]')?.classList.toggle('hidden', !open);
   };
   toggle?.addEventListener('click', () => setMenu(toggle.getAttribute('aria-expanded') !== 'true'));
+  menu?.addEventListener('click', (event) => {
+    if ((event.target as Element).closest('a')) setMenu(false);
+  });
+  document.addEventListener('click', (event) => {
+    if (toggle?.getAttribute('aria-expanded') === 'true' && !header?.contains(event.target as Node)) setMenu(false);
+  });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') setMenu(false);
+    if (event.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') {
+      setMenu(false);
+      toggle.focus();
+    }
   });
 </script>
