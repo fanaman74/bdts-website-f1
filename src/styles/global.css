@@ -109,6 +109,35 @@ img { display: block; }
 .site-brand strong { display: block; font-size: 0.95rem; letter-spacing: -0.02em; }
 .site-brand span { display: block; margin-top: 2px; color: #6e634f; font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.12em; }
 .site-header__actions { display: flex; align-items: center; gap: 8px; }
+.site-header__nav { flex: 1; display: flex; align-items: center; justify-content: center; gap: clamp(12px, 1.4vw, 24px); }
+.site-header__nav > a, .site-nav__trigger {
+  min-height: 44px; padding: 0; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none;
+  color: var(--earth); font: inherit; font-size: .76rem; font-weight: 700; white-space: nowrap; text-decoration: none; cursor: pointer;
+  transition: color .18s ease;
+}
+.site-header__nav > a:hover, .site-header__nav > a[aria-current='page'], .site-nav__trigger:hover, .site-nav__trigger[aria-expanded='true'] { color: var(--terracotta); }
+.site-header__nav > a:focus-visible, .site-nav__trigger:focus-visible, .language-switcher a:focus-visible { outline: 3px solid rgb(192 142 58 / .45); outline-offset: 3px; border-radius: 6px; }
+.site-nav__item { position: relative; }
+.site-nav__trigger svg { width: 15px; height: 15px; transition: transform .18s ease; }
+.site-nav__trigger[aria-expanded='true'] svg { transform: rotate(180deg); }
+.site-nav__dropdown {
+  position: absolute; top: calc(100% + 10px); left: 50%; z-index: 95; width: 300px; padding: 22px;
+  border: 1px solid rgb(47 43 36 / .14); border-radius: 20px; background: rgb(242 233 217 / .99);
+  box-shadow: 0 22px 60px rgb(47 43 36 / .2); transform: translateX(-50%); backdrop-filter: blur(18px);
+}
+.site-nav__dropdown.hidden { display: none; }
+.site-nav__dropdown--particulier { width: min(720px, calc(100vw - 40px)); grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.site-nav__dropdown--professionnel { width: min(560px, calc(100vw - 40px)); grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.site-nav__dropdown:not(.hidden) { display: grid; }
+.site-nav__group p { margin: 0 0 9px; color: var(--moss); font-size: .66rem; font-weight: 750; line-height: 1.25; letter-spacing: .1em; text-transform: uppercase; }
+.site-nav__group ul { margin: 0; padding: 0; list-style: none; }
+.site-nav__group li + li { margin-top: 5px; }
+.site-nav__group a { color: var(--earth); font-size: .78rem; font-weight: 620; line-height: 1.35; text-decoration: none; }
+.site-nav__group a:hover, .site-nav__group a[aria-current='page'] { color: var(--terracotta); }
+.language-switcher { display: inline-flex; align-items: center; padding: 3px; border: 1px solid rgb(47 43 36 / .14); border-radius: 999px; background: rgb(242 233 217 / .56); }
+.language-switcher a { min-width: 34px; min-height: 34px; display: grid; place-items: center; border-radius: 999px; color: #6e634f; font-size: .65rem; font-weight: 750; text-decoration: none; }
+.language-switcher a:hover { color: var(--earth); }
+.language-switcher a[aria-current='true'] { background: var(--earth); color: var(--cream); }
 .organic-button {
   min-height: 46px;
   padding: 13px 20px;
@@ -129,7 +158,7 @@ img { display: block; }
 .organic-button--clay { background: var(--terracotta); color: var(--cream); }
 .organic-button--sand { background: var(--cream); border-color: rgb(47 43 36 / .12); }
 .menu-toggle {
-  min-width: 116px; min-height: 48px; padding: 0 17px 0 20px; display: inline-flex; align-items: center; justify-content: space-between; gap: 14px;
+  min-width: 116px; min-height: 48px; padding: 0 17px 0 20px; display: none; align-items: center; justify-content: space-between; gap: 14px;
   border: 1px solid rgb(47 43 36 / .14); border-radius: 999px; background: var(--earth); color: var(--cream); cursor: pointer;
   font: inherit; font-size: .78rem; font-weight: 750; letter-spacing: .025em;
   transition: background .2s ease, color .2s ease, border-color .2s ease;
@@ -313,6 +342,11 @@ img { display: block; }
   .service-body { padding-top: 60px; }
 }
 
+@media (max-width: 1120px) {
+  .site-header__nav { display: none; }
+  .menu-toggle { display: inline-flex; }
+}
+
 @media (max-width: 640px) {
   body { padding-bottom: 68px; }
   .page-shell { width: calc(100% - 16px); margin-top: 8px; }
@@ -320,6 +354,9 @@ img { display: block; }
   .site-header__inner { min-height: 64px; padding: 8px 8px 8px 14px; border-radius: 20px; }
   .site-brand img { width: 42px; height: 42px; }
   .site-brand span { display: none; }
+  .site-header__actions { gap: 6px; }
+  .language-switcher { padding: 2px; }
+  .language-switcher a { min-width: 30px; min-height: 32px; font-size: .61rem; }
   .menu-toggle { min-width: 104px; min-height: 46px; padding-inline: 17px 14px; }
   .site-menu { top: calc(100% + 4px); right: 8px; width: calc(100vw - 16px); max-height: calc(100vh - 96px); }
   .site-menu__inner { padding: 24px 20px 28px; border-radius: 22px; }
@@ -1520,6 +1557,11 @@ body::before {
 .home-organic .site-header__inner { max-width: 1440px; margin: 0 auto; border-color: rgb(232 220 199 / .24); background: rgb(47 43 36 / .42); box-shadow: none; backdrop-filter: blur(12px); }
 .home-organic .site-brand, .home-organic .site-brand strong { color: var(--cream); }
 .home-organic .site-brand span { color: var(--oat); }
+.home-organic .site-header__nav > a, .home-organic .site-nav__trigger { color: var(--cream); }
+.home-organic .site-header__nav > a:hover, .home-organic .site-header__nav > a[aria-current='page'], .home-organic .site-nav__trigger:hover, .home-organic .site-nav__trigger[aria-expanded='true'] { color: var(--oat); }
+.home-organic .language-switcher { border-color: rgb(242 233 217 / .25); background: rgb(47 43 36 / .3); }
+.home-organic .language-switcher a { color: var(--oat); }
+.home-organic .language-switcher a[aria-current='true'] { background: var(--sage); color: var(--earth); }
 .home-organic .site-header .organic-button--moss { background: var(--sage); color: var(--earth); }
 .home-organic .site-header .organic-button--clay { background: var(--oat); color: var(--earth); }
 .home-organic .menu-toggle { border-color: rgb(242 233 217 / .24); background: var(--sage); color: var(--earth); }

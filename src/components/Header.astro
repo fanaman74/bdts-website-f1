@@ -1,8 +1,42 @@
 ---
 import { mainNav, topNav } from '../data/navigation';
 import { t } from '../i18n/fr';
+import { navigationLanguages, resolveLanguage, type SiteLanguage } from '../i18n/navigation';
 
 const current = Astro.url.pathname;
+const language = resolveLanguage(Astro.url.searchParams.get('lang'));
+const navText = navigationLanguages[language];
+const languages: Array<{ code: SiteLanguage; label: string }> = [
+  { code: 'fr', label: 'FR' },
+  { code: 'nl', label: 'NL' },
+  { code: 'en', label: 'EN' }
+];
+
+function withLanguage(href: string, selectedLanguage = language): string {
+  const url = new URL(href, Astro.url);
+  url.searchParams.set('lang', selectedLanguage);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function sectionLabel(slug: string, fallback: string): string {
+  return navText.sections[slug] ?? fallback;
+}
+
+function groupLabel(slug: string, fallback: string): string {
+  return navText.groups[slug] ?? fallback;
+}
+
+function leafLabel(href: string, fallback: string): string {
+  return navText.leaves[href] ?? fallback;
+}
+
+function localized(getter: (text: typeof navText) => string): Record<string, string> {
+  return {
+    'data-label-fr': getter(navigationLanguages.fr),
+    'data-label-nl': getter(navigationLanguages.nl),
+    'data-label-en': getter(navigationLanguages.en)
+  };
+}
 ---
 
 <header class="site-header">
@@ -11,13 +45,36 @@ const current = Astro.url.pathname;
       <img src="/images/logo-bdts.png" alt="" width="222" height="246" />
       <span>
         <strong>BDT Sironval</strong>
-        <small>Courtiers en assurances</small>
+        <small {...localized((text) => text.brandSubtitle)}>{navText.brandSubtitle}</small>
       </span>
     </a>
 
+    <nav class="site-header__nav" aria-label="Navigation principale">
+      {mainNav.map((section) => (
+        <div class="site-nav__item">
+          <button class="site-nav__trigger" type="button" aria-expanded="false" aria-controls={`nav-panel-${section.slug}`} data-nav-toggle>
+            <span {...localized((text) => text.sections[section.slug] ?? section.label)}>{sectionLabel(section.slug, section.label)}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m7 9.5 5 5 5-5" /></svg>
+          </button>
+          <div id={`nav-panel-${section.slug}`} class={`site-nav__dropdown site-nav__dropdown--${section.slug} hidden`}>
+            {section.groups.map((group) => (
+              <section class="site-nav__group">
+                <p {...localized((text) => text.groups[group.slug] ?? group.label)}>{groupLabel(group.slug, group.label)}</p>
+                <ul>{group.items.map((item) => <li><a href={withLanguage(item.href)} aria-current={current === item.href ? 'page' : undefined} {...localized((text) => text.leaves[item.href] ?? item.label)}>{leafLabel(item.href, item.label)}</a></li>)}</ul>
+              </section>
+            ))}
+          </div>
+        </div>
+      ))}
+      {topNav.slice(0, 3).map((item) => <a href={withLanguage(item.href)} aria-current={current === item.href ? 'page' : undefined} {...localized((text) => text.top[item.href] ?? item.label)}>{navText.top[item.href] ?? item.label}</a>)}
+    </nav>
+
     <div class="site-header__actions">
+      <nav class="language-switcher" aria-label="Langue">
+        {languages.map((item) => <a href={withLanguage(Astro.url.pathname, item.code)} lang={item.code} hreflang={item.code} data-language-code={item.code} aria-current={language === item.code ? 'true' : undefined}>{item.label}</a>)}
+      </nav>
       <button id="menu-toggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu">
-        <span>{t.nav.menu}</span>
+        <span {...localized((text) => text.menu)}>{navText.menu}</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m7 9.5 5 5 5-5" /></svg>
       </button>
     </div>
@@ -26,28 +83,28 @@ const current = Astro.url.pathname;
   <div id="site-menu" class="site-menu hidden">
     <div class="site-menu__inner">
       <div class="site-menu__heading">
-        <p class="site-menu__label">Explorer</p>
-        <a href="/contact">Nous contacter <span aria-hidden="true">→</span></a>
+        <p class="site-menu__label" {...localized(() => 'Explorer')}>Explorer</p>
+        <a href={withLanguage('/contact')}><span {...localized((text) => text.contact)}>{navText.contact}</span> <span aria-hidden="true">→</span></a>
       </div>
       <nav class="site-menu__grid" aria-label="Navigation principale">
         {mainNav.map((section) => (
           <section>
-            <h2>{section.label}</h2>
+            <h2 {...localized((text) => text.sections[section.slug] ?? section.label)}>{sectionLabel(section.slug, section.label)}</h2>
             {section.groups.map((group) => (
               <div class="site-menu__group">
-                <p>{group.label}</p>
-                <ul>{group.items.map((item) => <li><a href={item.href} aria-current={current === item.href ? 'page' : undefined}>{item.label}</a></li>)}</ul>
+                <p {...localized((text) => text.groups[group.slug] ?? group.label)}>{groupLabel(group.slug, group.label)}</p>
+                <ul>{group.items.map((item) => <li><a href={withLanguage(item.href)} aria-current={current === item.href ? 'page' : undefined} {...localized((text) => text.leaves[item.href] ?? item.label)}>{leafLabel(item.href, item.label)}</a></li>)}</ul>
               </div>
             ))}
           </section>
         ))}
         <section>
-          <h2>Pratique</h2>
+          <h2 {...localized((text) => text.practical)}>{navText.practical}</h2>
           <ul>
-            {topNav.map((item) => <li><a href={item.href}>{item.label}</a></li>)}
-            <li><a href="/contact">Contact</a></li>
-            <li><a href="/devis">Demander un devis</a></li>
-            <li><a href="/declaration">Déclarer un sinistre</a></li>
+            {topNav.map((item) => <li><a href={withLanguage(item.href)} {...localized((text) => text.top[item.href] ?? item.label)}>{navText.top[item.href] ?? item.label}</a></li>)}
+            <li><a href={withLanguage('/contact')} {...localized((text) => text.contact)}>{navText.contact}</a></li>
+            <li><a href={withLanguage('/devis')} {...localized((text) => text === navigationLanguages.en ? 'Request a quote' : text === navigationLanguages.nl ? 'Offerte aanvragen' : 'Demander un devis')}>Demander un devis</a></li>
+            <li><a href={withLanguage('/declaration')} {...localized((text) => text === navigationLanguages.en ? 'Report a claim' : text === navigationLanguages.nl ? 'Schade melden' : 'Déclarer un sinistre')}>Déclarer un sinistre</a></li>
           </ul>
         </section>
       </nav>
@@ -59,6 +116,66 @@ const current = Astro.url.pathname;
   const header = document.querySelector('.site-header');
   const toggle = document.getElementById('menu-toggle');
   const menu = document.getElementById('site-menu');
+  const desktopToggles = [...document.querySelectorAll<HTMLElement>('[data-nav-toggle]')];
+  let lastDesktopToggle: HTMLElement | null = null;
+
+  const supportedLanguages = ['fr', 'nl', 'en'];
+  const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
+  let storedLanguage: string | null = null;
+  try { storedLanguage = window.localStorage.getItem('bdts-language'); } catch { /* Storage may be blocked. */ }
+  const activeLanguage = supportedLanguages.includes(requestedLanguage ?? '')
+    ? requestedLanguage!
+    : supportedLanguages.includes(storedLanguage ?? '') ? storedLanguage! : 'fr';
+
+  document.documentElement.lang = activeLanguage;
+  try { window.localStorage.setItem('bdts-language', activeLanguage); } catch { /* Storage may be blocked. */ }
+  header?.querySelectorAll<HTMLElement>('[data-label-fr]').forEach((element) => {
+    const translatedLabel = element.getAttribute(`data-label-${activeLanguage}`);
+    if (translatedLabel) element.textContent = translatedLabel;
+  });
+  header?.querySelectorAll<HTMLAnchorElement>('a[href^="/"]:not([data-language-code])').forEach((anchor) => {
+    const url = new URL(anchor.href, window.location.origin);
+    url.searchParams.set('lang', activeLanguage);
+    anchor.href = `${url.pathname}${url.search}${url.hash}`;
+  });
+  header?.querySelectorAll<HTMLAnchorElement>('[data-language-code]').forEach((anchor) => {
+    const code = anchor.dataset.languageCode ?? 'fr';
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', code);
+    anchor.href = `${url.pathname}${url.search}${url.hash}`;
+    if (code === activeLanguage) anchor.setAttribute('aria-current', 'true');
+    else anchor.removeAttribute('aria-current');
+  });
+
+  const closeDesktopMenus = (returnFocus = false) => {
+    desktopToggles.forEach((button) => {
+      button.setAttribute('aria-expanded', 'false');
+      const panelId = button.getAttribute('aria-controls');
+      if (panelId) document.getElementById(panelId)?.classList.add('hidden');
+    });
+    if (returnFocus) lastDesktopToggle?.focus();
+    lastDesktopToggle = null;
+  };
+
+  desktopToggles.forEach((button) => {
+    button.addEventListener('click', () => {
+      const open = button.getAttribute('aria-expanded') !== 'true';
+      closeDesktopMenus();
+      if (!open) return;
+      const panelId = button.getAttribute('aria-controls');
+      button.setAttribute('aria-expanded', 'true');
+      if (panelId) document.getElementById(panelId)?.classList.remove('hidden');
+      lastDesktopToggle = button;
+    });
+    button.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown') return;
+      event.preventDefault();
+      button.click();
+      const panelId = button.getAttribute('aria-controls');
+      if (panelId) document.getElementById(panelId)?.querySelector<HTMLElement>('a')?.focus();
+    });
+  });
+
   const setMenu = (open: boolean) => {
     menu?.classList.toggle('hidden', !open);
     toggle?.setAttribute('aria-expanded', String(open));
@@ -68,12 +185,18 @@ const current = Astro.url.pathname;
     if ((event.target as Element).closest('a')) setMenu(false);
   });
   document.addEventListener('click', (event) => {
-    if (toggle?.getAttribute('aria-expanded') === 'true' && !header?.contains(event.target as Node)) setMenu(false);
+    if (!header?.contains(event.target as Node)) {
+      if (toggle?.getAttribute('aria-expanded') === 'true') setMenu(false);
+      closeDesktopMenus();
+    }
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') {
-      setMenu(false);
-      toggle.focus();
+    if (event.key === 'Escape') {
+      if (toggle?.getAttribute('aria-expanded') === 'true') {
+        setMenu(false);
+        toggle.focus();
+      }
+      closeDesktopMenus(true);
     }
   });
 </script>
