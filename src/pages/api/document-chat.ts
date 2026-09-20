@@ -53,7 +53,9 @@ function providerErrorMessage(attempts: ModelAttempt[]): string {
   const last = attempts[attempts.length - 1]!;
   const reason = extractReason(last.detail) || 'aucun détail fourni';
 
-  if (last.status === 401 || last.status === 403) return `La clé ${PROVIDER_NAME} est invalide ou inactive. Vérifiez ROUTERA_API_KEY dans Railway.`;
+  if (last.status === 401 || last.status === 403) {
+    return `Clé ${PROVIDER_NAME} refusée pour la génération (HTTP ${last.status}) : ${reason}. Vérifiez ROUTERA_API_KEY, et que le compte Routera dispose bien de jetons : Routera n’a pas d’offre gratuite, et une clé valide sans solde est refusée.`;
+  }
   if (last.status === 402) return `Le compte ${PROVIDER_NAME} ne dispose plus de crédits. Réponse du service : ${reason}.`;
   if (last.status === 429) return `Le service d’assistance est temporairement limité par ${PROVIDER_NAME} : ${reason}. Réessayez dans un instant.`;
   if (last.status === 404) {
