@@ -70,7 +70,7 @@ export const POST: APIRoute = async ({ request }) => {
     const documentUrl = selectedDocument.externalUrl || selectedDocument.fileUrl;
     let parsedUrl: URL;
     try {
-      parsedUrl = new URL(documentUrl);
+      parsedUrl = new URL(documentUrl, request.url);
     } catch {
       return json('L’adresse de ce document est invalide.', 422);
     }
@@ -82,7 +82,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     let pdfText: string;
     try {
-      const pdfResponse = await fetch(documentUrl, {
+      const pdfResponse = await fetch(parsedUrl.href, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; BDTS-Document-Assistant/1.0; +https://www.bdts.be)',
           Accept: 'application/pdf,*/*;q=0.8',
