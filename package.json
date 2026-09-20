@@ -13,6 +13,7 @@
     "astro": "astro",
     "check": "astro check",
     "validate": "tsx scripts/validate-content.ts",
+    "migrate": "tsx scripts/migrate.ts",
     "discover": "tsx scripts/discover-bdts-documents.ts",
     "import:documents": "tsx scripts/import-documents.ts",
     "test": "npm run validate && npm run check && npm run build"
@@ -22,7 +23,9 @@
     "@astrojs/preact": "^6.0.1",
     "@astrojs/sitemap": "^3.7.3",
     "@fontsource-variable/epilogue": "^5.3.0",
-    "@supabase/supabase-js": "^2.112.3",
+    "@neon/config": "^1.7.2",
+    "@neon/env": "^1.4.3",
+    "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/vite": "^4.3.2",
     "astro": "^7.0.6",
     "fuse.js": "^7.4.2",
@@ -32,7 +35,6 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
-    "supabase": "^2.115.0",
     "tsx": "^4.23.0",
     "typescript": "^6.0.3"
   }

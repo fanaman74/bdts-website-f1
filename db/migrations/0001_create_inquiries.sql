@@ -1,3 +1,10 @@
+-- Contact, quote, and claim submissions received from the BDTS website.
+--
+-- Neon runs a single application role, so there is no `anon`, `authenticated`,
+-- or `service_role` role to revoke from and row level security is deliberately
+-- not enabled: only the Astro server, which holds DATABASE_URL, can reach this
+-- table.
+
 create table public.inquiries (
   id uuid primary key default gen_random_uuid(),
   form_type text not null check (form_type in ('contact', 'devis', 'declaration')),
@@ -16,13 +23,6 @@ comment on table public.inquiries is
 
 create index inquiries_status_created_at_idx
   on public.inquiries (status, created_at desc);
-
-alter table public.inquiries enable row level security;
-
--- No browser or signed-in user may read or write submissions directly.
--- The Astro server uses a Supabase secret key, which assumes service_role.
-revoke all on table public.inquiries from anon, authenticated;
-grant all on table public.inquiries to service_role;
 
 create or replace function public.set_inquiries_updated_at()
 returns trigger

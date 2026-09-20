@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { z } from 'astro/zod';
-import { getSupabaseAdminClient } from '../../lib/supabaseServer';
+import { getDbClient, type SqlClient } from '../../lib/db';
 
 export const prerender = false;
 
@@ -73,32 +73,27 @@ export const POST: APIRoute = async ({ request }) => {
     );
   }
 
-  let supabase;
+  let db: SqlClient | null;
   try {
-    supabase = getSupabaseAdminClient();
+    db = getDbClient();
   } catch (error) {
-    console.error('[contact] Supabase configuration error:', error instanceof Error ? error.message : 'unknown error');
+    console.error('[contact] Database configuration error:', error instanceof Error ? error.message : 'unknown error');
     return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
   }
 
-  if (!supabase) {
-    console.error('[contact] Supabase is not configured.');
+  if (!db) {
+    console.error('[contact] DATABASE_URL is not configured.');
     return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
   }
 
-  const { error: insertError } = await supabase.from('inquiries').insert({
-    form_type: formType,
-    name,
-    email,
-    phone,
-    message
-  });
-
-  if (insertError) {
-    console.error('[contact] Supabase insert failed:', {
-      code: insertError.code,
-      message: insertError.message
-    });
+  try {
+    await db.query(
+      `insert into public.inquiries (form_type, name, email, phone, message)
+       values ($1, $2, $3, $4, $5)`,
+      [formType, name, email, phone, message]
+    );
+  } catch (error) {
+    console.error('[contact] Database insert failed:', error instanceof Error ? error.message : 'unknown error');
     return json({ ok: false, error: "Votre demande n'a pas pu être enregistrée. Merci de réessayer." }, 502);
   }
 

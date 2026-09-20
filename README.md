@@ -19,6 +19,7 @@ npm run dev        # http://localhost:4321
 | `npm run preview` | Prévisualisation du build |
 | `npm run check` | Vérification TypeScript/Astro |
 | `npm run validate` | Sanity-checks du contenu (fichiers locaux, liens de navigation, ids uniques) |
+| `npm run migrate` | Applique les migrations SQL sur la base Neon (`db/migrations/`) |
 | `npm test` | validate + check + build |
 | `npm run discover` | Découverte éthique des documents publics du site de référence → `data/discovered-documents.json` |
 | `npm run import:documents -- fichier.csv` | Import CSV vers le catalogue de documents |
@@ -27,7 +28,8 @@ npm run dev        # http://localhost:4321
 
 - **Contenu** : collections Astro (`src/content/`) — 29 services, actualités, catalogue de documents JSON (`src/content/documents/documents.json`).
 - **Documents** : page `/documents` avec recherche Fuse.js, filtres (public, catégorie, partenaire, type, langue, source), tri, badges « portail uniquement » et fallback `<noscript>`. API : `GET /api/documents.json`.
-- **Formulaires** : contact `/contact`, devis `/devis`, sinistre `/declaration` → `POST /api/contact` (validation Zod côté serveur + honeypot), puis stockage dans la table Supabase privée `inquiries`.
+- **Assistant documents** : renseigner `OPENROUTER_API_KEY` dans l’environnement Railway. `OPENROUTER_MODEL` est facultatif et utilise `google/gemini-3.5-flash-lite` par défaut. L’assistant est proposé uniquement pour les liens PDF directs.
+- **Formulaires** : contact `/contact`, devis `/devis`, sinistre `/declaration` → `POST /api/contact` (validation Zod côté serveur + honeypot), puis stockage dans la table Postgres `inquiries` hébergée sur Neon.
 - **Portails clients** : configurables dans `src/data/portals.ts` (MyBroker, My AG, extensibles).
 - **i18n** : dictionnaire `src/i18n/fr.ts`, prêt pour `nl`/`en`.
 - **SEO** : sitemap, robots.txt, Open Graph, canoniques, pages légales (mentions, vie privée, cookies, durabilité, protection du client).
@@ -42,14 +44,17 @@ title,partner,audience,category,productType,documentType,language,fileUrl,extern
 
 `tags` accepte plusieurs valeurs séparées par `;`. Les entrées existantes (même id généré) sont mises à jour.
 
-## Supabase
+## Neon (base de données)
 
-1. Copiez `.env.example` vers `.env` et renseignez l'URL du projet ainsi qu'une clé secrète serveur `sb_secret_…`.
-2. Connectez le dépôt au projet : `npx supabase login`, puis `npx supabase link --project-ref <project-ref>`.
-3. Vérifiez la migration : `npx supabase db push --dry-run`.
-4. Appliquez-la : `npx supabase db push`.
+1. Créez un projet sur [neon.com](https://neon.com), puis copiez la *connection string* (Console → **Connect** → **Connection string**, hôte `-pooler` conseillé).
+2. Copiez `.env.example` vers `.env` et renseignez `DATABASE_URL`. Cette variable est strictement côté serveur : ne la préfixez jamais par `PUBLIC_` et ne la commitez jamais.
+3. Appliquez les migrations : `npm run migrate`.
 
-La migration `supabase/migrations/20260818000000_create_inquiries.sql` active RLS et interdit tout accès direct aux rôles navigateur. La clé secrète ne doit jamais être préfixée par `PUBLIC_` ni ajoutée au dépôt.
+```bash
+npm run migrate            # applique db/migrations/*.sql (idempotent, suivi dans public.schema_migrations)
+```
+
+Le client utilise `@neondatabase/serverless` en mode HTTP : aucune socket n'est maintenue ouverte, ce qui évite les connexions périmées quand Neon met la base en veille. Les requêtes sont paramétrées (`$1`, `$2`, …) et la migration `db/migrations/0001_create_inquiries.sql` crée la table `inquiries` (contraintes `check`, index `status`/`created_at`, trigger `updated_at`). Sur Neon il n'y a ni rôles `anon`/`authenticated`/`service_role` ni RLS : l'accès est restreint par le fait que seul le serveur Astro détient `DATABASE_URL`.
 
 ## Images
 
