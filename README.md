@@ -40,6 +40,8 @@ npm run dev        # http://localhost:4321
 
 L’assistant lit le texte des PDF depuis la table `document_texts` (migration `0002`). Un document absent du cache est téléchargé une seule fois, analysé, puis stocké : les questions suivantes n’exigent plus ni téléchargement ni analyse.
 
+Le cache est **paresseux** : inutile d’ingérer le catalogue à l’avance. Dès qu’un visiteur ouvre l’assistant sur un document, `POST /api/document-text` lance le téléchargement en arrière-plan pendant qu’il lit la fiche, et sa première question est ensuite servie depuis le cache. Si le téléchargement n’est pas terminé — ou a échoué — la route de chat télécharge à la volée. Seuls les vrais téléchargements sont limités (20 par IP et par quart d’heure) ; les lectures en cache ne sont pas comptées.
+
 Certaines compagnies (AXA) **refusent les requêtes venant d’adresses IP de datacenter** : le même PDF répond `200` depuis un poste de travail et `403` depuis Railway. Pour ces documents, le cache doit être rempli depuis un réseau non bloqué :
 
 ```bash

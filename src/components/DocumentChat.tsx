@@ -127,6 +127,18 @@ export default function DocumentChat({ documentId, docTitle, company, onClose }:
     return () => { cancelled = true; };
   }, []);
 
+  // Warm the server-side text cache as soon as the drawer opens, so the PDF
+  // download overlaps with the visitor reading and typing rather than delaying
+  // their first question. Fire and forget: the chat route still fetches on
+  // demand and caches, so nothing breaks if this is slow or fails.
+  useEffect(() => {
+    void fetch('/api/document-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documentId })
+    }).catch(() => undefined);
+  }, [documentId]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, loading]);
