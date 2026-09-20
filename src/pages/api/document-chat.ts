@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
 import { sectorCatalogDocuments } from '../../data/sectorCatalog';
 import { CHAT_ENDPOINT, PROVIDER_NAME, resolveModelChain } from '../../lib/assistantProvider';
+import { getCachedDocumentText, saveDocumentText } from '../../lib/documentText';
+import { fetchDocumentText } from '../../lib/pdfText';
 
 export const prerender = false;
 
-const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
-const MAX_DOCUMENT_CHARACTERS = 80_000;
 const MAX_MESSAGES = 12;
 const MAX_MESSAGE_CHARACTERS = 4_000;
 
@@ -101,37 +101,30 @@ export const POST: APIRoute = async ({ request }) => {
     if (!apiKey) return json('L’assistant documents n’est pas encore configuré. Ajoutez ROUTERA_API_KEY dans Railway.', 503);
     const modelChain = resolveModelChain();
 
+    // Prefer cached text so each document is downloaded and parsed only once.
+    // The cache is also the escape hatch for hosts that refuse datacenter IPs:
+    // `npm run ingest:documents` warms it from an unblocked network.
     let pdfText: string;
-    try {
-      const pdfResponse = await fetch(parsedUrl.href, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; BDTS-Document-Assistant/1.0; +https://www.bdts.be)',
-          Accept: 'application/pdf,*/*;q=0.8',
-          'Accept-Language': 'fr-BE,fr;q=0.9,nl;q=0.8,en;q=0.7',
-          Referer: 'https://app.sectorcatalog.be/'
-        },
-        redirect: 'follow',
-        signal: AbortSignal.timeout(30_000)
-      });
+    const cached = await getCachedDocumentText(selectedDocument.id).catch((error: unknown) => {
+      console.error('[document-chat] Document cache read failed:', error instanceof Error ? error.message : error);
+      return null;
+    });
 
-      if (!pdfResponse.ok) throw new Error(`la compagnie a répondu HTTP ${pdfResponse.status}`);
-      const declaredLength = Number(pdfResponse.headers.get('content-length') || 0);
-      if (declaredLength > MAX_DOCUMENT_BYTES) throw new Error('le fichier dépasse la taille maximale de 25 Mo');
-
-      const bytes = await pdfResponse.arrayBuffer();
-      if (bytes.byteLength > MAX_DOCUMENT_BYTES) throw new Error('le fichier dépasse la taille maximale de 25 Mo');
-
-      // Import the parser implementation directly. The package root executes a
-      // bundled test fixture when loaded by some ESM development runtimes.
-      const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
-      const parsed = await pdfParse(Buffer.from(bytes), { max: 50 });
-      pdfText = (parsed.text || '').trim();
-      if (!pdfText) throw new Error('aucun texte lisible n’a été trouvé; le PDF est peut-être numérisé');
-      if (pdfText.length > MAX_DOCUMENT_CHARACTERS) pdfText = `${pdfText.slice(0, MAX_DOCUMENT_CHARACTERS)}\n\n[Document tronqué après 80 000 caractères]`;
-    } catch (caught) {
-      const detail = caught instanceof Error ? caught.message : 'erreur de lecture inconnue';
-      console.error('[document-chat] PDF extraction failed:', detail);
-      return json(`Impossible de lire ce document : ${detail}. Vous pouvez toujours l’ouvrir directement ou contacter BDTS.`, 422);
+    if (cached) {
+      pdfText = cached.content;
+    } else {
+      try {
+        const extracted = await fetchDocumentText(parsedUrl.href);
+        pdfText = extracted.text;
+        // Best effort: a cache write failure must not fail the answer.
+        await saveDocumentText(selectedDocument.id, parsedUrl.href, extracted.text, extracted.truncated).catch((error: unknown) => {
+          console.error('[document-chat] Document cache write failed:', error instanceof Error ? error.message : error);
+        });
+      } catch (caught) {
+        const detail = caught instanceof Error ? caught.message : 'erreur de lecture inconnue';
+        console.error('[document-chat] PDF extraction failed:', detail);
+        return json(`Impossible de lire ce document : ${detail}. Vous pouvez toujours l’ouvrir directement ou contacter BDTS.`, 422);
+      }
     }
 
     const history = body.messages as ChatMessage[];

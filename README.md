@@ -20,6 +20,7 @@ npm run dev        # http://localhost:4321
 | `npm run check` | Vérification TypeScript/Astro |
 | `npm run validate` | Sanity-checks du contenu (fichiers locaux, liens de navigation, ids uniques) |
 | `npm run migrate` | Applique les migrations SQL sur la base Neon (`db/migrations/`) |
+| `npm run ingest:documents -- [options]` | Met en cache le texte des PDF du catalogue (voir « Cache des documents ») |
 | `npm test` | validate + check + build |
 | `npm run discover` | Découverte éthique des documents publics du site de référence → `data/discovered-documents.json` |
 | `npm run import:documents -- fichier.csv` | Import CSV vers le catalogue de documents |
@@ -29,10 +30,30 @@ npm run dev        # http://localhost:4321
 - **Contenu** : collections Astro (`src/content/`) — 29 services, actualités, catalogue de documents JSON (`src/content/documents/documents.json`).
 - **Documents** : page `/documents` avec recherche Fuse.js, filtres (public, catégorie, partenaire, type, langue, source), tri, badges « portail uniquement » et fallback `<noscript>`. API : `GET /api/documents.json`.
 - **Assistant documents** : renseigner `ROUTERA_API_KEY` dans l’environnement Railway (clé `rta_…`, API OpenAI-compatible de [Routera](https://www.routera.one)). `ROUTERA_MODEL` est facultatif : par défaut `openai/gpt-5.6-luna`, puis repli sur `qwen/qwen3.5-27b`. Routera facture à l’usage (pas d’offre gratuite) et l’accès aux modèles dépend de l’offre ; les tarifs courants sont exposés par `GET https://api.routera.one/v1/models`. Le tiroir de discussion affiche le modèle utilisé et l’état de la connexion (`GET /api/assistant-status`). L’assistant est proposé uniquement pour les liens PDF directs.
+- **Cache des documents** : le texte extrait des PDF est stocké en base (`document_texts`, migration `0002`). L’assistant lit cette copie quand elle existe et ne télécharge le PDF qu’en dernier recours — voir « Cache des documents » pour l’ingestion depuis un réseau non bloqué.
 - **Formulaires** : contact `/contact`, devis `/devis`, sinistre `/declaration` → `POST /api/contact` (validation Zod côté serveur + honeypot), puis stockage dans la table Postgres `inquiries` hébergée sur Neon.
 - **Portails clients** : configurables dans `src/data/portals.ts` (MyBroker, My AG, extensibles).
 - **i18n** : dictionnaire `src/i18n/fr.ts`, prêt pour `nl`/`en`.
 - **SEO** : sitemap, robots.txt, Open Graph, canoniques, pages légales (mentions, vie privée, cookies, durabilité, protection du client).
+
+## Cache des documents
+
+L’assistant lit le texte des PDF depuis la table `document_texts` (migration `0002`). Un document absent du cache est téléchargé une seule fois, analysé, puis stocké : les questions suivantes n’exigent plus ni téléchargement ni analyse.
+
+Certaines compagnies (AXA) **refusent les requêtes venant d’adresses IP de datacenter** : le même PDF répond `200` depuis un poste de travail et `403` depuis Railway. Pour ces documents, le cache doit être rempli depuis un réseau non bloqué :
+
+```bash
+npm run migrate                                 # crée document_texts
+npm run ingest:documents -- --limit 10          # test rapide
+npm run ingest:documents -- --partner "AG Insurance"
+npm run ingest:documents -- --id sector-…
+npm run ingest:documents -- --force             # rafraîchit le cache
+npm run ingest:documents -- --dry-run           # liste sans télécharger
+```
+
+L’ingestion est incrémentale (les documents déjà en cache sont ignorés) et les échecs sont regroupés par motif en fin d’exécution. Un PDF non mis en cache reste lu en direct, avec un message explicite si l’hôte refuse la requête.
+
+**Attention à la taille** : le texte est conservé intégralement (jusqu’à 80 000 caractères par document). Ingérer l’ensemble des ~2 957 documents du catalogue peut représenter plusieurs dizaines de Mo et consommer une part notable du quota de stockage Neon (512 Mo sur l’offre gratuite). Ciblez un sous-ensemble avec `--partner` ou `--limit`, ou ingérez au fil des besoins.
 
 ## Import CSV
 
