@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { sectorCatalogDocuments } from '../../data/sectorCatalog';
-import { AUTO_MODEL, resolveModelChain } from '../../lib/assistantModels';
+import { CHAT_ENDPOINT, PROVIDER_NAME, resolveModelChain } from '../../lib/assistantProvider';
 
 export const prerender = false;
 
@@ -37,7 +37,7 @@ interface ModelAttempt {
   detail: string;
 }
 
-/** Pulls OpenRouter's own explanation out of an error body. */
+/** Pulls the provider's own explanation out of an error body. */
 function extractReason(responseText: string): string {
   let message = responseText;
   try {
@@ -53,15 +53,15 @@ function providerErrorMessage(attempts: ModelAttempt[]): string {
   const last = attempts[attempts.length - 1]!;
   const reason = extractReason(last.detail) || 'aucun détail fourni';
 
-  if (last.status === 401 || last.status === 403) return 'La clé OpenRouter est invalide ou inactive. Vérifiez OPENROUTER_API_KEY dans Railway.';
-  if (last.status === 402) return `Le compte OpenRouter ne dispose plus de crédits. Réponse d’OpenRouter : ${reason}.`;
-  if (last.status === 429) return `Le service d’assistance est temporairement limité par OpenRouter : ${reason}. Réessayez dans un instant.`;
+  if (last.status === 401 || last.status === 403) return `La clé ${PROVIDER_NAME} est invalide ou inactive. Vérifiez ROUTERA_API_KEY dans Railway.`;
+  if (last.status === 402) return `Le compte ${PROVIDER_NAME} ne dispose plus de crédits. Réponse du service : ${reason}.`;
+  if (last.status === 429) return `Le service d’assistance est temporairement limité par ${PROVIDER_NAME} : ${reason}. Réessayez dans un instant.`;
   if (last.status === 404) {
     const tried = attempts.map((attempt) => `« ${attempt.model} »`).join(', ');
     const subject = attempts.length > 1
       ? `Aucun modèle disponible parmi ${tried}`
       : `Le modèle ${tried} est indisponible`;
-    return `${subject} selon OpenRouter : ${reason}. Vérifiez OPENROUTER_MODEL dans Railway et la liste « Allowed Models » de votre compte OpenRouter.`;
+    return `${subject} selon ${PROVIDER_NAME} : ${reason}. Vérifiez ROUTERA_MODEL dans Railway et que votre offre Routera donne accès à ce modèle.`;
   }
   return `Erreur du service d’assistance (${last.status}) : ${reason}`;
 }
@@ -95,8 +95,8 @@ export const POST: APIRoute = async ({ request }) => {
     }
     if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') return json('Ce document ne peut pas être lu par l’assistant.', 422);
 
-    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-    if (!apiKey) return json('L’assistant documents n’est pas encore configuré. Ajoutez OPENROUTER_API_KEY dans Railway.', 503);
+    const apiKey = process.env.ROUTERA_API_KEY?.trim();
+    if (!apiKey) return json('L’assistant documents n’est pas encore configuré. Ajoutez ROUTERA_API_KEY dans Railway.', 503);
     const modelChain = resolveModelChain();
 
     let pdfText: string;
@@ -134,12 +134,10 @@ export const POST: APIRoute = async ({ request }) => {
 
     const history = body.messages as ChatMessage[];
     async function requestCompletion(selectedModel: string): Promise<Response> {
-      return fetch('https://openrouter.ai/api/v1/chat/completions', {
+      return fetch(CHAT_ENDPOINT, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://www.bdts.be',
-          'X-Title': 'BDTS Document Assistant',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -179,7 +177,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     if (!upstream) {
-      console.error('[document-chat] OpenRouter error:', JSON.stringify(attempts).slice(0, 800));
+      console.error('[document-chat] Provider error:', JSON.stringify(attempts).slice(0, 800));
       return json(providerErrorMessage(attempts), 502);
     }
     if (!upstream.body) return json('Le service d’assistance n’a renvoyé aucune réponse.', 502);
@@ -198,9 +196,9 @@ export const POST: APIRoute = async ({ request }) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
         }
 
-        // Announce the answering model before the first token, then again when a
-        // router resolves to a concrete model, so the UI can display it.
-        send({ meta: { model: activeModel, autoRouted: activeModel === AUTO_MODEL, fallbacks } });
+        // Announce the answering model before the first token, then again if the
+        // provider reports a different concrete model than the one requested.
+        send({ meta: { model: activeModel, fallbacks } });
 
         function processLine(line: string) {
           if (!line.startsWith('data:')) return;
@@ -219,7 +217,7 @@ export const POST: APIRoute = async ({ request }) => {
             }
             if (typeof event.model === 'string' && event.model !== resolvedModel) {
               resolvedModel = event.model;
-              send({ meta: { model: resolvedModel, autoRouted: false, routedFrom: activeModel } });
+              send({ meta: { model: resolvedModel, routedFrom: activeModel } });
             }
             const content = event.choices?.[0]?.delta?.content;
             if (content) send({ content });

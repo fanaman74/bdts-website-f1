@@ -14,19 +14,16 @@ interface Props {
 }
 
 interface AssistantStatus {
+  provider: string;
   configured: boolean;
   apiKeyValid: boolean;
   reason: string | null;
   pinned: boolean;
-  freeTier?: boolean | null;
-  usage?: number | null;
-  limit?: number | null;
-  models: { auto: string; fallback: string; chain: string[] };
+  models: { primary: string; fallback: string; chain: string[] };
 }
 
 interface AssistantMeta {
   model: string;
-  autoRouted?: boolean;
   routedFrom?: string;
   fallbacks?: string[];
 }
@@ -238,7 +235,7 @@ export default function DocumentChat({ documentId, docTitle, company, onClose }:
       ? 'bg-[#c08e3a] animate-pulse'
       : 'bg-[#b4552f]';
 
-  const answeringModel = meta?.model ?? status?.models.auto ?? 'openrouter/free';
+  const answeringModel = meta?.model ?? status?.models.primary ?? 'openai/gpt-5.6-luna';
 
   return (
     <div class="fixed inset-0 z-[100]">
