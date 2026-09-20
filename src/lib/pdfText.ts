@@ -18,7 +18,7 @@ export interface ExtractedDocument {
 export async function fetchDocumentText(url: string, timeoutMs = 30_000): Promise<ExtractedDocument> {
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; BDTS-Document-Assistant/1.0; +https://www.bdts.be)',
+      'User-Agent': 'Mozilla/5.0 (compatible; BDTS-Document-Assistant/1.0; +https://bdts-website-f1-production.up.railway.app)',
       Accept: 'application/pdf,*/*;q=0.8',
       'Accept-Language': 'fr-BE,fr;q=0.9,nl;q=0.8,en;q=0.7',
       Referer: 'https://app.sectorcatalog.be/'
