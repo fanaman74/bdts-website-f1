@@ -8,7 +8,11 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://www.bdts.be',
+  // The production domain this site is built for. Overridable so that a preview
+  // or testing deployment does not advertise bdts.be as its canonical home:
+  // while bdts.be still points elsewhere, hardcoding it makes every page served
+  // from Railway claim the real version lives on another host.
+  site: process.env.SITE_URL?.trim() || 'https://www.bdts.be',
   vite: {
     plugins: [tailwindcss()]
   },
