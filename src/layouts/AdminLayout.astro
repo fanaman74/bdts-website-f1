@@ -6,6 +6,7 @@
  */
 import '../styles/global.css';
 import AdminIcon from '../components/AdminIcon.astro';
+import { adminUser } from '../lib/adminAuth';
 
 interface Props {
   title: string;
@@ -14,6 +15,9 @@ interface Props {
 }
 
 const { title, active, search = '' } = Astro.props;
+
+const operator = adminUser();
+const initials = operator.slice(0, 2).toUpperCase();
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard', href: '/admin' },
@@ -47,7 +51,13 @@ const tabs = [
             <span class="sr-only">{tab.label}</span>
           </a>
         ))}
-        <div class="mt-auto">
+        <div class="mt-auto flex flex-col items-center gap-2">
+          <span
+            class="grid h-9 w-9 place-items-center rounded-full border border-[#2f3432] bg-[#181b1a] text-[11px] font-medium text-[#c8c6c0]"
+            title={operator}
+          >
+            {initials}
+          </span>
           <form method="post" action="/admin/logout">
             <button type="submit" title="Se déconnecter" class="grid h-10 w-10 place-items-center rounded-lg text-[#7f857f] transition-colors hover:bg-[#181b1a] hover:text-[#c8c6c0]">
               <AdminIcon name="signout" />

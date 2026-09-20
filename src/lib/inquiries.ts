@@ -21,6 +21,7 @@ export interface InquiryFilters {
   status?: string;
   formType?: string;
   search?: string;
+  order?: 'newest' | 'oldest';
   limit?: number;
 }
 
@@ -53,11 +54,14 @@ export async function listInquiries(filters: InquiryFilters = {}): Promise<Inqui
   const limit = Math.min(Math.max(filters.limit ?? 200, 1), 500);
   params.push(limit);
 
+  // Derived from a literal union, never from user input.
+  const direction = filters.order === 'oldest' ? 'asc' : 'desc';
+
   const rows = await db.query(
     `select id, form_type, name, email, phone, message, status, created_at, updated_at
        from public.inquiries
       ${where.length ? `where ${where.join(' and ')}` : ''}
-      order by created_at desc
+      order by created_at ${direction}
       limit $${params.length}`,
     params
   );
