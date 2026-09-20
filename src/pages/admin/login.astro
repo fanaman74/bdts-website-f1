@@ -1,5 +1,6 @@
 ---
 import '../../styles/global.css';
+import '../../styles/admin.css';
 import { ADMIN_COOKIE, adminUser, createSessionToken, isAdminConfigured, verifyPassword } from '../../lib/adminAuth';
 
 export const prerender = false;
@@ -76,8 +77,8 @@ const configured = isAdminConfigured();
     <title>Connexion — Administration BDTS</title>
     <meta name="robots" content="noindex, nofollow" />
   </head>
-  <body class="bg-[#0b0c0b]">
-    <div class="grid min-h-screen place-items-center px-6 text-[#e8e6e1]">
+  <body class="admin-root">
+    <div class="grid min-h-screen place-items-center bg-[#0b0c0b] px-6 text-[#e8e6e1]">
       <div class="w-full max-w-sm">
         <div class="mb-7 flex items-center gap-3">
           <span class="grid h-9 w-9 place-items-center rounded-lg bg-[#d4a24c] text-sm font-bold text-[#1a1408]">B</span>

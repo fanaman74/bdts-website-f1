@@ -1,0 +1,29 @@
+/*
+ * Admin shell overrides.
+ *
+ * `global.css` styles `body` with the marketing cream background, a fixed grain
+ * overlay at z-index 9999, and mobile bottom padding. Those rules are unlayered,
+ * so they beat Tailwind's `@layer utilities`: a `bg-[…]` class on <body> loses
+ * silently. Targeting `body.admin-root` is more specific, so these win whatever
+ * the stylesheet order — no `!important` required.
+ */
+
+body.admin-root {
+  background: #0b0c0b;
+  padding-bottom: 0;
+}
+
+/* Marketing-site paper grain; pure noise on a dark admin surface. */
+body.admin-root::before {
+  display: none;
+}
+
+/* The admin pages sit outside the marketing typography scale. */
+body.admin-root {
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
