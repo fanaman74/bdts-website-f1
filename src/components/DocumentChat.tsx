@@ -15,10 +15,11 @@ interface Props {
 
 interface AssistantStatus {
   provider: string;
+  keyEnvVar: string;
   configured: boolean;
   apiKeyValid: boolean;
+  hasCredit?: boolean | null;
   reason: string | null;
-  pinned: boolean;
   models: { primary: string; fallback: string; chain: string[] };
 }
 

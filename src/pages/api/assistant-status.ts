@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { BALANCE_ENDPOINT, FALLBACK_MODEL, PRIMARY_MODEL, PROVIDER_NAME, resolveModelChain } from '../../lib/assistantProvider';
+import { resolveAssistant } from '../../lib/assistantProvider';
 
 export const prerender = false;
 
@@ -17,33 +17,46 @@ function json(body: unknown): Response {
  * tokens, so it proves the key without generating anything.
  */
 export const GET: APIRoute = async () => {
-  const apiKey = process.env.ROUTERA_API_KEY?.trim();
-  const pinned = Boolean(process.env.ROUTERA_MODEL?.trim());
-  const models = { primary: PRIMARY_MODEL, fallback: FALLBACK_MODEL, chain: resolveModelChain() };
+  const { provider, apiKey, chain } = await resolveAssistant();
+  const models = { primary: chain[0] ?? '', fallback: chain[1] ?? '', chain };
 
   if (!apiKey) {
-    return json({ provider: PROVIDER_NAME, configured: false, apiKeyValid: false, reason: 'missing-key', pinned, models });
+    return json({ provider: provider.name, keyEnvVar: provider.keyEnvVar, configured: false, apiKeyValid: false, reason: 'missing-key', models });
   }
 
   try {
-    const response = await fetch(BALANCE_ENDPOINT, {
+    const response = await fetch(provider.statusEndpoint, {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(10_000)
     });
 
     if (!response.ok) {
+      // A provider with no balance endpoint (404/405) is not an invalid key, so
+      // report it as unverified rather than accusing the credentials.
+      const unsupported = response.status === 404 || response.status === 405;
       return json({
-        provider: PROVIDER_NAME,
+        provider: provider.name,
+        keyEnvVar: provider.keyEnvVar,
         configured: true,
-        apiKeyValid: false,
-        reason: response.status === 401 || response.status === 403 ? 'invalid-key' : `http-${response.status}`,
-        pinned,
+        apiKeyValid: !unsupported,
+        reason: unsupported
+          ? 'unverified'
+          : response.status === 401 || response.status === 403 ? 'invalid-key' : `http-${response.status}`,
         models
       });
     }
 
-    return json({ provider: PROVIDER_NAME, configured: true, apiKeyValid: true, reason: null, pinned, models });
+    // DeepSeek reports whether the balance actually covers API calls.
+    let hasCredit: boolean | null = null;
+    try {
+      const body = (await response.json()) as { is_available?: boolean };
+      if (typeof body.is_available === 'boolean') hasCredit = body.is_available;
+    } catch {
+      // Balance payloads differ per provider; missing detail is not an error.
+    }
+
+    return json({ provider: provider.name, keyEnvVar: provider.keyEnvVar, configured: true, apiKeyValid: true, hasCredit, reason: null, models });
   } catch {
-    return json({ provider: PROVIDER_NAME, configured: true, apiKeyValid: false, reason: 'unreachable', pinned, models });
+    return json({ provider: provider.name, keyEnvVar: provider.keyEnvVar, configured: true, apiKeyValid: false, reason: 'unreachable', models });
   }
 };

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { sectorCatalogDocuments } from '../../data/sectorCatalog';
-import { CHAT_ENDPOINT, PROVIDER_NAME, resolveModelChain } from '../../lib/assistantProvider';
+import { completionBody, resolveAssistant } from '../../lib/assistantProvider';
 import { getCachedDocumentText, saveDocumentText } from '../../lib/documentText';
 import { fetchDocumentText } from '../../lib/pdfText';
 
@@ -49,21 +49,21 @@ function extractReason(responseText: string): string {
   return message.replace(/\s+/g, ' ').trim().slice(0, 240);
 }
 
-function providerErrorMessage(attempts: ModelAttempt[]): string {
+function providerErrorMessage(attempts: ModelAttempt[], providerName: string, keyEnvVar: string): string {
   const last = attempts[attempts.length - 1]!;
   const reason = extractReason(last.detail) || 'aucun détail fourni';
 
   if (last.status === 401 || last.status === 403) {
-    return `Clé ${PROVIDER_NAME} refusée pour la génération (HTTP ${last.status}) : ${reason}. Vérifiez ROUTERA_API_KEY, et que le compte Routera dispose bien de jetons : Routera n’a pas d’offre gratuite, et une clé valide sans solde est refusée.`;
+    return `Clé ${providerName} refusée pour la génération (HTTP ${last.status}) : ${reason}. Vérifiez ${keyEnvVar} dans Railway, et que le compte ${providerName} dispose bien de crédits.`;
   }
-  if (last.status === 402) return `Le compte ${PROVIDER_NAME} ne dispose plus de crédits. Réponse du service : ${reason}.`;
-  if (last.status === 429) return `Le service d’assistance est temporairement limité par ${PROVIDER_NAME} : ${reason}. Réessayez dans un instant.`;
+  if (last.status === 402) return `Le compte ${providerName} ne dispose plus de crédits. Réponse du service : ${reason}.`;
+  if (last.status === 429) return `Le service d’assistance est temporairement limité par ${providerName} : ${reason}. Réessayez dans un instant.`;
   if (last.status === 404) {
     const tried = attempts.map((attempt) => `« ${attempt.model} »`).join(', ');
     const subject = attempts.length > 1
       ? `Aucun modèle disponible parmi ${tried}`
       : `Le modèle ${tried} est indisponible`;
-    return `${subject} selon ${PROVIDER_NAME} : ${reason}. Vérifiez ROUTERA_MODEL dans Railway et que votre offre Routera donne accès à ce modèle.`;
+    return `${subject} selon ${providerName} : ${reason}. Vérifiez le modèle choisi dans l’espace d’administration.`;
   }
   return `Erreur du service d’assistance (${last.status}) : ${reason}`;
 }
@@ -97,9 +97,8 @@ export const POST: APIRoute = async ({ request }) => {
     }
     if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') return json('Ce document ne peut pas être lu par l’assistant.', 422);
 
-    const apiKey = process.env.ROUTERA_API_KEY?.trim();
-    if (!apiKey) return json('L’assistant documents n’est pas encore configuré. Ajoutez ROUTERA_API_KEY dans Railway.', 503);
-    const modelChain = resolveModelChain();
+    const { provider, apiKey, chain: modelChain } = await resolveAssistant();
+    if (!apiKey) return json(`L’assistant documents n’est pas encore configuré. Ajoutez ${provider.keyEnvVar} dans Railway.`, 503);
 
     // Prefer cached text so each document is downloaded and parsed only once.
     // The cache is also the escape hatch for hosts that refuse datacenter IPs:
@@ -128,25 +127,21 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const history = body.messages as ChatMessage[];
+    const conversation = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: `Document « ${documentTitle} » :\n\n---\n${pdfText}\n---\n\nUse only this source for the conversation.` },
+      { role: 'assistant', content: `J’ai lu le document « ${documentTitle} ». Je répondrai uniquement à partir de son contenu.` },
+      ...history
+    ];
+
     async function requestCompletion(selectedModel: string): Promise<Response> {
-      return fetch(CHAT_ENDPOINT, {
+      return fetch(provider.chatEndpoint, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: `Document « ${documentTitle} » :\n\n---\n${pdfText}\n---\n\nUse only this source for the conversation.` },
-            { role: 'assistant', content: `J’ai lu le document « ${documentTitle} ». Je répondrai uniquement à partir de son contenu.` },
-            ...history
-          ],
-          max_tokens: 1_024,
-          temperature: 0.2,
-          stream: true
-        })
+        body: completionBody(provider, selectedModel, conversation)
       });
     }
 
@@ -173,7 +168,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     if (!upstream) {
       console.error('[document-chat] Provider error:', JSON.stringify(attempts).slice(0, 800));
-      return json(providerErrorMessage(attempts), 502);
+      return json(providerErrorMessage(attempts, provider.name, provider.keyEnvVar), 502);
     }
     if (!upstream.body) return json('Le service d’assistance n’a renvoyé aucune réponse.', 502);
 
