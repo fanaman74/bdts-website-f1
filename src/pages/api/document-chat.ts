@@ -31,7 +31,7 @@ function json(error: string, status: number): Response {
   return Response.json({ error }, { status });
 }
 
-function providerErrorMessage(status: number, responseText: string, model: string): string {
+function providerErrorMessage(status: number, responseText: string, model: string, configuredModel: string): string {
   let detail = responseText;
   try {
     const parsed = JSON.parse(responseText) as { error?: { message?: string } };
@@ -40,11 +40,23 @@ function providerErrorMessage(status: number, responseText: string, model: strin
     // Keep the provider's non-JSON response for a useful, bounded error.
   }
 
+  // OpenRouter explains refusals (no endpoints for the model, data policy,
+  // credits) in the body. Keep that explanation instead of replacing it with a
+  // generic hint, otherwise the cause is undiagnosable from the browser.
+  const reason = detail.replace(/\s+/g, ' ').trim().slice(0, 240);
+
   if (status === 401 || status === 403) return 'La clé OpenRouter est invalide ou inactive. Vérifiez OPENROUTER_API_KEY dans Railway.';
-  if (status === 402) return 'Le compte OpenRouter ne dispose plus de crédits.';
-  if (status === 404) return `Le modèle « ${model} » est indisponible. Vérifiez OPENROUTER_MODEL dans Railway.`;
+  if (status === 402) return `Le compte OpenRouter ne dispose plus de crédits. Réponse d’OpenRouter : ${reason || 'aucun détail fourni'}.`;
+  if (status === 404) {
+    // After a fallback `model` is the default, so name both to avoid hiding the
+    // model the operator actually configured.
+    const subject = model === configuredModel
+      ? `Le modèle « ${model} » est indisponible`
+      : `Ni le modèle configuré « ${configuredModel} » ni le modèle par défaut « ${model} » ne sont disponibles`;
+    return `${subject} selon OpenRouter : ${reason || 'aucun détail fourni'}. Vérifiez OPENROUTER_MODEL dans Railway.`;
+  }
   if (status === 429) return 'Le service d’assistance est temporairement limité. Réessayez dans un instant.';
-  return `Erreur du service d’assistance (${status}) : ${detail.slice(0, 240)}`;
+  return `Erreur du service d’assistance (${status}) : ${reason}`;
 }
 
 function isChatMessage(value: unknown): value is ChatMessage {
@@ -150,7 +162,7 @@ export const POST: APIRoute = async ({ request }) => {
     if (!upstream.ok) {
       const responseText = await upstream.text();
       console.error('[document-chat] OpenRouter error:', upstream.status, responseText.slice(0, 500));
-      return json(providerErrorMessage(upstream.status, responseText, activeModel), 502);
+      return json(providerErrorMessage(upstream.status, responseText, activeModel, model), 502);
     }
     if (!upstream.body) return json('Le service d’assistance n’a renvoyé aucune réponse.', 502);
 
