@@ -55,7 +55,7 @@ function providerErrorMessage(attempts: ModelAttempt[]): string {
 
   if (last.status === 401 || last.status === 403) return 'La clé OpenRouter est invalide ou inactive. Vérifiez OPENROUTER_API_KEY dans Railway.';
   if (last.status === 402) return `Le compte OpenRouter ne dispose plus de crédits. Réponse d’OpenRouter : ${reason}.`;
-  if (last.status === 429) return 'Le service d’assistance est temporairement limité. Réessayez dans un instant.';
+  if (last.status === 429) return `Le service d’assistance est temporairement limité par OpenRouter : ${reason}. Réessayez dans un instant.`;
   if (last.status === 404) {
     const tried = attempts.map((attempt) => `« ${attempt.model} »`).join(', ');
     const subject = attempts.length > 1
