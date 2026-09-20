@@ -28,7 +28,7 @@ npm run dev        # http://localhost:4321
 
 - **Contenu** : collections Astro (`src/content/`) — 29 services, actualités, catalogue de documents JSON (`src/content/documents/documents.json`).
 - **Documents** : page `/documents` avec recherche Fuse.js, filtres (public, catégorie, partenaire, type, langue, source), tri, badges « portail uniquement » et fallback `<noscript>`. API : `GET /api/documents.json`.
-- **Assistant documents** : renseigner `OPENROUTER_API_KEY` dans l’environnement Railway. `OPENROUTER_MODEL` est facultatif et utilise `google/gemini-3.5-flash-lite` par défaut. L’assistant est proposé uniquement pour les liens PDF directs.
+- **Assistant documents** : renseigner `OPENROUTER_API_KEY` dans l’environnement Railway. `OPENROUTER_MODEL` est facultatif : sans lui, l’assistant laisse OpenRouter choisir un modèle gratuit (`openrouter/free`) puis retombe sur `qwen/qwen3.8-27b:free`. Le tiroir de discussion affiche le modèle réellement utilisé et l’état de la connexion à l’API (`GET /api/assistant-status`). L’assistant est proposé uniquement pour les liens PDF directs.
 - **Formulaires** : contact `/contact`, devis `/devis`, sinistre `/declaration` → `POST /api/contact` (validation Zod côté serveur + honeypot), puis stockage dans la table Postgres `inquiries` hébergée sur Neon.
 - **Portails clients** : configurables dans `src/data/portals.ts` (MyBroker, My AG, extensibles).
 - **i18n** : dictionnaire `src/i18n/fr.ts`, prêt pour `nl`/`en`.

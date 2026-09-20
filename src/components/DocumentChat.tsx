@@ -13,6 +13,24 @@ interface Props {
   onClose: () => void;
 }
 
+interface AssistantStatus {
+  configured: boolean;
+  apiKeyValid: boolean;
+  reason: string | null;
+  pinned: boolean;
+  freeTier?: boolean | null;
+  usage?: number | null;
+  limit?: number | null;
+  models: { auto: string; fallback: string; chain: string[] };
+}
+
+interface AssistantMeta {
+  model: string;
+  autoRouted?: boolean;
+  routedFrom?: string;
+  fallbacks?: string[];
+}
+
 const SUGGESTED_QUESTIONS = [
   'Que couvre ce contrat ?',
   'Quelles sont les exclusions ?',
@@ -54,6 +72,9 @@ export default function DocumentChat({ documentId, docTitle, company, onClose }:
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<AssistantStatus | null>(null);
+  const [statusFailed, setStatusFailed] = useState(false);
+  const [meta, setMeta] = useState<AssistantMeta | null>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -92,6 +113,21 @@ export default function DocumentChat({ documentId, docTitle, company, onClose }:
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch('/api/assistant-status');
+        if (!response.ok) throw new Error(String(response.status));
+        const payload = (await response.json()) as AssistantStatus;
+        if (!cancelled) setStatus(payload);
+      } catch {
+        if (!cancelled) setStatusFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -139,8 +175,9 @@ export default function DocumentChat({ documentId, docTitle, company, onClose }:
         const data = line.slice(5).trim();
         if (!data || data === '[DONE]') return;
 
-        const parsed = JSON.parse(data) as { content?: string; error?: string };
+        const parsed = JSON.parse(data) as { content?: string; error?: string; meta?: AssistantMeta };
         if (parsed.error) throw new Error(parsed.error);
+        if (parsed.meta) setMeta(parsed.meta);
         if (parsed.content) {
           accumulated += parsed.content;
           setMessages([...nextMessages, { role: 'assistant', content: accumulated }]);
@@ -179,6 +216,30 @@ export default function DocumentChat({ documentId, docTitle, company, onClose }:
     }
   }
 
+  const connection = statusFailed
+    ? 'unknown'
+    : status === null
+      ? 'checking'
+      : !status.configured
+        ? 'missing-key'
+        : status.apiKeyValid ? 'ok' : 'error';
+
+  const connectionText: Record<typeof connection, string> = {
+    ok: 'Assistant connecté',
+    checking: 'Vérification de la connexion…',
+    'missing-key': 'Clé API absente',
+    error: 'Clé API refusée',
+    unknown: 'État de connexion inconnu'
+  };
+
+  const connectionDot = connection === 'ok'
+    ? 'bg-[#4c7a34]'
+    : connection === 'checking'
+      ? 'bg-[#c08e3a] animate-pulse'
+      : 'bg-[#b4552f]';
+
+  const answeringModel = meta?.model ?? status?.models.auto ?? 'openrouter/free';
+
   return (
     <div class="fixed inset-0 z-[100]">
       <div class="absolute inset-0 bg-[#2f2b24]/55 backdrop-blur-[3px]" onClick={onClose} aria-hidden="true" />
@@ -192,6 +253,20 @@ export default function DocumentChat({ documentId, docTitle, company, onClose }:
           </div>
           <button type="button" onClick={onClose} aria-label="Fermer l’assistant" class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-[#d8cbb6] transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4b895]"><ChatIcon kind="close" /></button>
         </header>
+
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#d8cbb6] bg-[#fbf6ec] px-5 py-2 text-[11px] text-[#6d6350]">
+          <span class="inline-flex items-center gap-1.5">
+            <span class={`h-2 w-2 shrink-0 rounded-full ${connectionDot}`} aria-hidden="true" />
+            {connectionText[connection]}
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="text-[#8b806d]">Modèle</span>
+            <span data-no-translate class="rounded-full bg-[#606c38]/10 px-2 py-0.5 font-medium text-[#4c5730]">{answeringModel}</span>
+          </span>
+          {meta?.routedFrom ? (
+            <span data-no-translate class="text-[#8b806d]">{`via ${meta.routedFrom}`}</span>
+          ) : null}
+        </div>
 
         <div class="flex-1 space-y-4 overflow-y-auto px-4 py-5" aria-live="polite">
           {messages.length === 0 && (

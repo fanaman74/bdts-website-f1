@@ -50,7 +50,13 @@ export const translationOverrides = {
     'Habitation': 'Home',
     'Entreprise': 'Business',
     'Toutes les compagnies': 'All insurers',
-    'Toutes les années': 'All years'
+    'Toutes les années': 'All years',
+    'Assistant connecté': 'Assistant connected',
+    'Vérification de la connexion…': 'Checking the connection…',
+    'Clé API absente': 'API key missing',
+    'Clé API refusée': 'API key rejected',
+    'État de connexion inconnu': 'Connection status unknown',
+    'Modèle': 'Model'
   },
   nl: {
     'Des assurances,': 'Verzekerd met',
@@ -102,6 +108,12 @@ export const translationOverrides = {
     'Habitation': 'Wonen',
     'Entreprise': 'Onderneming',
     'Toutes les compagnies': 'Alle verzekeraars',
-    'Toutes les années': 'Alle jaren'
+    'Toutes les années': 'Alle jaren',
+    'Assistant connecté': 'Assistent verbonden',
+    'Vérification de la connexion…': 'Verbinding controleren…',
+    'Clé API absente': 'API-sleutel ontbreekt',
+    'Clé API refusée': 'API-sleutel geweigerd',
+    'État de connexion inconnu': 'Verbindingsstatus onbekend',
+    'Modèle': 'Model'
   }
 } as const;
