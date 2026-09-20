@@ -1,0 +1,139 @@
+---
+import '../../styles/global.css';
+import { ADMIN_COOKIE, adminUser, createSessionToken, isAdminConfigured, verifyPassword } from '../../lib/adminAuth';
+
+export const prerender = false;
+
+const WINDOW_MS = 15 * 60_000;
+const WINDOW_LIMIT = 8;
+const attempts = new Map<string, number[]>();
+
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]!.trim();
+  return request.headers.get('x-real-ip') ?? request.headers.get('cf-connecting-ip') ?? 'unknown';
+}
+
+/** Only accept same-site admin paths, so `next` cannot become an open redirect. */
+function safeNext(value: unknown): string {
+  const next = typeof value === 'string' ? value : '';
+  return /^\/admin(\/|$)/.test(next) ? next : '/admin';
+}
+
+function allowAttempt(ip: string): boolean {
+  const now = Date.now();
+  const recent = (attempts.get(ip) ?? []).filter((timestamp) => now - timestamp < WINDOW_MS);
+  if (recent.length >= WINDOW_LIMIT) {
+    attempts.set(ip, recent);
+    return false;
+  }
+  recent.push(now);
+  attempts.set(ip, recent);
+  return true;
+}
+
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const username = String(form.get('username') ?? '');
+  const password = String(form.get('password') ?? '');
+  const destination = safeNext(form.get('next'));
+
+  if (!isAdminConfigured()) {
+    error = 'Administration non configurée : définissez ADMIN_PASSWORD_HASH et ADMIN_SESSION_SECRET.';
+  } else if (!allowAttempt(clientIp(Astro.request))) {
+    error = 'Trop de tentatives. Merci de réessayer dans quelques minutes.';
+  } else if (username === adminUser() && verifyPassword(password)) {
+    const token = createSessionToken();
+    if (token) {
+      Astro.cookies.set(ADMIN_COOKIE, token, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: Astro.url.protocol === 'https:',
+        maxAge: 8 * 60 * 60
+      });
+      return Astro.redirect(destination);
+    }
+    error = 'Session impossible à créer : ADMIN_SESSION_SECRET manquant.';
+  } else {
+    // Never log the submitted credentials.
+    console.warn('[admin] Failed login attempt from', clientIp(Astro.request));
+    error = 'Identifiants invalides.';
+  }
+}
+
+const next = safeNext(Astro.url.searchParams.get('next'));
+const configured = isAdminConfigured();
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connexion — Administration BDTS</title>
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body class="bg-[#0b0c0b]">
+    <div class="grid min-h-screen place-items-center px-6 text-[#e8e6e1]">
+      <div class="w-full max-w-sm">
+        <div class="mb-7 flex items-center gap-3">
+          <span class="grid h-9 w-9 place-items-center rounded-lg bg-[#d4a24c] text-sm font-bold text-[#1a1408]">B</span>
+          <span class="text-xs tracking-[.18em] text-[#7f857f] uppercase">Administration</span>
+        </div>
+
+        <h1 class="text-3xl font-semibold tracking-tight uppercase"><span class="text-[#d4a24c]">/</span> Connexion</h1>
+        <p class="mt-2 text-sm text-[#8b908b]">Accès réservé. Toutes les soumissions du site sont visibles après connexion.</p>
+
+        {!configured && (
+          <p class="mt-5 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-3 py-2 text-xs leading-5 text-[#e0a294]">
+            Cette instance n’a pas encore de mot de passe d’administration. Générez-en un avec
+            <code class="text-[#f0c9a0]">npm run admin:hash -- "…"</code> puis définissez
+            <code class="text-[#f0c9a0]">ADMIN_PASSWORD_HASH</code> et <code class="text-[#f0c9a0]">ADMIN_SESSION_SECRET</code>.
+          </p>
+        )}
+
+        {error && (
+          <p role="alert" class="mt-5 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-3 py-2 text-sm text-[#e0a294]">{error}</p>
+        )}
+
+        <form method="post" class="mt-6 space-y-3">
+          <input type="hidden" name="next" value={next} />
+          <label class="block">
+            <span class="text-xs text-[#8b908b]">Identifiant</span>
+            <input
+              name="username"
+              autocomplete="username"
+              required
+              autofocus
+              class="mt-1 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none"
+            />
+          </label>
+          <label class="block">
+            <span class="text-xs text-[#8b908b]">Mot de passe</span>
+            <input
+              type="password"
+              name="password"
+              autocomplete="current-password"
+              required
+              class="mt-1 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={!configured}
+            class="w-full rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Se connecter
+          </button>
+        </form>
+
+        <p class="mt-6 text-[11px] leading-5 text-[#6d726d]">
+          La session est un cookie signé, HttpOnly, valable 8 heures. Aucun mot de passe n’est stocké en clair.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

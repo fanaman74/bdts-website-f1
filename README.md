@@ -21,6 +21,7 @@ npm run dev        # http://localhost:4321
 | `npm run validate` | Sanity-checks du contenu (fichiers locaux, liens de navigation, ids uniques) |
 | `npm run migrate` | Applique les migrations SQL sur la base Neon (`db/migrations/`) |
 | `npm run ingest:documents -- [options]` | Met en cache le texte des PDF du catalogue (voir « Cache des documents ») |
+| `npm run admin:hash -- "…"` | Génère `ADMIN_PASSWORD_HASH` et `ADMIN_SESSION_SECRET` pour l’espace d’administration |
 | `npm test` | validate + check + build |
 | `npm run discover` | Découverte éthique des documents publics du site de référence → `data/discovered-documents.json` |
 | `npm run import:documents -- fichier.csv` | Import CSV vers le catalogue de documents |
@@ -29,12 +30,30 @@ npm run dev        # http://localhost:4321
 
 - **Contenu** : collections Astro (`src/content/`) — 29 services, actualités, catalogue de documents JSON (`src/content/documents/documents.json`).
 - **Documents** : page `/documents` avec recherche Fuse.js, filtres (public, catégorie, partenaire, type, langue, source), tri, badges « portail uniquement » et fallback `<noscript>`. API : `GET /api/documents.json`.
-- **Assistant documents** : renseigner `ROUTERA_API_KEY` dans l’environnement Railway (clé `rta_…`, API OpenAI-compatible de [Routera](https://www.routera.one)). `ROUTERA_MODEL` est facultatif : par défaut `openai/gpt-5.6-luna`, puis repli sur `qwen/qwen3.5-27b`. Routera facture à l’usage (pas d’offre gratuite) et l’accès aux modèles dépend de l’offre ; les tarifs courants sont exposés par `GET https://api.routera.one/v1/models`. Le tiroir de discussion affiche le modèle utilisé et l’état de la connexion (`GET /api/assistant-status`). L’assistant est proposé uniquement pour les liens PDF directs.
+- **Assistant documents** : le fournisseur (`deepseek` ou `routera`) et le modèle se choisissent dans l’espace d’administration (`/admin`) ; seules les clés d’API restent dans les variables d’environnement (`DEEPSEEK_API_KEY`, `ROUTERA_API_KEY`). Par défaut : DeepSeek `deepseek-flash`, puis repli sur `deepseek-v4-pro`. Routera n’a pas d’offre gratuite, facture à l’usage, et son accès aux modèles dépend de l’offre. Le tiroir de discussion affiche le modèle utilisé et l’état de la connexion (`GET /api/assistant-status`). L’assistant est proposé uniquement pour les liens PDF directs.
 - **Cache des documents** : le texte extrait des PDF est stocké en base (`document_texts`, migration `0002`). L’assistant lit cette copie quand elle existe et ne télécharge le PDF qu’en dernier recours — voir « Cache des documents » pour l’ingestion depuis un réseau non bloqué.
 - **Formulaires** : contact `/contact`, devis `/devis`, sinistre `/declaration` → `POST /api/contact` (validation Zod côté serveur + honeypot), puis stockage dans la table Postgres `inquiries` hébergée sur Neon.
 - **Portails clients** : configurables dans `src/data/portals.ts` (MyBroker, My AG, extensibles).
 - **i18n** : dictionnaire `src/i18n/fr.ts`, prêt pour `nl`/`en`.
 - **SEO** : sitemap, robots.txt, Open Graph, canoniques, pages légales (mentions, vie privée, cookies, durabilité, protection du client).
+
+## Administration
+
+L’espace d’administration vit sous `/admin` et affiche toutes les soumissions des formulaires, avec le suivi de leur statut.
+
+1. Générez un mot de passe :
+
+```bash
+npm run admin:hash -- "une longue phrase secrète unique"
+```
+
+2. Reportez `ADMIN_USER`, `ADMIN_PASSWORD_HASH` et `ADMIN_SESSION_SECRET` dans les variables Railway (et dans `.env` en local), puis ouvrez `/admin`.
+
+Contenu : tableau de bord (compteurs, dernières demandes, état de l’assistant), liste des messages filtrable par statut et par type, recherche plein texte sur nom/e-mail/téléphone/message, et changement de statut (`nouveau`, `en cours`, `clôturé`, `indésirable`).
+
+**Sécurité.** Le mot de passe n’est jamais stocké : seule une empreinte scrypt salée l’est, et la comparaison est à temps constant. La session est un cookie signé (HMAC), `HttpOnly`, `SameSite=Lax`, valable 8 heures ; `ADMIN_SESSION_SECRET` permet d’invalider toutes les sessions en le changeant. Sans ces deux variables, l’aire d’administration refuse l’accès au lieu de retomber sur un mot de passe par défaut. Les tentatives de connexion sont limitées à 8 par quart d’heure et par IP, et les identifiants saisis ne sont jamais journalisés. Les pages `/admin` sont en `noindex` et protégées par un middleware qui refuse tout par défaut. Astro protège en outre les formulaires par vérification d’origine (CSRF).
+
+Les clés d’API des fournisseurs ne sont **jamais** stockées en base : seuls le fournisseur et le modèle le sont, dans la table `settings`.
 
 ## Cache des documents
 

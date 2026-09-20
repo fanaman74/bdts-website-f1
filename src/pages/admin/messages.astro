@@ -1,0 +1,207 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { INQUIRY_STATUSES, inquiryCounts, listInquiries, updateInquiryStatus } from '../../lib/inquiries';
+
+export const prerender = false;
+
+const STATUS_PILL: Record<string, { label: string; dot: string; text: string; bg: string; border: string }> = {
+  new: { label: 'Nouveau', dot: 'bg-[#e0b568]', text: 'text-[#e0b568]', bg: 'bg-[#241a0d]', border: 'border-[#5a4620]' },
+  in_progress: { label: 'En cours', dot: 'bg-[#7fb7d6]', text: 'text-[#7fb7d6]', bg: 'bg-[#12222b]', border: 'border-[#275065]' },
+  closed: { label: 'Clôturé', dot: 'bg-[#4ea678]', text: 'text-[#8fd0a8]', bg: 'bg-[#12241a]', border: 'border-[#2b5c40]' },
+  spam: { label: 'Indésirable', dot: 'bg-[#d1695a]', text: 'text-[#e08b7c]', bg: 'bg-[#2a1614]', border: 'border-[#5e2f28]' }
+};
+
+const FORM_LABEL: Record<string, string> = { contact: 'Contact', devis: 'Devis', declaration: 'Sinistre' };
+const FORM_OPTIONS = ['contact', 'devis', 'declaration'];
+
+const params = Astro.url.searchParams;
+let status = params.get('status') ?? '';
+let formType = params.get('type') ?? '';
+const search = params.get('q')?.trim() ?? '';
+
+if (!(INQUIRY_STATUSES as readonly string[]).includes(status)) status = '';
+if (!FORM_OPTIONS.includes(formType)) formType = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  let changed = false;
+  if (form.get('action') === 'status') {
+    changed = await updateInquiryStatus(String(form.get('id') ?? ''), String(form.get('status') ?? ''));
+  }
+  const next = new URLSearchParams();
+  if (status) next.set('status', status);
+  if (formType) next.set('type', formType);
+  if (search) next.set('q', search);
+  if (changed) next.set('updated', '1');
+  return Astro.redirect(`/admin/messages?${next.toString()}`);
+}
+
+const [counts, rows] = await Promise.all([
+  inquiryCounts(),
+  listInquiries({ status, formType, search, limit: 200 })
+]);
+
+const chips = [
+  { id: '', label: `Toutes (${counts.total})` },
+  { id: 'new', label: `Nouvelles (${counts.byStatus.new})` },
+  { id: 'in_progress', label: `En cours (${counts.byStatus.in_progress})` },
+  { id: 'closed', label: `Clôturées (${counts.byStatus.closed})` },
+  { id: 'spam', label: `Indésirables (${counts.byStatus.spam})` }
+];
+
+function chipHref(id: string): string {
+  const query = new URLSearchParams();
+  if (id) query.set('status', id);
+  if (formType) query.set('type', formType);
+  if (search) query.set('q', search);
+  const qs = query.toString();
+  return qs ? `/admin/messages?${qs}` : '/admin/messages';
+}
+
+const formTypeHref = (id: string): string => {
+  const query = new URLSearchParams();
+  if (status) query.set('status', status);
+  if (id) query.set('type', id);
+  if (search) query.set('q', search);
+  const qs = query.toString();
+  return qs ? `/admin/messages?${qs}` : '/admin/messages';
+};
+---
+
+<AdminLayout title="Messages" active="messages" search={search}>
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-4xl font-semibold tracking-tight uppercase"><span class="text-[#d4a24c]">/</span> Messages</h1>
+      <p class="mt-2 max-w-2xl text-sm text-[#8b908b]">
+        Toutes les demandes envoyées depuis les formulaires contact, devis et sinistre. Filtrez, puis faites avancer le suivi.
+      </p>
+    </div>
+  </div>
+
+  {params.get('updated') === '1' && (
+    <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Statut mis à jour.</p>
+  )}
+
+  <div class="mt-7 flex flex-wrap items-center gap-2">
+    {chips.map((chip) => (
+      <a
+        href={chipHref(chip.id)}
+        class:list={[
+          'rounded-full border px-3 py-1.5 text-xs transition-colors',
+          chip.id === status
+            ? 'border-[#5a4620] bg-[#241a0d] text-[#e0b568]'
+            : 'border-[#2a2f2d] bg-[#141716] text-[#8b908b] hover:text-[#d8d5cd]'
+        ]}
+      >
+        {chip.label}
+      </a>
+    ))}
+    <span class="ml-auto flex items-center gap-2">
+      {['', ...FORM_OPTIONS].map((id) => (
+        <a
+          href={formTypeHref(id)}
+          class:list={[
+            'rounded-full border px-3 py-1.5 text-xs transition-colors',
+            id === formType
+              ? 'border-[#2a2f2d] bg-[#1d201f] text-[#e8e6e1]'
+              : 'border-transparent text-[#6d726d] hover:text-[#c8c6c0]'
+          ]}
+        >
+          {id ? FORM_LABEL[id] : 'Tous types'}
+        </a>
+      ))}
+    </span>
+  </div>
+
+  <div class="mt-6 overflow-hidden rounded-xl border border-[#262a28]">
+    <div class="hidden gap-4 border-b border-[#212524] px-5 py-3 text-[11px] tracking-[.12em] text-[#6d726d] uppercase lg:grid lg:grid-cols-[minmax(0,1.7fr)_120px_150px_150px_170px]">
+      <span>Demandeur</span>
+      <span>Type</span>
+      <span>Reçu le</span>
+      <span>Mis à jour</span>
+      <span>Suivi</span>
+    </div>
+
+    {rows.length === 0 && (
+      <p class="px-5 py-10 text-sm text-[#8b908b]">
+        Aucune demande ne correspond à ces filtres.
+        {search && <> Recherche : « {search} ».</>}
+      </p>
+    )}
+
+    {rows.map((inquiry) => {
+      const pill = STATUS_PILL[inquiry.status] ?? STATUS_PILL.new!;
+      const received = new Date(inquiry.createdAt);
+      const touched = new Date(inquiry.updatedAt);
+      const format = (date: Date) =>
+        date.toLocaleString('fr-BE', {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Europe/Brussels'
+        });
+
+      return (
+        <div class:list={[
+          'grid gap-4 border-b border-[#191c1b] px-5 py-4 transition-colors last:border-b-0 hover:bg-[#141716] lg:grid-cols-[minmax(0,1.7fr)_120px_150px_150px_170px] lg:items-center',
+          inquiry.status === 'new' ? 'bg-[#15130d]' : ''
+        ]}>
+          <div class="flex min-w-0 items-start gap-3">
+            <span class="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#2f3432] bg-[#181b1a] text-xs font-medium text-[#c8c6c0]">
+              {inquiry.name.trim().slice(0, 2).toUpperCase()}
+            </span>
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium text-[#f2efe8]">{inquiry.name}</p>
+              <p class="truncate text-xs text-[#8b908b]">{inquiry.email} · {inquiry.phone}</p>
+              <p class="mt-1 line-clamp-2 text-xs leading-5 text-[#6d726d]">{inquiry.message}</p>
+            </div>
+          </div>
+
+          <div>
+            <span class="inline-flex items-center rounded-full border border-[#2f3432] bg-[#181b1a] px-2.5 py-0.5 text-[11px] text-[#c8c6c0]">
+              {FORM_LABEL[inquiry.formType] ?? inquiry.formType}
+            </span>
+          </div>
+
+          <div class="text-xs text-[#8b908b]">
+            {format(received)}
+          </div>
+
+          <div class="text-xs text-[#6d726d]">
+            {format(touched)}
+          </div>
+
+          <div class="space-y-2">
+            <span class:list={['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium', pill.border, pill.bg, pill.text]}>
+              <span class:list={['h-1.5 w-1.5 rounded-full', pill.dot]} aria-hidden="true" />
+              {pill.label}
+            </span>
+
+            <form method="post" class="flex items-center gap-1.5">
+              <input type="hidden" name="action" value="status" />
+              <input type="hidden" name="id" value={inquiry.id} />
+              <label class="sr-only" for={`status-${inquiry.id}`}>Statut</label>
+              <select
+                id={`status-${inquiry.id}`}
+                name="status"
+                class="rounded-lg border border-[#2a2f2d] bg-[#141716] px-2 py-1 text-xs text-[#c8c6c0] focus:border-[#d4a24c] focus:outline-none"
+              >
+                {INQUIRY_STATUSES.map((option) => (
+                  <option value={option} selected={option === inquiry.status}>{STATUS_PILL[option]?.label ?? option}</option>
+                ))}
+              </select>
+              <button type="submit" class="rounded-lg border border-[#2a2f2d] px-2 py-1 text-xs text-[#c8c6c0] transition-colors hover:border-[#d4a24c] hover:text-[#e0b568]">
+                OK
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  <p class="mt-4 text-[11px] text-[#6d726d]">
+    {rows.length} demande(s) affichée(s){status || formType || search ? ' avec les filtres actifs' : ''} · maximum 200 par vue.
+  </p>
+</AdminLayout>

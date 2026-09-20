@@ -1,0 +1,95 @@
+---
+/**
+ * Dark admin shell: narrow icon rail, top tab bar, search field, content.
+ * Deliberately separate from the marketing BaseLayout — no header, footer,
+ * consent banner, analytics or translation runtime.
+ */
+import '../styles/global.css';
+import AdminIcon from '../components/AdminIcon.astro';
+
+interface Props {
+  title: string;
+  active: 'dashboard' | 'messages';
+  search?: string;
+}
+
+const { title, active, search = '' } = Astro.props;
+
+const tabs = [
+  { id: 'dashboard', label: 'Dashboard', href: '/admin' },
+  { id: 'messages', label: 'Messages', href: '/admin/messages' }
+] as const;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Administration BDTS</title>
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body class="bg-[#0b0c0b]">
+    <div class="flex min-h-screen bg-[#0b0c0b] text-[#e8e6e1]">
+      <aside class="flex w-16 shrink-0 flex-col items-center gap-1 border-r border-[#212524] py-5">
+        <span class="mb-4 grid h-9 w-9 place-items-center rounded-lg bg-[#d4a24c] text-sm font-bold text-[#1a1408]">B</span>
+        {tabs.map((tab) => (
+          <a
+            href={tab.href}
+            title={tab.label}
+            aria-current={active === tab.id ? 'page' : undefined}
+            class:list={[
+              'grid h-10 w-10 place-items-center rounded-lg transition-colors',
+              active === tab.id ? 'bg-[#222524] text-[#d4a24c]' : 'text-[#7f857f] hover:bg-[#181b1a] hover:text-[#c8c6c0]'
+            ]}
+          >
+            <AdminIcon name={tab.id} />
+            <span class="sr-only">{tab.label}</span>
+          </a>
+        ))}
+        <div class="mt-auto">
+          <form method="post" action="/admin/logout">
+            <button type="submit" title="Se déconnecter" class="grid h-10 w-10 place-items-center rounded-lg text-[#7f857f] transition-colors hover:bg-[#181b1a] hover:text-[#c8c6c0]">
+              <AdminIcon name="signout" />
+              <span class="sr-only">Se déconnecter</span>
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <div class="flex min-w-0 flex-1 flex-col">
+        <header class="flex h-14 shrink-0 items-center gap-1 border-b border-[#212524] px-6">
+          <nav class="flex items-center gap-1">
+            {tabs.map((tab) => (
+              <a
+                href={tab.href}
+                aria-current={active === tab.id ? 'page' : undefined}
+                class:list={[
+                  'rounded-lg px-3 py-1.5 text-sm transition-colors',
+                  active === tab.id ? 'text-[#f2efe8]' : 'text-[#8b908b] hover:text-[#d8d5cd]'
+                ]}
+              >
+                {tab.label}
+              </a>
+            ))}
+          </nav>
+
+          <form method="get" action="/admin/messages" class="ml-auto flex items-center gap-2">
+            <input
+              type="search"
+              name="q"
+              value={search}
+              placeholder="Rechercher un nom, e-mail, téléphone…"
+              class="w-72 rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-1.5 text-sm text-[#e8e6e1] placeholder:text-[#6d726d] focus:border-[#d4a24c] focus:outline-none"
+            />
+            <span class="rounded border border-[#2a2f2d] px-1.5 py-0.5 text-[10px] text-[#6d726d]">↵</span>
+          </form>
+        </header>
+
+        <main class="min-w-0 flex-1 px-8 py-8">
+          <slot />
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

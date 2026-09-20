@@ -1,0 +1,168 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { cachedDocumentCount, inquiryCounts, listInquiries } from '../../lib/inquiries';
+import { PROVIDERS, resolveAssistant } from '../../lib/assistantProvider';
+import { getSettings, SETTING_KEYS, setSetting } from '../../lib/settings';
+
+export const prerender = false;
+
+const STATUS_LABEL: Record<string, string> = {
+  new: 'Nouveau',
+  in_progress: 'En cours',
+  closed: 'Clôturé',
+  spam: 'Indésirable'
+};
+
+const FORM_LABEL: Record<string, string> = {
+  contact: 'Contact',
+  devis: 'Devis',
+  declaration: 'Sinistre'
+};
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  if (form.get('action') === 'assistant') {
+    const provider = String(form.get('provider') ?? '').trim();
+    const model = String(form.get('model') ?? '').trim();
+    if (provider in PROVIDERS) {
+      await setSetting(SETTING_KEYS.provider, provider);
+      // An empty model falls back to that provider's default.
+      await setSetting(SETTING_KEYS.model, model || PROVIDERS[provider]!.defaultModel);
+    }
+  }
+  // Redirect after POST so refreshing cannot resubmit the form.
+  return Astro.redirect('/admin?saved=1');
+}
+
+const saved = Astro.url.searchParams.get('saved') === '1';
+
+const [counts, cached, assistant, settings] = await Promise.all([
+  inquiryCounts(),
+  cachedDocumentCount(),
+  resolveAssistant(),
+  getSettings()
+]);
+
+const recent = await listInquiries({ limit: 6 });
+const keyConfigured = assistant.apiKey !== null;
+const suggestions = [assistant.provider.defaultModel, ...assistant.provider.fallbackModels];
+
+const tiles = [
+  { label: 'Soumissions', value: counts.total, hint: 'depuis la mise en ligne', accent: false },
+  { label: 'Nouvelles', value: counts.byStatus.new, hint: 'à traiter', accent: true },
+  { label: 'En cours', value: counts.byStatus.in_progress, hint: 'suivi engagé', accent: false },
+  { label: 'Clôturées', value: counts.byStatus.closed, hint: 'traitées', accent: false },
+  { label: 'Indésirables', value: counts.byStatus.spam, hint: 'écartées', accent: false },
+  { label: 'Documents en cache', value: cached, hint: 'PDF analysés', accent: false }
+];
+---
+
+<AdminLayout title="Dashboard" active="dashboard">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-4xl font-semibold tracking-tight uppercase"><span class="text-[#d4a24c]">/</span> Dashboard</h1>
+      <p class="mt-2 text-sm text-[#8b908b]">Toutes les demandes reçues via les formulaires du site, et la configuration de l’assistant.</p>
+    </div>
+    <a href="/admin/messages" class="rounded-lg bg-[#f2efe8] px-4 py-2 text-sm font-medium text-[#141716] transition-colors hover:bg-white">Ouvrir les messages</a>
+  </div>
+
+  {saved && (
+    <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Configuration de l’assistant enregistrée.</p>
+  )}
+
+  <section class="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-6">
+    {tiles.map((tile) => (
+      <div class:list={[
+        'rounded-xl border px-4 py-4',
+        tile.accent && tile.value > 0 ? 'border-[#5a4620] bg-[#241a0d]' : 'border-[#262a28] bg-[#111312]'
+      ]}>
+        <p class="text-[11px] tracking-[.12em] text-[#7f857f] uppercase">{tile.label}</p>
+        <p class:list={['mt-2 text-2xl font-semibold', tile.accent && tile.value > 0 ? 'text-[#e0b568]' : 'text-[#f2efe8]']}>{tile.value}</p>
+        <p class="mt-1 text-[11px] text-[#6d726d]">{tile.hint}</p>
+      </div>
+    ))}
+  </section>
+
+  <div class="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+    <section>
+      <h2 class="text-sm tracking-[.12em] text-[#7f857f] uppercase">Dernières demandes</h2>
+      <div class="mt-4 divide-y divide-[#212524] overflow-hidden rounded-xl border border-[#262a28]">
+        {recent.length === 0 && <p class="px-5 py-8 text-sm text-[#8b908b]">Aucune demande pour le moment.</p>}
+        {recent.map((inquiry) => (
+          <div class="flex items-start gap-4 px-5 py-4 transition-colors hover:bg-[#141716]">
+            <span class="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#2f3432] bg-[#181b1a] text-xs font-medium text-[#c8c6c0]">
+              {inquiry.name.trim().slice(0, 2).toUpperCase()}
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium text-[#f2efe8]">{inquiry.name}</p>
+              <p class="truncate text-xs text-[#8b908b]">{inquiry.email} · {inquiry.phone}</p>
+              <p class="mt-1.5 line-clamp-2 text-xs leading-5 text-[#6d726d]">{inquiry.message}</p>
+            </div>
+            <div class="shrink-0 text-right">
+              <span class="inline-flex items-center gap-1.5 rounded-full border border-[#2f3432] bg-[#181b1a] px-2 py-0.5 text-[11px] text-[#c8c6c0]">
+                {FORM_LABEL[inquiry.formType] ?? inquiry.formType}
+              </span>
+              <p class="mt-2 text-[11px] text-[#6d726d]">{new Date(inquiry.createdAt).toLocaleDateString('fr-BE')}</p>
+              <p class="text-[11px] text-[#8b908b]">{STATUS_LABEL[inquiry.status] ?? inquiry.status}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-sm tracking-[.12em] text-[#7f857f] uppercase">Assistant documents</h2>
+
+      <div class:list={[
+        'mt-4 rounded-xl border px-5 py-4',
+        keyConfigured ? 'border-[#2b5c40] bg-[#12241a]' : 'border-[#5a4620] bg-[#241a0d]'
+      ]}>
+        <p class="flex items-center gap-2 text-sm text-[#e8e6e1]">
+          <span class:list={['h-2 w-2 rounded-full', keyConfigured ? 'bg-[#4ea678]' : 'bg-[#d4a24c]']} aria-hidden="true" />
+          {keyConfigured ? 'Clé API présente' : 'Clé API absente'}
+        </p>
+        <p class="mt-2 text-xs leading-5 text-[#8b908b]">
+          {keyConfigured
+            ? `Fournisseur actif : ${assistant.provider.name}. Le modèle réellement utilisé est affiché dans le tiroir de discussion.`
+            : `Ajoutez ${assistant.provider.keyEnvVar} dans les variables Railway pour activer l’assistant.`}
+        </p>
+        <a href="/api/assistant-status" class="mt-3 inline-block text-xs text-[#d4a24c] underline-offset-2 hover:underline">Vérifier l’état en direct →</a>
+      </div>
+
+      <form method="post" class="mt-4 space-y-4 rounded-xl border border-[#262a28] bg-[#111312] px-5 py-5">
+        <input type="hidden" name="action" value="assistant" />
+
+        <label class="block">
+          <span class="text-xs tracking-[.12em] text-[#7f857f] uppercase">Fournisseur</span>
+          <select name="provider" class="mt-1.5 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none">
+            {Object.values(PROVIDERS).map((entry) => (
+              <option value={entry.id} selected={entry.id === settings.assistant_provider}>{entry.name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label class="block">
+          <span class="text-xs tracking-[.12em] text-[#7f857f] uppercase">Modèle</span>
+          <input
+            name="model"
+            value={settings.assistant_model}
+            list="model-suggestions"
+            class="mt-1.5 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none"
+          />
+          <datalist id="model-suggestions">
+            {suggestions.map((model) => <option value={model} />)}
+          </datalist>
+          <span class="mt-1.5 block text-[11px] leading-5 text-[#6d726d]">
+            Défaut : {assistant.provider.defaultModel} · repli : {assistant.provider.fallbackModels.join(', ')}
+          </span>
+        </label>
+
+        <button type="submit" class="rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">Enregistrer</button>
+
+        <p class="border-t border-[#212524] pt-3 text-[11px] leading-5 text-[#6d726d]">
+          Les clés d’API restent dans les variables d’environnement, jamais en base : une fuite de la base ne donne aucun accès aux fournisseurs.
+        </p>
+      </form>
+    </section>
+  </div>
+</AdminLayout>
