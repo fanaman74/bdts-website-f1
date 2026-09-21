@@ -41,6 +41,15 @@ if (Astro.request.method === 'POST') {
       await updateUserRole(target.id, role);
       notice = `Rôle de ${target.email} mis à jour : ${ROLE_LABEL[role as UserRole]}.`;
     }
+  } else if (action === 'approve') {
+    if (target.role !== 'pending') {
+      problem = `${target.email} n’est plus en attente d’approbation.`;
+    } else if (!target.emailVerifiedAt) {
+      problem = `L’adresse de ${target.email} doit être confirmée avant l’approbation.`;
+    } else {
+      await updateUserRole(target.id, 'member');
+      notice = `Inscription de ${target.email} approuvée : le compte est maintenant membre.`;
+    }
   } else if (action === 'verify') {
     // Lets an admin retry after fixing a provider problem, and watch the
     // recorded error clear.
@@ -68,7 +77,8 @@ if (Astro.request.method === 'POST') {
 }
 
 const accounts = await listUsers();
-const pendingCount = accounts.filter((account) => account.role === 'pending').length;
+const pendingAccounts = accounts.filter((account) => account.role === 'pending');
+const pendingCount = pendingAccounts.length;
 ---
 
 <AdminLayout title="Comptes" active="users">
@@ -99,9 +109,59 @@ const pendingCount = accounts.filter((account) => account.role === 'pending').le
 
   {pendingCount > 0 && (
     <p class="mt-6 rounded-lg border border-[#5a4620] bg-[#241a0d] px-4 py-2 text-sm text-[#e0b568]">
-      {pendingCount} compte(s) en attente d’approbation.
+      {pendingCount} inscription(s) en attente d’approbation · <a href="#pending" class="underline underline-offset-2 hover:text-[#f2efe8]">Voir les demandes</a>
     </p>
   )}
+
+  <section id="pending" class="mt-8 scroll-mt-6">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="text-sm tracking-[.12em] text-[#7f857f] uppercase">Inscriptions à approuver</h2>
+        <p class="mt-2 max-w-2xl text-xs leading-5 text-[#6d726d]">
+          Vérifiez que l’adresse e-mail est confirmée avant de donner accès aux demandes reçues.
+        </p>
+      </div>
+      <span class="rounded-full border border-[#5a4620] bg-[#241a0d] px-2.5 py-1 text-[11px] text-[#e0b568]">
+        {pendingCount} en attente
+      </span>
+    </div>
+
+    <div class="mt-4 overflow-hidden rounded-xl border border-[#262a28]">
+      {pendingAccounts.length === 0 && (
+        <p class="px-5 py-6 text-sm text-[#8b908b]">Aucune inscription en attente d’approbation.</p>
+      )}
+
+      {pendingAccounts.map((account) => (
+        <div class="grid gap-4 border-b border-[#191c1b] px-5 py-4 last:border-b-0 lg:grid-cols-[minmax(0,1.5fr)_220px_180px] lg:items-center">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-medium text-[#f2efe8]" data-no-translate>{account.name?.trim() || account.email}</p>
+            <p class="truncate text-xs text-[#8b908b]" data-no-translate>{account.email}</p>
+          </div>
+
+          <div class="text-xs text-[#6d726d]">
+            <p>Inscription le {new Date(account.createdAt).toLocaleString('fr-BE', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+            <p class:list={['mt-1', account.emailVerifiedAt ? 'text-[#8fd0a8]' : 'text-[#e0b568]']}>
+              {account.emailVerifiedAt
+                ? `E-mail confirmé le ${new Date(account.emailVerifiedAt).toLocaleString('fr-BE', { dateStyle: 'medium', timeStyle: 'short' })}`
+                : 'E-mail non confirmé'}
+            </p>
+          </div>
+
+          <div class="flex items-center justify-start lg:justify-end">
+            {account.emailVerifiedAt ? (
+              <form method="post">
+                <input type="hidden" name="action" value="approve" />
+                <input type="hidden" name="id" value={account.id} />
+                <button type="submit" class="rounded-lg bg-[#d4a24c] px-3 py-2 text-xs font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">Approuver l’inscription</button>
+              </form>
+            ) : (
+              <span class="text-xs text-[#8b908b]">Confirmation requise</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
 
   <div class="mt-8 overflow-hidden rounded-xl border border-[#262a28]">
     <div class="hidden gap-4 border-b border-[#212524] bg-[#0f1110] px-5 py-3 text-[11px] tracking-[.12em] text-[#6d726d] uppercase lg:grid lg:grid-cols-[minmax(0,1.5fr)_140px_170px_230px]">
