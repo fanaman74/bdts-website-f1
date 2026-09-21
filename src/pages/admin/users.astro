@@ -138,7 +138,9 @@ const pendingCount = accounts.filter((account) => account.role === 'pending').le
         <div class="text-xs text-[#6d726d]">
           <p>Créé le {new Date(account.createdAt).toLocaleDateString('fr-BE')}</p>
           <p class="mt-1">{account.lastLoginAt ? `Connexion ${new Date(account.lastLoginAt).toLocaleDateString('fr-BE')}` : 'Jamais connecté'}</p>
-          {!account.emailVerifiedAt && <p class="mt-1 text-[#e0b568]">E-mail non confirmé</p>}
+          <p class:list={['mt-1', account.emailVerifiedAt ? 'text-[#8fd0a8]' : 'text-[#e0b568]']}>
+            {account.emailVerifiedAt ? 'E-mail confirmé' : 'E-mail non confirmé'}
+          </p>
           {account.verificationLastError && (
             <p class="mt-1 break-words text-[#e08b7c]" title={account.verificationLastError}>
               Dernier envoi refusé : {account.verificationLastError}
