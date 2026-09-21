@@ -60,7 +60,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   if (PUBLIC_ADMIN_PATHS.has(pathname)) {
-    return user ? context.redirect('/admin') : next();
+    // Deliberately no redirect for signed-in users. Bouncing them to /admin made
+    // a *failed* logout indistinguishable from a successful one, and blocked two
+    // legitimate moves: switching accounts, and creating a second account.
+    return next();
   }
 
   if (!user) {
