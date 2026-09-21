@@ -21,7 +21,7 @@ npm run dev        # http://localhost:4321
 | `npm run validate` | Sanity-checks du contenu (fichiers locaux, liens de navigation, ids uniques) |
 | `npm run migrate` | Applique les migrations SQL sur la base Neon (`db/migrations/`) |
 | `npm run ingest:documents -- [options]` | Met en cache le texte des PDF du catalogue (voir « Cache des documents ») |
-| `npm run admin:hash -- "…"` | Génère `ADMIN_PASSWORD_HASH` et `ADMIN_SESSION_SECRET` pour l’espace d’administration |
+| `npm run admin:user -- --email … --role admin` | Crée ou réinitialise un compte d’administration |
 | `npm test` | validate + check + build |
 | `npm run discover` | Découverte éthique des documents publics du site de référence → `data/discovered-documents.json` |
 | `npm run import:documents -- fichier.csv` | Import CSV vers le catalogue de documents |

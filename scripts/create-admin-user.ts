@@ -11,7 +11,7 @@
  */
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createUser, findUserByEmail, setUserPassword, updateUserRole, USER_ROLES, type UserRole } from '../src/lib/users';
+import { createUser, findUserByEmail, markEmailVerified, setUserPassword, updateUserRole, USER_ROLES, type UserRole } from '../src/lib/users';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -59,13 +59,18 @@ const existing = await findUserByEmail(email);
 if (existing) {
   await setUserPassword(existing.id, password);
   await updateUserRole(existing.id, role);
-  console.log(`✓ Reset ${existing.email} — password updated, role set to ${role}.`);
+  // Mark verified: an operator creating the account deliberately has already
+  // established that the address is real. Without this, a CLI-created admin
+  // would be locked out by the email-verification gate.
+  await markEmailVerified(existing.id);
+  console.log(`✓ Reset ${existing.email} — password updated, role ${role}, address marked verified.`);
 } else {
   const result = await createUser({ email, name: name ?? null, password, role });
   if (!result.ok) {
     console.error(`✗ Could not create the account (${result.reason}).`);
     process.exit(1);
   }
-  console.log(`✓ Created ${result.user.email} with role ${result.user.role}.`);
+  await markEmailVerified(result.user.id);
+  console.log(`✓ Created ${result.user.email} with role ${result.user.role} (address marked verified).`);
   console.log('  They can sign in at /admin/login once the site is deployed.');
 }

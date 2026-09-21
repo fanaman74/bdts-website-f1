@@ -15,7 +15,6 @@
     "validate": "tsx scripts/validate-content.ts",
     "migrate": "tsx scripts/migrate.ts",
     "ingest:documents": "tsx scripts/ingest-document-texts.ts",
-    "admin:hash": "tsx scripts/hash-admin-password.ts",
     "admin:user": "tsx scripts/create-admin-user.ts",
     "discover": "tsx scripts/discover-bdts-documents.ts",
     "import:documents": "tsx scripts/import-documents.ts",
