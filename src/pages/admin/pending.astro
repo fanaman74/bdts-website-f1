@@ -1,12 +1,12 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { ROLE_LABEL } from '../../lib/users';
-import { isEmailConfigured, emailProvider } from '../../lib/email';
+import { emailStatus } from '../../lib/email';
 
 export const prerender = false;
 
 const user = Astro.locals.user;
-const verificationConfigured = isEmailConfigured();
+const mail = emailStatus();
 ---
 
 <AdminLayout title="Compte en attente" active="dashboard">
@@ -23,15 +23,17 @@ const verificationConfigured = isEmailConfigured();
     <p class="mt-2 text-xs leading-5 text-[#8b908b]">
       {user?.emailVerifiedAt
         ? 'Adresse e-mail confirmée.'
-        : verificationConfigured
+        : mail.verificationRequired
           ? 'Adresse e-mail non confirmée : vérifiez votre boîte de réception.'
           : 'Demandez à un administrateur de passer votre rôle à « Membre ».'}
     </p>
   </div>
 
-  <p class="mt-4 text-[11px] text-[#6d726d]">
-    Envoi des e-mails configuré via {emailProvider().name}.
-  </p>
+  {mail.verificationRequired && (
+    <p class="mt-4 text-[11px] text-[#6d726d]" data-no-translate>
+      E-mails envoyés via {mail.provider} depuis {mail.from}.
+    </p>
+  )}
 
   <form method="post" action="/admin/logout" class="mt-6">
     <button type="submit" class="rounded-lg border border-[#2a2f2d] px-4 py-2 text-sm text-[#c8c6c0] transition-colors hover:border-[#d4a24c] hover:text-[#e0b568]">

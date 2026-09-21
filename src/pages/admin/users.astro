@@ -1,14 +1,15 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { externalOrigin } from '../../lib/adminAuth';
-import { requiresEmailVerification } from '../../lib/email';
+import { emailStatus } from '../../lib/email';
 import { sendVerificationEmail } from '../../lib/verification';
 import { adminCount, deleteUser, listUsers, ROLE_LABEL, updateUserRole, USER_ROLES, verificationOnCooldown, type UserRole } from '../../lib/users';
 
 export const prerender = false;
 
 const currentUser = Astro.locals.user;
-const verificationRequired = requiresEmailVerification();
+const mail = emailStatus();
+const verificationRequired = mail.verificationRequired;
 
 /** Sent responses cannot include their own request to read the origin from. */
 const origin = externalOrigin(Astro.request);
@@ -78,6 +79,23 @@ const pendingCount = accounts.filter((account) => account.role === 'pending').le
 
   {notice && <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">{notice}</p>}
   {problem && <p role="alert" class="mt-6 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-4 py-2 text-sm text-[#e0a294]">{problem}</p>}
+
+  <div class:list={[
+    'mt-6 rounded-xl border px-5 py-4 text-xs leading-5',
+    mail.verificationRequired ? 'border-[#2b5c40] bg-[#12241a] text-[#8fd0a8]' : 'border-[#5a4620] bg-[#241a0d] text-[#e0b568]'
+  ]}>
+    <p>
+      E-mails : <strong data-no-translate>{mail.provider}</strong> · adresse d’envoi :
+      <strong data-no-translate>{mail.from ?? 'non définie'}</strong> · confirmation obligatoire :
+      <strong>{mail.verificationRequired ? 'oui' : 'non'}</strong>
+    </p>
+    {mail.problems.length > 0 && (
+      <p class="mt-1">
+        Configuration incomplète — {mail.problems.join(' · ')}. Aucun e-mail de confirmation n’est donc envoyé, et la
+        confirmation n’est pas exigée.
+      </p>
+    )}
+  </div>
 
   {pendingCount > 0 && (
     <p class="mt-6 rounded-lg border border-[#5a4620] bg-[#241a0d] px-4 py-2 text-sm text-[#e0b568]">

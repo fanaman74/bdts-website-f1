@@ -130,6 +130,45 @@ export function requiresEmailVerification(): boolean {
   return isEmailConfigured() && Boolean(process.env.EMAIL_FROM?.trim());
 }
 
+export interface EmailStatus {
+  provider: string;
+  /** The configured From address, or null when EMAIL_FROM is unset. */
+  from: string | null;
+  /** True when the provider has everything it needs to attempt a send. */
+  configured: boolean;
+  /** True only when a link can actually be delivered, so it may be demanded. */
+  verificationRequired: boolean;
+  /** Human-readable reasons the setup is incomplete. */
+  problems: string[];
+}
+
+/**
+ * Describes the mail setup for the admin area.
+ *
+ * Exists because "is a key present" is not the same as "can we send": with
+ * EMAIL_FROM missing nothing is sent *and* verification is silently not
+ * enforced, which is indistinguishable from a working setup unless it is shown.
+ */
+export function emailStatus(): EmailStatus {
+  const provider = emailProvider();
+  const from = process.env.EMAIL_FROM?.trim() || null;
+  const configured = isEmailConfigured();
+  const problems: string[] = [];
+
+  if (!configured) {
+    problems.push(provider.apiKeyEnv ? `${provider.apiKeyEnv} n’est pas défini` : 'aucun fournisseur d’e-mail configuré');
+  }
+  if (!from) problems.push('EMAIL_FROM n’est pas défini');
+
+  return {
+    provider: provider.name,
+    from,
+    configured,
+    verificationRequired: configured && Boolean(from),
+    problems
+  };
+}
+
 export type SendResult = { ok: true } | { ok: false; error: string };
 
 /**
