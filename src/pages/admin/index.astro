@@ -19,7 +19,14 @@ const FORM_LABEL: Record<string, string> = {
   declaration: 'Sinistre'
 };
 
+const currentUser = Astro.locals.user;
+const isAdmin = currentUser?.role === 'admin';
+
 if (Astro.request.method === 'POST') {
+  // Assistant settings are admin-only. The middleware hides the form, but a
+  // member could still POST here directly, so the check lives here too.
+  if (!isAdmin) return new Response('Accès réservé aux administrateurs.', { status: 403 });
+
   const form = await Astro.request.formData();
   if (form.get('action') === 'assistant') {
     const provider = String(form.get('provider') ?? '').trim();
@@ -129,6 +136,7 @@ const tiles = [
         <a href="/api/assistant-status" class="mt-3 inline-block text-xs text-[#d4a24c] underline-offset-2 hover:underline">Vérifier l’état en direct →</a>
       </div>
 
+      {isAdmin && (
       <form method="post" class="mt-4 space-y-4 rounded-xl border border-[#262a28] bg-[#111312] px-5 py-5">
         <input type="hidden" name="action" value="assistant" />
 
@@ -163,6 +171,13 @@ const tiles = [
           Les clés d’API restent dans les variables d’environnement, jamais en base : une fuite de la base ne donne aucun accès aux fournisseurs.
         </p>
       </form>
+      )}
+
+      {!isAdmin && (
+        <p class="mt-4 rounded-xl border border-[#262a28] bg-[#111312] px-5 py-4 text-xs leading-5 text-[#8b908b]">
+          Le choix du fournisseur et du modèle est réservé aux administrateurs.
+        </p>
+      )}
     </section>
   </div>
 </AdminLayout>

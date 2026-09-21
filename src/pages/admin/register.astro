@@ -1,0 +1,118 @@
+---
+import '../../styles/global.css';
+import '../../styles/admin.css';
+import { createUser } from '../../lib/users';
+
+export const prerender = false;
+
+const WINDOW_MS = 15 * 60_000;
+const WINDOW_LIMIT = 5;
+const attempts = new Map<string, number[]>();
+
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]!.trim();
+  return request.headers.get('x-real-ip') ?? request.headers.get('cf-connecting-ip') ?? 'unknown';
+}
+
+function allowAttempt(ip: string): boolean {
+  const now = Date.now();
+  const recent = (attempts.get(ip) ?? []).filter((timestamp) => now - timestamp < WINDOW_MS);
+  if (recent.length >= WINDOW_LIMIT) {
+    attempts.set(ip, recent);
+    return false;
+  }
+  recent.push(now);
+  attempts.set(ip, recent);
+  return true;
+}
+
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const name = String(form.get('name') ?? '').trim();
+  const email = String(form.get('email') ?? '').trim();
+  const password = String(form.get('password') ?? '');
+  const confirmation = String(form.get('confirmation') ?? '');
+
+  if (!allowAttempt(clientIp(Astro.request))) {
+    error = 'Trop de tentatives. Merci de réessayer dans quelques minutes.';
+  } else if (!email.includes('@')) {
+    error = 'Adresse e-mail invalide.';
+  } else if (password.length < 12) {
+    error = 'Le mot de passe doit contenir au moins 12 caractères.';
+  } else if (password !== confirmation) {
+    error = 'Les deux mots de passe ne correspondent pas.';
+  } else {
+    // New accounts land as `pending`: they can sign in but see no submissions
+    // until an administrator approves them. This is deliberate — the inbox
+    // holds customer personal data.
+    const result = await createUser({ email, name: name || null, password });
+    if (!result.ok && result.reason === 'exists') {
+      error = 'Un compte existe déjà pour cette adresse.';
+    } else if (!result.ok) {
+      error = 'Inscription indisponible : la base de données n’est pas configurée.';
+    } else {
+      return Astro.redirect('/admin/login?registered=1');
+    }
+  }
+}
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Créer un compte — Administration BDTS</title>
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body class="admin-root">
+    <div class="grid min-h-screen place-items-center bg-[#0b0c0b] px-6 py-10 text-[#e8e6e1]">
+      <div class="w-full max-w-sm">
+        <div class="mb-7 flex items-center gap-3">
+          <span class="grid h-9 w-9 place-items-center rounded-lg bg-[#d4a24c] text-sm font-bold text-[#1a1408]">B</span>
+          <span class="text-xs tracking-[.18em] text-[#7f857f] uppercase">Administration</span>
+        </div>
+
+        <h1 class="text-4xl leading-none font-semibold tracking-tight uppercase"><span class="mr-1 text-[#d4a24c]">/</span>Créer un compte</h1>
+        <p class="mt-3 text-sm leading-6 text-[#8b908b]">
+          Votre compte doit être approuvé par un administrateur avant de donner accès aux demandes reçues.
+        </p>
+
+        {error && <p role="alert" class="mt-5 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-3 py-2 text-sm text-[#e0a294]">{error}</p>}
+
+        <form method="post" class="mt-6 space-y-3">
+          <label class="block">
+            <span class="text-xs text-[#8b908b]">Nom (facultatif)</span>
+            <input name="name" autocomplete="name" class="mt-1 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none" />
+          </label>
+          <label class="block">
+            <span class="text-xs text-[#8b908b]">Adresse e-mail</span>
+            <input type="email" name="email" autocomplete="username" required autofocus class="mt-1 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none" />
+          </label>
+          <label class="block">
+            <span class="text-xs text-[#8b908b]">Mot de passe (12 caractères minimum)</span>
+            <input type="password" name="password" autocomplete="new-password" required minlength="12" class="mt-1 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none" />
+          </label>
+          <label class="block">
+            <span class="text-xs text-[#8b908b]">Confirmer le mot de passe</span>
+            <input type="password" name="confirmation" autocomplete="new-password" required minlength="12" class="mt-1 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none" />
+          </label>
+          <button type="submit" class="w-full rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">
+            Créer le compte
+          </button>
+        </form>
+
+        <p class="mt-6 text-xs text-[#8b908b]">
+          Déjà un compte ?
+          <a href="/admin/login" class="text-[#d4a24c] underline-offset-2 hover:underline">Se connecter</a>
+        </p>
+        <p class="mt-3 text-[11px] leading-5 text-[#6d726d]">
+          Le mot de passe n’est jamais stocké en clair : seule une empreinte scrypt salée est conservée.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

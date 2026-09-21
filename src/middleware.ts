@@ -1,7 +1,11 @@
 import { defineMiddleware } from 'astro:middleware';
-import { verifySessionToken, ADMIN_COOKIE } from './lib/adminAuth';
+import { ADMIN_COOKIE, verifySessionToken } from './lib/adminAuth';
+import { findUserById } from './lib/users';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/** Reachable without a session; everything else under /admin is not. */
+const PUBLIC_ADMIN_PATHS = new Set(['/admin/login', '/admin/register']);
 
 /**
  * The origin the browser actually used.
@@ -25,9 +29,9 @@ function expectedOrigin(request: Request): string {
  * Cross-site request check.
  *
  * A missing `Origin` is allowed, matching Astro's own semantics: curl, tests and
- * server-to-server calls send none, and they carry no session cookie anyway.
- * Session cookies are `SameSite=Lax`, so a cross-site POST cannot act as the
- * operator even if it reached a handler.
+ * server-to-server calls send none and carry no session cookie anyway. Session
+ * cookies are `SameSite=Lax`, so a cross-site POST cannot act as a user even if
+ * it reached a handler.
  */
 function isSameOrigin(request: Request): boolean {
   const origin = request.headers.get('origin');
@@ -35,19 +39,45 @@ function isSameOrigin(request: Request): boolean {
   return origin === expectedOrigin(request);
 }
 
-export const onRequest = defineMiddleware((context, next) => {
+export const onRequest = defineMiddleware(async (context, next) => {
   if (!SAFE_METHODS.has(context.request.method) && !isSameOrigin(context.request)) {
     return new Response('Cross-site request forbidden', { status: 403 });
   }
 
   const { pathname } = context.url;
-
   if (!pathname.startsWith('/admin')) return next();
-  if (pathname === '/admin/login') return next();
 
-  const session = context.cookies.get(ADMIN_COOKIE)?.value;
-  if (verifySessionToken(session)) return next();
+  // Resolve the account from the session. Role is always read fresh, so a
+  // suspended or demoted account loses access on its next request.
+  const token = context.cookies.get(ADMIN_COOKIE)?.value;
+  const session = verifySessionToken(token);
+  const user = session ? await findUserById(session.userId) : null;
 
-  const attempted = `${pathname}${context.url.search}`;
-  return context.redirect(`/admin/login?next=${encodeURIComponent(attempted)}`);
+  if (user) {
+    context.locals.user = user;
+  } else if (token) {
+    context.cookies.delete(ADMIN_COOKIE, { path: '/' });
+  }
+
+  if (PUBLIC_ADMIN_PATHS.has(pathname)) {
+    return user ? context.redirect('/admin') : next();
+  }
+
+  if (!user) {
+    const attempted = `${pathname}${context.url.search}`;
+    return context.redirect(`/admin/login?next=${encodeURIComponent(attempted)}`);
+  }
+
+  // A self-registered account can sign in but sees nothing until an admin
+  // approves it — the inbox holds customer personal data.
+  if (user.role === 'pending' && pathname !== '/admin/pending') {
+    return context.redirect('/admin/pending');
+  }
+
+  // Account management is for admins only.
+  if (pathname.startsWith('/admin/users') && user.role !== 'admin') {
+    return new Response('Accès réservé aux administrateurs.', { status: 403 });
+  }
+
+  return next();
 });

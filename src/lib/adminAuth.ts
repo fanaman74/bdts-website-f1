@@ -1,105 +1,74 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
- * Admin authentication.
+ * Session handling for the admin area.
  *
- * Deliberately dependency-free (node:crypto only) and built around three rules:
- *  - the password is never stored, only a salted scrypt hash, and never logged;
- *  - the session is a signed, expiring, HttpOnly cookie, so it cannot be forged
- *    or read by scripts;
- *  - if the secrets are not configured, the admin area refuses access rather
- *    than falling back to a default password.
+ * The session is a signed, expiring, HttpOnly cookie carrying only the account
+ * id. The role is read from the database on each request, so promoting or
+ * suspending an account takes effect immediately rather than at next sign-in.
+ *
+ * Passwords are no longer compared against an environment variable: accounts
+ * live in the `users` table and authentication happens in src/lib/users.ts.
  */
 
 export const ADMIN_COOKIE = 'bdts_admin';
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
-const SCRYPT_KEYLEN = 64;
-
-function passwordHash(): string {
-  return process.env.ADMIN_PASSWORD_HASH?.trim() ?? '';
-}
 
 function sessionSecret(): string {
   return process.env.ADMIN_SESSION_SECRET?.trim() ?? '';
 }
 
-/** True when the admin area has everything it needs to authenticate anyone. */
-export function isAdminConfigured(): boolean {
-  return passwordHash().length > 0 && sessionSecret().length > 0;
+/** Sessions can only be signed when the secret is configured. */
+export function isSessionConfigured(): boolean {
+  return sessionSecret().length > 0;
 }
 
-export function adminUser(): string {
-  return process.env.ADMIN_USER?.trim() || 'admin';
-}
-
-/** Produces `scrypt$<saltHex>$<hashHex>`. Used by scripts/hash-admin-password.ts. */
-export function hashPassword(password: string): string {
-  const salt = randomBytes(16);
-  const derived = scryptSync(password, salt, SCRYPT_KEYLEN);
-  return `scrypt$${salt.toString('hex')}$${derived.toString('hex')}`;
-}
-
-/** Constant-time password check against ADMIN_PASSWORD_HASH. */
-export function verifyPassword(password: string): boolean {
-  const stored = passwordHash();
-  if (!stored) return false;
-
-  const [scheme, saltHex, hashHex] = stored.split('$');
-  if (scheme !== 'scrypt' || !saltHex || !hashHex) return false;
-
-  let expected: Buffer;
-  try {
-    expected = Buffer.from(hashHex, 'hex');
-  } catch {
-    return false;
-  }
-  if (expected.length !== SCRYPT_KEYLEN) return false;
-
-  const actual = scryptSync(password, Buffer.from(saltHex, 'hex'), SCRYPT_KEYLEN);
-  return timingSafeEqual(actual, expected);
-}
-
-/** Signs `<expiryEpochSeconds>.<hmac>`; returns null when unconfigured. */
-export function createSessionToken(): string | null {
+/** Token format: `<userId>.<expiryEpochSeconds>.<hmac>`. */
+export function createSessionToken(userId: string): string | null {
   const secret = sessionSecret();
   if (!secret) return null;
 
   const expiry = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
-  const signature = createHmac('sha256', secret).update(String(expiry)).digest('hex');
-  return `${expiry}.${signature}`;
+  const payload = `${userId}.${expiry}`;
+  const signature = createHmac('sha256', secret).update(payload).digest('hex');
+  return `${payload}.${signature}`;
 }
 
-export function verifySessionToken(token: string | undefined): boolean {
+/** Returns the account id for a valid, unexpired token, else null. */
+export function verifySessionToken(token: string | undefined): { userId: string } | null {
   const secret = sessionSecret();
-  if (!secret || !token) return false;
+  if (!secret || !token) return null;
 
-  const [expiryPart, signature] = token.split('.');
-  if (!expiryPart || !signature) return false;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [userId, expiryPart, signature] = parts as [string, string, string];
+  if (!userId || !expiryPart || !signature) return null;
 
   const expiry = Number(expiryPart);
-  if (!Number.isFinite(expiry) || expiry * 1000 < Date.now()) return false;
+  if (!Number.isFinite(expiry) || expiry * 1000 < Date.now()) return null;
 
-  const expected = createHmac('sha256', secret).update(expiryPart).digest('hex');
+  const expected = createHmac('sha256', secret).update(`${userId}.${expiryPart}`).digest('hex');
   const provided = Buffer.from(signature, 'hex');
   const wanted = Buffer.from(expected, 'hex');
-  if (provided.length !== wanted.length) return false;
+  if (provided.length !== wanted.length) return null;
 
-  return timingSafeEqual(provided, wanted);
+  return timingSafeEqual(provided, wanted) ? { userId } : null;
 }
 
-/** HttpOnly + SameSite=Lax; Secure is added outside local development. */
-export function sessionCookie(token: string, secure: boolean): string {
-  const parts = [
-    `${ADMIN_COOKIE}=${token}`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    `Max-Age=${SESSION_TTL_SECONDS}`
-  ];
-  if (secure) parts.push('Secure');
-  return parts.join('; ');
+/**
+ * Whether the request reached us over HTTPS.
+ *
+ * The Node adapter ignores `x-forwarded-proto`, so `Astro.url.protocol` is
+ * `http:` behind Railway's TLS termination. Reading the forwarded header keeps
+ * the session cookie's `Secure` flag correct in production.
+ */
+export function isSecureRequest(request: Request): boolean {
+  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  return forwardedProto ? forwardedProto === 'https' : new URL(request.url).protocol === 'https:';
 }
 
-export function clearedCookie(): string {
-  return `${ADMIN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+/** Only same-site admin paths, so `next` cannot become an open redirect. */
+export function safeNextPath(value: unknown, fallback = '/admin'): string {
+  const next = typeof value === 'string' ? value : '';
+  return /^\/admin(\/|$)/.test(next) ? next : fallback;
 }

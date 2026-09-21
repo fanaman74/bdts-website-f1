@@ -1,0 +1,124 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { adminCount, deleteUser, listUsers, ROLE_LABEL, updateUserRole, USER_ROLES, type UserRole } from '../../lib/users';
+
+export const prerender = false;
+
+const currentUser = Astro.locals.user;
+
+const ROLE_PILL: Record<UserRole, string> = {
+  admin: 'border-[#2b5c40] bg-[#12241a] text-[#8fd0a8]',
+  member: 'border-[#275065] bg-[#12222b] text-[#7fb7d6]',
+  pending: 'border-[#5a4620] bg-[#241a0d] text-[#e0b568]'
+};
+
+let notice: string | null = null;
+let problem: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action') ?? '');
+  const id = String(form.get('id') ?? '');
+  const target = (await listUsers()).find((account) => account.id === id);
+
+  if (!target) {
+    problem = 'Compte introuvable.';
+  } else if (action === 'role') {
+    const role = String(form.get('role') ?? '');
+    if (!(USER_ROLES as readonly string[]).includes(role)) {
+      problem = 'Rôle inconnu.';
+    } else if (target.role === 'admin' && role !== 'admin' && (await adminCount()) <= 1) {
+      problem = 'Impossible de retirer le dernier administrateur.';
+    } else {
+      await updateUserRole(target.id, role);
+      notice = `Rôle de ${target.email} mis à jour : ${ROLE_LABEL[role as UserRole]}.`;
+    }
+  } else if (action === 'delete') {
+    if (target.id === currentUser?.id) {
+      problem = 'Vous ne pouvez pas supprimer votre propre compte.';
+    } else if (target.role === 'admin' && (await adminCount()) <= 1) {
+      problem = 'Impossible de supprimer le dernier administrateur.';
+    } else {
+      await deleteUser(target.id);
+      notice = `Compte ${target.email} supprimé.`;
+    }
+  }
+}
+
+const accounts = await listUsers();
+const pendingCount = accounts.filter((account) => account.role === 'pending').length;
+---
+
+<AdminLayout title="Comptes" active="users">
+  <h1 class="text-5xl leading-none font-semibold tracking-tight uppercase"><span class="mr-1 text-[#d4a24c]">/</span>Comptes</h1>
+  <p class="mt-3 max-w-2xl text-sm leading-6 text-[#8b908b]">
+    Les nouvelles inscriptions arrivent en « En attente » : elles ne voient aucune demande tant qu’un administrateur ne les approuve pas.
+  </p>
+
+  {notice && <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">{notice}</p>}
+  {problem && <p role="alert" class="mt-6 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-4 py-2 text-sm text-[#e0a294]">{problem}</p>}
+
+  {pendingCount > 0 && (
+    <p class="mt-6 rounded-lg border border-[#5a4620] bg-[#241a0d] px-4 py-2 text-sm text-[#e0b568]">
+      {pendingCount} compte(s) en attente d’approbation.
+    </p>
+  )}
+
+  <div class="mt-8 overflow-hidden rounded-xl border border-[#262a28]">
+    <div class="hidden gap-4 border-b border-[#212524] bg-[#0f1110] px-5 py-3 text-[11px] tracking-[.12em] text-[#6d726d] uppercase lg:grid lg:grid-cols-[minmax(0,1.5fr)_140px_170px_230px]">
+      <span>Compte</span>
+      <span>Rôle</span>
+      <span>Activité</span>
+      <span>Actions</span>
+    </div>
+
+    {accounts.length === 0 && (
+      <p class="px-5 py-12 text-sm text-[#8b908b]">
+        Aucun compte. Créez le premier avec <code class="text-[#f0c9a0]">npm run admin:user</code>.
+      </p>
+    )}
+
+    {accounts.map((account) => (
+      <div class="grid gap-4 border-b border-[#191c1b] px-5 py-4 last:border-b-0 lg:grid-cols-[minmax(0,1.5fr)_140px_170px_230px] lg:items-center">
+        <div class="flex min-w-0 items-start gap-3">
+          <span class="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#2f3432] bg-[#181b1a] text-xs font-medium text-[#c8c6c0]">
+            {(account.name?.trim() || account.email).slice(0, 2).toUpperCase()}
+          </span>
+          <div class="min-w-0">
+            <p class="truncate text-sm font-medium text-[#f2efe8]" data-no-translate>{account.name?.trim() || account.email}</p>
+            <p class="truncate text-xs text-[#8b908b]" data-no-translate>{account.email}</p>
+          </div>
+        </div>
+
+        <div>
+          <span class={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${ROLE_PILL[account.role]}`}>
+            {ROLE_LABEL[account.role]}
+          </span>
+        </div>
+
+        <div class="text-xs text-[#6d726d]">
+          <p>Créé le {new Date(account.createdAt).toLocaleDateString('fr-BE')}</p>
+          <p class="mt-1">{account.lastLoginAt ? `Connexion ${new Date(account.lastLoginAt).toLocaleDateString('fr-BE')}` : 'Jamais connecté'}</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <form method="post" class="flex items-center gap-1.5">
+            <input type="hidden" name="action" value="role" />
+            <input type="hidden" name="id" value={account.id} />
+            <label class="sr-only" for={`role-${account.id}`}>Rôle de {account.email}</label>
+            <select id={`role-${account.id}`} name="role" class="rounded-lg border border-[#2a2f2d] bg-[#141716] px-2 py-1 text-xs text-[#c8c6c0] focus:border-[#d4a24c] focus:outline-none">
+              {USER_ROLES.map((role) => <option value={role} selected={role === account.role}>{ROLE_LABEL[role]}</option>)}
+            </select>
+            <button type="submit" class="rounded-lg border border-[#2a2f2d] px-2 py-1 text-xs text-[#c8c6c0] transition-colors hover:border-[#d4a24c] hover:text-[#e0b568]">OK</button>
+          </form>
+
+          <form method="post">
+            <input type="hidden" name="action" value="delete" />
+            <input type="hidden" name="id" value={account.id} />
+            <button type="submit" class="rounded-lg border border-[#2a2f2d] px-2 py-1 text-xs text-[#8b908b] transition-colors hover:border-[#5e2f28] hover:text-[#e08b7c]">Supprimer</button>
+          </form>
+        </div>
+      </div>
+    ))}
+  </div>
+</AdminLayout>

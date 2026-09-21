@@ -7,23 +7,26 @@
 import '../styles/global.css';
 import '../styles/admin.css';
 import AdminIcon from '../components/AdminIcon.astro';
-import { adminUser } from '../lib/adminAuth';
 
 interface Props {
   title: string;
-  active: 'dashboard' | 'messages';
+  active: 'dashboard' | 'messages' | 'users';
   search?: string;
 }
 
 const { title, active, search = '' } = Astro.props;
 
-const operator = adminUser();
+// Set by src/middleware.ts for every authenticated /admin request.
+const user = Astro.locals.user;
+const operator = user?.name?.trim() || user?.email || 'Compte';
 const initials = operator.slice(0, 2).toUpperCase();
 
-const tabs = [
+const tabs: Array<{ id: 'dashboard' | 'messages' | 'users'; label: string; href: string }> = [
   { id: 'dashboard', label: 'Dashboard', href: '/admin' },
   { id: 'messages', label: 'Messages', href: '/admin/messages' }
-] as const;
+];
+// Account management is admins only, so the tab stays hidden from everyone else.
+if (user?.role === 'admin') tabs.push({ id: 'users', label: 'Comptes', href: '/admin/users' });
 ---
 
 <!doctype html>

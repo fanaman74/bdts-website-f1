@@ -1,0 +1,28 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { ROLE_LABEL } from '../../lib/users';
+
+export const prerender = false;
+
+const user = Astro.locals.user;
+---
+
+<AdminLayout title="Compte en attente" active="dashboard">
+  <h1 class="text-4xl font-semibold tracking-tight uppercase"><span class="text-[#d4a24c]">/</span>Compte en attente</h1>
+  <p class="mt-3 max-w-2xl text-sm leading-6 text-[#8b908b]">
+    Votre compte a bien été créé, mais il doit être approuvé par un administrateur avant de donner accès aux demandes reçues.
+  </p>
+
+  <div class="mt-8 max-w-xl rounded-xl border border-[#5a4620] bg-[#241a0d] px-5 py-4 text-sm">
+    <p class="text-[#e0b568]">Statut : {ROLE_LABEL[user?.role ?? 'pending']}</p>
+    <p class="mt-2 text-xs leading-5 text-[#8b908b]">
+      Compte : <span data-no-translate>{user?.email}</span>. Demandez à un administrateur de passer votre rôle à « Membre ».
+    </p>
+  </div>
+
+  <form method="post" action="/admin/logout" class="mt-6">
+    <button type="submit" class="rounded-lg border border-[#2a2f2d] px-4 py-2 text-sm text-[#c8c6c0] transition-colors hover:border-[#d4a24c] hover:text-[#e0b568]">
+      Se déconnecter
+    </button>
+  </form>
+</AdminLayout>

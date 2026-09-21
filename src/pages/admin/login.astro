@@ -1,7 +1,8 @@
 ---
 import '../../styles/global.css';
 import '../../styles/admin.css';
-import { ADMIN_COOKIE, adminUser, createSessionToken, isAdminConfigured, verifyPassword } from '../../lib/adminAuth';
+import { ADMIN_COOKIE, createSessionToken, isSecureRequest, isSessionConfigured, safeNextPath } from '../../lib/adminAuth';
+import { recordLogin, verifyCredentials } from '../../lib/users';
 
 export const prerender = false;
 
@@ -13,12 +14,6 @@ function clientIp(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) return forwarded.split(',')[0]!.trim();
   return request.headers.get('x-real-ip') ?? request.headers.get('cf-connecting-ip') ?? 'unknown';
-}
-
-/** Only accept same-site admin paths, so `next` cannot become an open redirect. */
-function safeNext(value: unknown): string {
-  const next = typeof value === 'string' ? value : '';
-  return /^\/admin(\/|$)/.test(next) ? next : '/admin';
 }
 
 function allowAttempt(ip: string): boolean {
@@ -37,36 +32,41 @@ let error: string | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  const username = String(form.get('username') ?? '');
+  const email = String(form.get('email') ?? '').trim();
   const password = String(form.get('password') ?? '');
-  const destination = safeNext(form.get('next'));
+  const destination = safeNextPath(form.get('next'));
 
-  if (!isAdminConfigured()) {
-    error = 'Administration non configurée : définissez ADMIN_PASSWORD_HASH et ADMIN_SESSION_SECRET.';
+  if (!isSessionConfigured()) {
+    error = 'Sessions impossible à signer : définissez ADMIN_SESSION_SECRET dans Railway.';
   } else if (!allowAttempt(clientIp(Astro.request))) {
     error = 'Trop de tentatives. Merci de réessayer dans quelques minutes.';
-  } else if (username === adminUser() && verifyPassword(password)) {
-    const token = createSessionToken();
-    if (token) {
-      Astro.cookies.set(ADMIN_COOKIE, token, {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: Astro.url.protocol === 'https:',
-        maxAge: 8 * 60 * 60
-      });
-      return Astro.redirect(destination);
-    }
-    error = 'Session impossible à créer : ADMIN_SESSION_SECRET manquant.';
   } else {
-    // Never log the submitted credentials.
-    console.warn('[admin] Failed login attempt from', clientIp(Astro.request));
-    error = 'Identifiants invalides.';
+    const user = await verifyCredentials(email, password);
+    if (user) {
+      const token = createSessionToken(user.id);
+      if (token) {
+        Astro.cookies.set(ADMIN_COOKIE, token, {
+          path: '/',
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: isSecureRequest(Astro.request),
+          maxAge: 8 * 60 * 60
+        });
+        await recordLogin(user.id);
+        return Astro.redirect(destination);
+      }
+      error = 'Session impossible à créer : ADMIN_SESSION_SECRET manquant.';
+    } else {
+      // Never log the submitted credentials.
+      console.warn('[admin] Failed sign-in from', clientIp(Astro.request));
+      error = 'Identifiants invalides.';
+    }
   }
 }
 
-const next = safeNext(Astro.url.searchParams.get('next'));
-const configured = isAdminConfigured();
+const next = safeNextPath(Astro.url.searchParams.get('next'));
+const configured = isSessionConfigured();
+const justRegistered = Astro.url.searchParams.get('registered') === '1';
 ---
 
 <!doctype html>
@@ -78,34 +78,37 @@ const configured = isAdminConfigured();
     <meta name="robots" content="noindex, nofollow" />
   </head>
   <body class="admin-root">
-    <div class="grid min-h-screen place-items-center bg-[#0b0c0b] px-6 text-[#e8e6e1]">
+    <div class="grid min-h-screen place-items-center bg-[#0b0c0b] px-6 py-10 text-[#e8e6e1]">
       <div class="w-full max-w-sm">
         <div class="mb-7 flex items-center gap-3">
           <span class="grid h-9 w-9 place-items-center rounded-lg bg-[#d4a24c] text-sm font-bold text-[#1a1408]">B</span>
           <span class="text-xs tracking-[.18em] text-[#7f857f] uppercase">Administration</span>
         </div>
 
-        <h1 class="text-3xl font-semibold tracking-tight uppercase"><span class="text-[#d4a24c]">/</span> Connexion</h1>
-        <p class="mt-2 text-sm text-[#8b908b]">Accès réservé. Toutes les soumissions du site sont visibles après connexion.</p>
+        <h1 class="text-4xl leading-none font-semibold tracking-tight uppercase"><span class="mr-1 text-[#d4a24c]">/</span>Connexion</h1>
+        <p class="mt-3 text-sm leading-6 text-[#8b908b]">Accès réservé. Toutes les demandes reçues via le site sont visibles après connexion.</p>
 
-        {!configured && (
-          <p class="mt-5 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-3 py-2 text-xs leading-5 text-[#e0a294]">
-            Cette instance n’a pas encore de mot de passe d’administration. Générez-en un avec
-            <code class="text-[#f0c9a0]">npm run admin:hash -- "…"</code> puis définissez
-            <code class="text-[#f0c9a0]">ADMIN_PASSWORD_HASH</code> et <code class="text-[#f0c9a0]">ADMIN_SESSION_SECRET</code>.
+        {justRegistered && (
+          <p class="mt-5 rounded-lg border border-[#2b5c40] bg-[#12241a] px-3 py-2 text-sm text-[#8fd0a8]">
+            Compte créé. Un administrateur doit l’approuver avant que vous puissiez consulter les demandes.
           </p>
         )}
 
-        {error && (
-          <p role="alert" class="mt-5 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-3 py-2 text-sm text-[#e0a294]">{error}</p>
+        {!configured && (
+          <p class="mt-5 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-3 py-2 text-xs leading-5 text-[#e0a294]">
+            Sessions désactivées : définissez <code class="text-[#f0c9a0]">ADMIN_SESSION_SECRET</code> dans les variables Railway.
+          </p>
         )}
+
+        {error && <p role="alert" class="mt-5 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-3 py-2 text-sm text-[#e0a294]">{error}</p>}
 
         <form method="post" class="mt-6 space-y-3">
           <input type="hidden" name="next" value={next} />
           <label class="block">
-            <span class="text-xs text-[#8b908b]">Identifiant</span>
+            <span class="text-xs text-[#8b908b]">Adresse e-mail</span>
             <input
-              name="username"
+              type="email"
+              name="email"
               autocomplete="username"
               required
               autofocus
@@ -131,8 +134,12 @@ const configured = isAdminConfigured();
           </button>
         </form>
 
-        <p class="mt-6 text-[11px] leading-5 text-[#6d726d]">
-          La session est un cookie signé, HttpOnly, valable 8 heures. Aucun mot de passe n’est stocké en clair.
+        <p class="mt-6 text-xs text-[#8b908b]">
+          Pas encore de compte ?
+          <a href="/admin/register" class="text-[#d4a24c] underline-offset-2 hover:underline">Créer un compte</a>
+        </p>
+        <p class="mt-3 text-[11px] leading-5 text-[#6d726d]">
+          La session est un cookie signé, HttpOnly, valable 8 heures. Les mots de passe ne sont jamais stockés en clair.
         </p>
       </div>
     </div>
