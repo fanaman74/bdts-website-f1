@@ -13,6 +13,8 @@ export interface User {
   createdAt: string;
   lastLoginAt: string | null;
   emailVerifiedAt: string | null;
+  /** Provider rejection from the last verification email; null when accepted. */
+  verificationLastError: string | null;
 }
 
 export const ROLE_LABEL: Record<UserRole, string> = {
@@ -31,7 +33,8 @@ function toUser(row: Row): User {
     role: String(row.role) as UserRole,
     createdAt: new Date(String(row.created_at)).toISOString(),
     lastLoginAt: row.last_login_at ? new Date(String(row.last_login_at)).toISOString() : null,
-    emailVerifiedAt: row.email_verified_at ? new Date(String(row.email_verified_at)).toISOString() : null
+    emailVerifiedAt: row.email_verified_at ? new Date(String(row.email_verified_at)).toISOString() : null,
+    verificationLastError: row.verification_last_error ? String(row.verification_last_error) : null
   };
 }
 
@@ -44,7 +47,7 @@ export async function findUserById(id: string): Promise<User | null> {
   const db = getDbClient();
   if (!db) return null;
 
-  const rows = await db.query('select id, email, name, role, created_at, last_login_at, email_verified_at from public.users where id = $1', [id]);
+  const rows = await db.query('select id, email, name, role, created_at, last_login_at, email_verified_at, verification_last_error from public.users where id = $1', [id]);
   const row = rows[0];
   return row ? toUser(row) : null;
 }
@@ -54,7 +57,7 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   if (!db) return null;
 
   const rows = await db.query(
-    'select id, email, name, role, created_at, last_login_at, email_verified_at from public.users where email = $1',
+    'select id, email, name, role, created_at, last_login_at, email_verified_at, verification_last_error from public.users where email = $1',
     [normaliseEmail(email)]
   );
   const row = rows[0];
@@ -66,7 +69,7 @@ export async function listUsers(): Promise<User[]> {
   if (!db) return [];
 
   const rows = await db.query(
-    'select id, email, name, role, created_at, last_login_at, email_verified_at from public.users order by role, created_at asc'
+    'select id, email, name, role, created_at, last_login_at, email_verified_at, verification_last_error from public.users order by role, created_at asc'
   );
   return rows.map(toUser);
 }
@@ -103,7 +106,7 @@ export async function createUser(input: {
     const rows = await db.query(
       `insert into public.users (email, name, password_hash, role)
        values ($1, $2, $3, $4)
-       returning id, email, name, role, created_at, last_login_at, email_verified_at`,
+       returning id, email, name, role, created_at, last_login_at, email_verified_at, verification_last_error`,
       [email, input.name?.trim() || null, hashPassword(input.password), role]
     );
     const row = rows[0];
@@ -124,7 +127,7 @@ export async function verifyCredentials(email: string, password: string): Promis
   if (!db) return null;
 
   const rows = await db.query(
-    'select id, email, name, role, created_at, last_login_at, email_verified_at, password_hash from public.users where email = $1',
+    'select id, email, name, role, created_at, last_login_at, email_verified_at, verification_last_error, password_hash from public.users where email = $1',
     [normaliseEmail(email)]
   );
   const row = rows[0];
@@ -212,7 +215,7 @@ export async function findUserByVerificationToken(token: string): Promise<User |
   if (!db) return null;
 
   const rows = await db.query(
-    `select id, email, name, role, created_at, last_login_at, email_verified_at
+    `select id, email, name, role, created_at, last_login_at, email_verified_at, verification_last_error
        from public.users
       where verification_token_hash = $1
         and verification_expires_at > now()`,
@@ -248,4 +251,17 @@ export async function verificationOnCooldown(userId: string): Promise<boolean> {
     [VERIFICATION_COOLDOWN_SECONDS, userId]
   );
   return Boolean(rows[0]?.recent);
+}
+
+/**
+ * Records whether the mail provider accepted the last verification email.
+ *
+ * Pass null on success, or the provider's message on failure. This is what makes
+ * a silent rejection visible in the admin area instead of only in the logs.
+ */
+export async function recordVerificationOutcome(userId: string, error: string | null): Promise<void> {
+  const db = getDbClient();
+  if (!db) return;
+
+  await db.query('update public.users set verification_last_error = $1 where id = $2', [error, userId]);
 }

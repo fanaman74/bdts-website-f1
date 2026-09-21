@@ -1,10 +1,17 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { adminCount, deleteUser, listUsers, ROLE_LABEL, updateUserRole, USER_ROLES, type UserRole } from '../../lib/users';
+import { externalOrigin } from '../../lib/adminAuth';
+import { requiresEmailVerification } from '../../lib/email';
+import { sendVerificationEmail } from '../../lib/verification';
+import { adminCount, deleteUser, listUsers, ROLE_LABEL, updateUserRole, USER_ROLES, verificationOnCooldown, type UserRole } from '../../lib/users';
 
 export const prerender = false;
 
 const currentUser = Astro.locals.user;
+const verificationRequired = requiresEmailVerification();
+
+/** Sent responses cannot include their own request to read the origin from. */
+const origin = externalOrigin(Astro.request);
 
 const ROLE_PILL: Record<UserRole, string> = {
   admin: 'border-[#2b5c40] bg-[#12241a] text-[#8fd0a8]',
@@ -32,6 +39,20 @@ if (Astro.request.method === 'POST') {
     } else {
       await updateUserRole(target.id, role);
       notice = `Rôle de ${target.email} mis à jour : ${ROLE_LABEL[role as UserRole]}.`;
+    }
+  } else if (action === 'verify') {
+    // Lets an admin retry after fixing a provider problem, and watch the
+    // recorded error clear.
+    if (!verificationRequired) {
+      problem = 'Aucun fournisseur d’e-mail configuré : la confirmation n’est pas requise.';
+    } else if (target.emailVerifiedAt) {
+      notice = `${target.email} est déjà confirmé.`;
+    } else if (await verificationOnCooldown(target.id)) {
+      problem = 'Un e-mail vient d’être envoyé : patientez une minute avant de réessayer.';
+    } else if (await sendVerificationEmail(target, origin)) {
+      notice = `E-mail de confirmation renvoyé à ${target.email}.`;
+    } else {
+      problem = 'Le fournisseur a refusé l’envoi — le détail est enregistré sur le compte.';
     }
   } else if (action === 'delete') {
     if (target.id === currentUser?.id) {
@@ -99,6 +120,12 @@ const pendingCount = accounts.filter((account) => account.role === 'pending').le
         <div class="text-xs text-[#6d726d]">
           <p>Créé le {new Date(account.createdAt).toLocaleDateString('fr-BE')}</p>
           <p class="mt-1">{account.lastLoginAt ? `Connexion ${new Date(account.lastLoginAt).toLocaleDateString('fr-BE')}` : 'Jamais connecté'}</p>
+          {!account.emailVerifiedAt && <p class="mt-1 text-[#e0b568]">E-mail non confirmé</p>}
+          {account.verificationLastError && (
+            <p class="mt-1 break-words text-[#e08b7c]" title={account.verificationLastError}>
+              Dernier envoi refusé : {account.verificationLastError}
+            </p>
+          )}
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
@@ -111,6 +138,14 @@ const pendingCount = accounts.filter((account) => account.role === 'pending').le
             </select>
             <button type="submit" class="rounded-lg border border-[#2a2f2d] px-2 py-1 text-xs text-[#c8c6c0] transition-colors hover:border-[#d4a24c] hover:text-[#e0b568]">OK</button>
           </form>
+
+          {verificationRequired && !account.emailVerifiedAt && (
+            <form method="post">
+              <input type="hidden" name="action" value="verify" />
+              <input type="hidden" name="id" value={account.id} />
+              <button type="submit" class="rounded-lg border border-[#2a2f2d] px-2 py-1 text-xs text-[#c8c6c0] transition-colors hover:border-[#d4a24c] hover:text-[#e0b568]">Renvoyer</button>
+            </form>
+          )}
 
           <form method="post">
             <input type="hidden" name="action" value="delete" />

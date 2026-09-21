@@ -130,22 +130,30 @@ export function requiresEmailVerification(): boolean {
   return isEmailConfigured() && Boolean(process.env.EMAIL_FROM?.trim());
 }
 
-/** Sends a message. Returns false and logs instead of throwing, so no flow breaks. */
-export async function sendEmail(message: EmailMessage): Promise<boolean> {
+export type SendResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Sends a message. Never throws: the outcome is returned so callers can record
+ * it, and a mail failure must not break the flow that triggered it.
+ */
+export async function sendEmail(message: EmailMessage): Promise<SendResult> {
   const provider = emailProvider();
   const apiKey = provider.apiKeyEnv ? (process.env[provider.apiKeyEnv]?.trim() ?? '') : '';
   const from = process.env.EMAIL_FROM?.trim() || 'BDTS <no-reply@example.invalid>';
 
   if (provider.apiKeyEnv && !apiKey) {
-    console.error(`[email] ${provider.apiKeyEnv} is not set; not sending.`);
-    return false;
+    const error = `${provider.apiKeyEnv} is not set`;
+    console.error(`[email] ${error}; not sending.`);
+    return { ok: false, error };
   }
 
   try {
     await provider.send(message, apiKey, from);
-    return true;
-  } catch (error) {
-    console.error('[email] Send failed:', error instanceof Error ? error.message : error);
-    return false;
+    return { ok: true };
+  } catch (caught) {
+    const detail = caught instanceof Error ? caught.message : String(caught);
+    console.error('[email] Send failed:', detail);
+    // Bounded: the provider body can be long, and this is shown in the UI.
+    return { ok: false, error: detail.slice(0, 300) };
   }
 }

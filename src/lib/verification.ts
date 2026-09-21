@@ -1,11 +1,12 @@
 import { sendEmail } from './email';
-import { createVerificationToken, setVerificationToken, type User } from './users';
+import { createVerificationToken, recordVerificationOutcome, setVerificationToken, type User } from './users';
 
 /**
  * Generates a verification token, stores only its hash, and emails the link.
  *
- * Returns whether the message left successfully; a send failure is logged and
- * reported rather than thrown, so registration never dies because mail is down.
+ * Returns whether the message was accepted by the provider, and records the
+ * outcome on the account either way so a silent rejection is visible from the
+ * admin area rather than only in the server log.
  */
 export async function sendVerificationEmail(user: User, origin: string): Promise<boolean> {
   const { token, hash } = createVerificationToken();
@@ -13,7 +14,7 @@ export async function sendVerificationEmail(user: User, origin: string): Promise
 
   const link = `${origin}/admin/verify?token=${encodeURIComponent(token)}`;
 
-  return sendEmail({
+  const result = await sendEmail({
     to: user.email,
     subject: 'Confirmez votre adresse e-mail — BDT Sironval',
     text: [
@@ -27,4 +28,7 @@ export async function sendVerificationEmail(user: User, origin: string): Promise
       'Si vous n’êtes pas à l’origine de cette demande, ignorez ce message.'
     ].join('\n')
   });
+
+  await recordVerificationOutcome(user.id, result.ok ? null : result.error);
+  return result.ok;
 }
