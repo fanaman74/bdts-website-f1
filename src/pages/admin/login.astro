@@ -1,8 +1,10 @@
 ---
 import '../../styles/global.css';
 import '../../styles/admin.css';
-import { ADMIN_COOKIE, createSessionToken, isSecureRequest, isSessionConfigured, safeNextPath } from '../../lib/adminAuth';
-import { recordLogin, verifyCredentials } from '../../lib/users';
+import { ADMIN_COOKIE, createSessionToken, externalOrigin, isSecureRequest, isSessionConfigured, safeNextPath } from '../../lib/adminAuth';
+import { findUserByEmail, recordLogin, verificationOnCooldown, verifyCredentials } from '../../lib/users';
+import { requiresEmailVerification } from '../../lib/email';
+import { sendVerificationEmail } from '../../lib/verification';
 
 export const prerender = false;
 
@@ -29,37 +31,65 @@ function allowAttempt(ip: string): boolean {
 }
 
 let error: string | null = null;
+let notice: string | null = null;
+let resendFor: string | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  const email = String(form.get('email') ?? '').trim();
-  const password = String(form.get('password') ?? '');
-  const destination = safeNextPath(form.get('next'));
+  const ip = clientIp(Astro.request);
+  const action = String(form.get('action') ?? 'login');
 
-  if (!isSessionConfigured()) {
-    error = 'Sessions impossible à signer : définissez ADMIN_SESSION_SECRET dans Railway.';
-  } else if (!allowAttempt(clientIp(Astro.request))) {
-    error = 'Trop de tentatives. Merci de réessayer dans quelques minutes.';
-  } else {
-    const user = await verifyCredentials(email, password);
-    if (user) {
-      const token = createSessionToken(user.id);
-      if (token) {
-        Astro.cookies.set(ADMIN_COOKIE, token, {
-          path: '/',
-          httpOnly: true,
-          sameSite: 'lax',
-          secure: isSecureRequest(Astro.request),
-          maxAge: 8 * 60 * 60
-        });
-        await recordLogin(user.id);
-        return Astro.redirect(destination);
-      }
-      error = 'Session impossible à créer : ADMIN_SESSION_SECRET manquant.';
+  if (action === 'resend') {
+    const email = String(form.get('email') ?? '').trim();
+
+    if (!isSessionConfigured()) {
+      error = 'Sessions impossible à signer : définissez ADMIN_SESSION_SECRET dans Railway.';
+    } else if (!allowAttempt(ip)) {
+      error = 'Trop de tentatives. Merci de réessayer dans quelques minutes.';
     } else {
-      // Never log the submitted credentials.
-      console.warn('[admin] Failed sign-in from', clientIp(Astro.request));
-      error = 'Identifiants invalides.';
+      const account = await findUserByEmail(email);
+      // Send only for a real, unverified account that is not cooling down — but
+      // always show the same message, so this cannot be used to discover which
+      // addresses have accounts.
+      if (account && !account.emailVerifiedAt && !(await verificationOnCooldown(account.id))) {
+        await sendVerificationEmail(account, externalOrigin(Astro.request));
+      }
+      notice = 'Si un compte non confirmé existe pour cette adresse, un nouvel e-mail vient d’être envoyé.';
+    }
+  } else {
+    const email = String(form.get('email') ?? '').trim();
+    const password = String(form.get('password') ?? '');
+    const destination = safeNextPath(form.get('next'));
+
+    if (!isSessionConfigured()) {
+      error = 'Sessions impossible à signer : définissez ADMIN_SESSION_SECRET dans Railway.';
+    } else if (!allowAttempt(ip)) {
+      error = 'Trop de tentatives. Merci de réessayer dans quelques minutes.';
+    } else {
+      const user = await verifyCredentials(email, password);
+
+      if (!user) {
+        // Never log the submitted credentials.
+        console.warn('[admin] Failed sign-in from', ip);
+        error = 'Identifiants invalides.';
+      } else if (requiresEmailVerification() && !user.emailVerifiedAt) {
+        resendFor = user.email;
+        error = 'Adresse e-mail non confirmée. Vérifiez votre boîte de réception, ou demandez un nouvel envoi ci-dessous.';
+      } else {
+        const token = createSessionToken(user.id);
+        if (token) {
+          Astro.cookies.set(ADMIN_COOKIE, token, {
+            path: '/',
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: isSecureRequest(Astro.request),
+            maxAge: 8 * 60 * 60
+          });
+          await recordLogin(user.id);
+          return Astro.redirect(destination);
+        }
+        error = 'Session impossible à créer : ADMIN_SESSION_SECRET manquant.';
+      }
     }
   }
 }
@@ -67,6 +97,8 @@ if (Astro.request.method === 'POST') {
 const next = safeNextPath(Astro.url.searchParams.get('next'));
 const configured = isSessionConfigured();
 const justRegistered = Astro.url.searchParams.get('registered') === '1';
+const justVerified = Astro.url.searchParams.get('verified') === '1';
+const verificationRequired = requiresEmailVerification();
 ---
 
 <!doctype html>
@@ -88,9 +120,21 @@ const justRegistered = Astro.url.searchParams.get('registered') === '1';
         <h1 class="text-4xl leading-none font-semibold tracking-tight uppercase"><span class="mr-1 text-[#d4a24c]">/</span>Connexion</h1>
         <p class="mt-3 text-sm leading-6 text-[#8b908b]">Accès réservé. Toutes les demandes reçues via le site sont visibles après connexion.</p>
 
-        {justRegistered && (
+        {justVerified && (
           <p class="mt-5 rounded-lg border border-[#2b5c40] bg-[#12241a] px-3 py-2 text-sm text-[#8fd0a8]">
-            Compte créé. Un administrateur doit l’approuver avant que vous puissiez consulter les demandes.
+            Adresse e-mail confirmée. Vous pouvez vous connecter.
+          </p>
+        )}
+
+        {notice && (
+          <p class="mt-5 rounded-lg border border-[#2b5c40] bg-[#12241a] px-3 py-2 text-sm text-[#8fd0a8]">{notice}</p>
+        )}
+
+        {justRegistered && (
+          <p class="mt-5 rounded-lg border border-[#2b5c40] bg-[#12241a] px-3 py-2 text-sm leading-6 text-[#8fd0a8]">
+            {verificationRequired
+              ? 'Compte créé. Ouvrez le lien reçu par e-mail, puis attendez l’approbation d’un administrateur.'
+              : 'Compte créé. Un administrateur doit l’approuver avant que vous puissiez consulter les demandes.'}
           </p>
         )}
 
@@ -133,6 +177,19 @@ const justRegistered = Astro.url.searchParams.get('registered') === '1';
             Se connecter
           </button>
         </form>
+
+        {resendFor && (
+          <form method="post" class="mt-3">
+            <input type="hidden" name="action" value="resend" />
+            <input type="hidden" name="email" value={resendFor} />
+            <button
+              type="submit"
+              class="w-full rounded-lg border border-[#2a2f2d] px-4 py-2 text-sm text-[#c8c6c0] transition-colors hover:border-[#d4a24c] hover:text-[#e0b568]"
+            >
+              Renvoyer l’e-mail de confirmation
+            </button>
+          </form>
+        )}
 
         <p class="mt-6 text-xs text-[#8b908b]">
           Pas encore de compte ?

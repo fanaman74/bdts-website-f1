@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { getDbClient } from './db';
 import { hashPassword, verifyPasswordHash } from './password';
 
@@ -11,6 +12,7 @@ export interface User {
   role: UserRole;
   createdAt: string;
   lastLoginAt: string | null;
+  emailVerifiedAt: string | null;
 }
 
 export const ROLE_LABEL: Record<UserRole, string> = {
@@ -28,7 +30,8 @@ function toUser(row: Row): User {
     name: row.name === null || row.name === undefined ? null : String(row.name),
     role: String(row.role) as UserRole,
     createdAt: new Date(String(row.created_at)).toISOString(),
-    lastLoginAt: row.last_login_at ? new Date(String(row.last_login_at)).toISOString() : null
+    lastLoginAt: row.last_login_at ? new Date(String(row.last_login_at)).toISOString() : null,
+    emailVerifiedAt: row.email_verified_at ? new Date(String(row.email_verified_at)).toISOString() : null
   };
 }
 
@@ -41,7 +44,7 @@ export async function findUserById(id: string): Promise<User | null> {
   const db = getDbClient();
   if (!db) return null;
 
-  const rows = await db.query('select id, email, name, role, created_at, last_login_at from public.users where id = $1', [id]);
+  const rows = await db.query('select id, email, name, role, created_at, last_login_at, email_verified_at from public.users where id = $1', [id]);
   const row = rows[0];
   return row ? toUser(row) : null;
 }
@@ -51,7 +54,7 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   if (!db) return null;
 
   const rows = await db.query(
-    'select id, email, name, role, created_at, last_login_at from public.users where email = $1',
+    'select id, email, name, role, created_at, last_login_at, email_verified_at from public.users where email = $1',
     [normaliseEmail(email)]
   );
   const row = rows[0];
@@ -63,7 +66,7 @@ export async function listUsers(): Promise<User[]> {
   if (!db) return [];
 
   const rows = await db.query(
-    'select id, email, name, role, created_at, last_login_at from public.users order by role, created_at asc'
+    'select id, email, name, role, created_at, last_login_at, email_verified_at from public.users order by role, created_at asc'
   );
   return rows.map(toUser);
 }
@@ -100,7 +103,7 @@ export async function createUser(input: {
     const rows = await db.query(
       `insert into public.users (email, name, password_hash, role)
        values ($1, $2, $3, $4)
-       returning id, email, name, role, created_at, last_login_at`,
+       returning id, email, name, role, created_at, last_login_at, email_verified_at`,
       [email, input.name?.trim() || null, hashPassword(input.password), role]
     );
     const row = rows[0];
@@ -121,7 +124,7 @@ export async function verifyCredentials(email: string, password: string): Promis
   if (!db) return null;
 
   const rows = await db.query(
-    'select id, email, name, role, created_at, last_login_at, password_hash from public.users where email = $1',
+    'select id, email, name, role, created_at, last_login_at, email_verified_at, password_hash from public.users where email = $1',
     [normaliseEmail(email)]
   );
   const row = rows[0];
@@ -168,4 +171,81 @@ export async function adminCount(): Promise<number> {
 
   const rows = await db.query("select count(*)::int as count from public.users where role = 'admin'");
   return Number(rows[0]?.count ?? 0);
+}
+
+/* ---------- Email verification ---------- */
+
+/** How long a verification link stays valid. */
+const VERIFICATION_TTL_MINUTES = 24 * 60;
+
+/** Minimum gap between two verification emails for the same account. */
+const VERIFICATION_COOLDOWN_SECONDS = 60;
+
+export function createVerificationToken(): { token: string; hash: string } {
+  const token = randomBytes(32).toString('hex');
+  return { token, hash: hashVerificationToken(token) };
+}
+
+/** Only the hash is stored; the raw token exists solely inside the emailed link. */
+export function hashVerificationToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+/** Stores a fresh token on the account, replacing any previous one. */
+export async function setVerificationToken(userId: string, hash: string): Promise<void> {
+  const db = getDbClient();
+  if (!db) return;
+
+  await db.query(
+    `update public.users
+        set verification_token_hash = $1,
+            verification_expires_at = now() + make_interval(mins => $2::int),
+            verification_sent_at = now()
+      where id = $3`,
+    [hash, VERIFICATION_TTL_MINUTES, userId]
+  );
+}
+
+/** Resolves a raw token to its account, or null when unknown or expired. */
+export async function findUserByVerificationToken(token: string): Promise<User | null> {
+  const db = getDbClient();
+  if (!db) return null;
+
+  const rows = await db.query(
+    `select id, email, name, role, created_at, last_login_at, email_verified_at
+       from public.users
+      where verification_token_hash = $1
+        and verification_expires_at > now()`,
+    [hashVerificationToken(token)]
+  );
+  const row = rows[0];
+  return row ? toUser(row) : null;
+}
+
+/** Marks the address verified and burns the token so it cannot be replayed. */
+export async function markEmailVerified(userId: string): Promise<void> {
+  const db = getDbClient();
+  if (!db) return;
+
+  await db.query(
+    `update public.users
+        set email_verified_at = now(),
+            verification_token_hash = null,
+            verification_expires_at = null
+      where id = $1`,
+    [userId]
+  );
+}
+
+/** True when a link was sent too recently to send another. */
+export async function verificationOnCooldown(userId: string): Promise<boolean> {
+  const db = getDbClient();
+  if (!db) return false;
+
+  const rows = await db.query(
+    `select verification_sent_at > now() - make_interval(secs => $1::int) as recent
+       from public.users where id = $2`,
+    [VERIFICATION_COOLDOWN_SECONDS, userId]
+  );
+  return Boolean(rows[0]?.recent);
 }

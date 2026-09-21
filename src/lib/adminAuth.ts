@@ -56,15 +56,24 @@ export function verifySessionToken(token: string | undefined): { userId: string 
 }
 
 /**
- * Whether the request reached us over HTTPS.
+ * The origin a browser actually used.
  *
  * The Node adapter ignores `x-forwarded-proto`, so `Astro.url.protocol` is
- * `http:` behind Railway's TLS termination. Reading the forwarded header keeps
- * the session cookie's `Secure` flag correct in production.
+ * `http:` behind Railway's TLS termination. Reading the forwarded headers keeps
+ * both the session cookie's `Secure` flag and any link we email correct.
  */
-export function isSecureRequest(request: Request): boolean {
+export function externalOrigin(request: Request): string {
   const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
-  return forwardedProto ? forwardedProto === 'https' : new URL(request.url).protocol === 'https:';
+  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+
+  const protocol = forwardedProto || new URL(request.url).protocol.replace(':', '');
+  const host = forwardedHost || request.headers.get('host') || new URL(request.url).host;
+
+  return `${protocol}://${host}`;
+}
+
+export function isSecureRequest(request: Request): boolean {
+  return externalOrigin(request).startsWith('https://');
 }
 
 /** Only same-site admin paths, so `next` cannot become an open redirect. */

@@ -1,6 +1,9 @@
 ---
 import '../../styles/global.css';
 import '../../styles/admin.css';
+import { externalOrigin } from '../../lib/adminAuth';
+import { requiresEmailVerification } from '../../lib/email';
+import { sendVerificationEmail } from '../../lib/verification';
 import { createUser } from '../../lib/users';
 
 export const prerender = false;
@@ -54,6 +57,10 @@ if (Astro.request.method === 'POST') {
     } else if (!result.ok) {
       error = 'Inscription indisponible : la base de données n’est pas configurée.';
     } else {
+      // Only require verification when we can actually deliver the link.
+      if (requiresEmailVerification()) {
+        await sendVerificationEmail(result.user, externalOrigin(Astro.request));
+      }
       return Astro.redirect('/admin/login?registered=1');
     }
   }

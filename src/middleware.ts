@@ -5,7 +5,7 @@ import { findUserById } from './lib/users';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Reachable without a session; everything else under /admin is not. */
-const PUBLIC_ADMIN_PATHS = new Set(['/admin/login', '/admin/register']);
+const PUBLIC_ADMIN_PATHS = new Set(['/admin/login', '/admin/register', '/admin/verify']);
 
 /**
  * The origin the browser actually used.

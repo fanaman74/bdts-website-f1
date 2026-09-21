@@ -39,19 +39,39 @@ npm run dev        # http://localhost:4321
 
 ## Administration
 
-L’espace d’administration vit sous `/admin` et affiche toutes les soumissions des formulaires, avec le suivi de leur statut.
+L’espace d’administration vit sous `/admin` : comptes nominatifs, rôles, et suivi de toutes les soumissions des formulaires.
 
-1. Générez un mot de passe :
+### Comptes et rôles
+
+| Rôle | Accès |
+| --- | --- |
+| `pending` | Peut se connecter, mais ne voit **aucune** donnée tant qu’un administrateur ne l’a pas approuvé |
+| `member` | Consulte et traite les demandes reçues |
+| `admin` | Idem, plus la gestion des comptes et le choix du fournisseur/modèle de l’assistant |
+
+Créer le premier administrateur :
 
 ```bash
-npm run admin:hash -- "une longue phrase secrète unique"
+npm run admin:user -- --email vous@example.be --name "Prénom Nom" --role admin --password "une longue phrase secrète"
 ```
 
-2. Reportez `ADMIN_USER`, `ADMIN_PASSWORD_HASH` et `ADMIN_SESSION_SECRET` dans les variables Railway (et dans `.env` en local), puis ouvrez `/admin`.
+Relancer la même commande pour une adresse existante **réinitialise** son mot de passe et son rôle — c’est le seul chemin de réinitialisation aujourd’hui.
 
-Contenu : tableau de bord (compteurs, dernières demandes, état de l’assistant), liste des messages filtrable par statut et par type, recherche plein texte sur nom/e-mail/téléphone/message, et changement de statut (`nouveau`, `en cours`, `clôturé`, `indésirable`).
+Les autres personnes créent leur compte sur `/admin/register`. Elles arrivent en `pending`, puis un administrateur approuve depuis `/admin/users`. L’approbation est délibérément nécessaire : la boîte contient des données personnelles de clients.
 
-**Sécurité.** Le mot de passe n’est jamais stocké : seule une empreinte scrypt salée l’est, et la comparaison est à temps constant. La session est un cookie signé (HMAC), `HttpOnly`, `SameSite=Lax`, valable 8 heures ; `ADMIN_SESSION_SECRET` permet d’invalider toutes les sessions en le changeant. Sans ces deux variables, l’aire d’administration refuse l’accès au lieu de retomber sur un mot de passe par défaut. Les tentatives de connexion sont limitées à 8 par quart d’heure et par IP, et les identifiants saisis ne sont jamais journalisés. Les pages `/admin` sont en `noindex` et protégées par un middleware qui refuse tout par défaut. Astro protège en outre les formulaires par vérification d’origine (CSRF).
+### Vérification de l’adresse e-mail
+
+Quand un fournisseur d’e-mail est configuré (`BREVO_API_KEY` + `EMAIL_FROM`), les nouveaux comptes doivent confirmer leur adresse avant de pouvoir se connecter : lien à usage unique, valable 24 h, dont seule l’empreinte SHA-256 est stockée. En l’absence de fournisseur, cette exigence est **désactivée** — sinon une inscription sans e-mail reçu resterait bloquée.
+
+La vérification et l’approbation sont deux filtres distincts : la première prouve que la personne contrôle la boîte, la seconde décide de l’accès aux données.
+
+```bash
+# Local : les e-mails (et les liens) sont écrits dans les logs du serveur
+EMAIL_PROVIDER=console
+EMAIL_FROM="BDT Sironval <no-reply@example.invalid>"
+```
+
+**Sécurité.** Les mots de passe ne sont jamais stockés : seule une empreinte scrypt salée l’est, comparée à temps constant. La session est un cookie signé (HMAC) `HttpOnly`, `SameSite=Lax`, valable 8 heures, et ne contient que l’identifiant du compte — le rôle est relu en base à chaque requête, donc une rétrogradation prend effet immédiatement. `ADMIN_SESSION_SECRET` signe ces cookies et permet d’invalider toutes les sessions en le changeant. Connexions limitées à 8 par quart d’heure et par IP, inscriptions à 5, renvois d’e-mail à 60 secondes par compte ; les identifiants saisis ne sont jamais journalisés. Les pages `/admin` sont en `noindex` et un middleware refuse tout par défaut. Astro protège les formulaires par vérification d’origine (CSRF), réimplémentée dans le middleware car l’adaptateur Node ignore `x-forwarded-proto` derrière le proxy Railway.
 
 Les clés d’API des fournisseurs ne sont **jamais** stockées en base : seuls le fournisseur et le modèle le sont, dans la table `settings`.
 
