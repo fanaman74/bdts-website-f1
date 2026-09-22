@@ -160,6 +160,21 @@ export function emailStatus(): EmailStatus {
   }
   if (!from) problems.push('EMAIL_FROM n’est pas défini');
 
+  // More than one key configured with no explicit EMAIL_PROVIDER: whichever is
+  // checked first wins silently. That is how you "switch" providers and keep
+  // sending through the old one.
+  const keyedProviders: string[] = [];
+  for (const candidate of Object.values(PROVIDERS)) {
+    const envVar = candidate.apiKeyEnv;
+    if (envVar && process.env[envVar]?.trim()) keyedProviders.push(candidate.name);
+  }
+
+  if (keyedProviders.length > 1 && !process.env.EMAIL_PROVIDER?.trim()) {
+    problems.push(
+      `plusieurs clés sont définies (${keyedProviders.join(', ')}) et ${provider.name} est utilisé — définissez EMAIL_PROVIDER ou supprimez les autres clés`
+    );
+  }
+
   return {
     provider: provider.name,
     from,

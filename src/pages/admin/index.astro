@@ -1,6 +1,12 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { cachedDocumentCount, inquiryCounts, listInquiries } from '../../lib/inquiries';
+import {
+  DECLARATION_STATUS_LABELS,
+  declarationCounts,
+  declarationName,
+  listDeclarations
+} from '../../lib/declarations';
 import { PROVIDERS, resolveAssistant } from '../../lib/assistantProvider';
 import { getSettings, SETTING_KEYS, setSetting } from '../../lib/settings';
 
@@ -50,7 +56,11 @@ const [counts, cached, assistant, settings] = await Promise.all([
   getSettings()
 ]);
 
-const recent = await listInquiries({ limit: 6 });
+const [recent, declarationTotals, recentDeclarations] = await Promise.all([
+  listInquiries({ limit: 6 }),
+  declarationCounts(),
+  listDeclarations({ limit: 5 })
+]);
 const keyConfigured = assistant.apiKey !== null;
 const suggestions = [assistant.provider.defaultModel, ...assistant.provider.fallbackModels];
 
@@ -60,7 +70,9 @@ const tiles = [
   { label: 'En cours', value: counts.byStatus.in_progress, hint: 'suivi engagé', accent: false },
   { label: 'Clôturées', value: counts.byStatus.closed, hint: 'traitées', accent: false },
   { label: 'Indésirables', value: counts.byStatus.spam, hint: 'écartées', accent: false },
-  { label: 'Documents en cache', value: cached, hint: 'PDF analysés', accent: false }
+  { label: 'Documents en cache', value: cached, hint: 'PDF analysés', accent: false },
+  { label: 'Déclarations', value: declarationTotals.total, hint: 'sinistres reçus', accent: false },
+  { label: 'Sinistres à traiter', value: declarationTotals.byStatus.new, hint: 'nouveaux dossiers', accent: true }
 ];
 ---
 
@@ -70,14 +82,17 @@ const tiles = [
       <h1 class="text-4xl font-semibold tracking-tight uppercase"><span class="text-[#d4a24c]">/</span> Dashboard</h1>
       <p class="mt-2 text-sm text-[#8b908b]">Toutes les demandes reçues via les formulaires du site, et la configuration de l’assistant.</p>
     </div>
-    <a href="/admin/messages" class="rounded-lg bg-[#f2efe8] px-4 py-2 text-sm font-medium text-[#141716] transition-colors hover:bg-white">Ouvrir les messages</a>
+    <div class="flex flex-wrap gap-2">
+      <a href="/admin/messages" class="rounded-lg bg-[#f2efe8] px-4 py-2 text-sm font-medium text-[#141716] transition-colors hover:bg-white">Ouvrir les messages</a>
+      <a href="/admin/declarations" class="rounded-lg border border-[#2a2f2d] px-4 py-2 text-sm text-[#c8c6c0] transition-colors hover:border-[#d4a24c] hover:text-[#e0b568]">Ouvrir les déclarations</a>
+    </div>
   </div>
 
   {saved && (
     <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Configuration de l’assistant enregistrée.</p>
   )}
 
-  <section class="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-6">
+  <section class="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
     {tiles.map((tile) => (
       <div class:list={[
         'rounded-xl border px-4 py-4',
@@ -180,4 +195,43 @@ const tiles = [
       )}
     </section>
   </div>
+
+  <section class="mt-8">
+    <div class="flex items-center justify-between gap-4">
+      <h2 class="text-sm tracking-[.12em] text-[#7f857f] uppercase">Dernières déclarations</h2>
+      <a href="/admin/declarations" class="text-xs text-[#d4a24c] underline-offset-2 hover:underline">Tout afficher →</a>
+    </div>
+
+    <div class="mt-4 divide-y divide-[#212524] overflow-hidden rounded-xl border border-[#262a28]">
+      {recentDeclarations.length === 0 && (
+        <p class="px-5 py-8 text-sm text-[#8b908b]">Aucune déclaration de sinistre pour le moment.</p>
+      )}
+      {recentDeclarations.map((declaration) => (
+        <a
+          href={`/admin/declarations/${declaration.id}`}
+          class="flex items-start gap-4 px-5 py-4 transition-colors hover:bg-[#141716]"
+        >
+          <span class="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#2f3432] bg-[#181b1a] text-xs font-medium text-[#c8c6c0]">
+            {declaration.firstName.trim().slice(0, 1).concat(declaration.lastName.trim().slice(0, 1)).toUpperCase()}
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium text-[#f2efe8]">{declarationName(declaration)}</p>
+            <p class="truncate text-xs text-[#8b908b]">{declaration.email}</p>
+            <p class="mt-1.5 line-clamp-2 text-xs leading-5 text-[#6d726d]">
+              {[declaration.incidentPlace, declaration.incidentCircumstances].filter(Boolean).join(' · ') || 'Aucune description fournie.'}
+            </p>
+          </div>
+          <div class="shrink-0 text-right">
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-[#2f3432] bg-[#181b1a] px-2 py-0.5 text-[11px] text-[#c8c6c0]">
+              {DECLARATION_STATUS_LABELS[declaration.status]}
+            </span>
+            <p class="mt-2 text-[11px] text-[#6d726d]">{new Date(declaration.createdAt).toLocaleDateString('fr-BE')}</p>
+            {declaration.attachmentCount > 0 && (
+              <p class="text-[11px] text-[#8b908b]">{declaration.attachmentCount} pièce(s)</p>
+            )}
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
 </AdminLayout>

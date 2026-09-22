@@ -32,7 +32,8 @@ npm run dev        # http://localhost:4321
 - **Documents** : page `/documents` avec recherche Fuse.js, filtres (public, catégorie, partenaire, type, langue, source), tri, badges « portail uniquement » et fallback `<noscript>`. API : `GET /api/documents.json`.
 - **Assistant documents** : le fournisseur (`deepseek` ou `routera`) et le modèle se choisissent dans l’espace d’administration (`/admin`) ; seules les clés d’API restent dans les variables d’environnement (`DEEPSEEK_API_KEY`, `ROUTERA_API_KEY`). Par défaut : DeepSeek `deepseek-flash`, puis repli sur `deepseek-v4-pro`. Routera n’a pas d’offre gratuite, facture à l’usage, et son accès aux modèles dépend de l’offre. Le tiroir de discussion affiche le modèle utilisé et l’état de la connexion (`GET /api/assistant-status`). L’assistant est proposé uniquement pour les liens PDF directs.
 - **Cache des documents** : le texte extrait des PDF est stocké en base (`document_texts`, migration `0002`). L’assistant lit cette copie quand elle existe et ne télécharge le PDF qu’en dernier recours — voir « Cache des documents » pour l’ingestion depuis un réseau non bloqué.
-- **Formulaires** : contact `/contact`, devis `/devis`, sinistre `/declaration` → `POST /api/contact` (validation Zod côté serveur + honeypot), puis stockage dans la table Postgres `inquiries` hébergée sur Neon.
+- **Formulaires** : contact `/contact` et devis `/devis` → `POST /api/contact` (validation Zod côté serveur + honeypot), puis stockage dans la table Postgres `inquiries` hébergée sur Neon.
+- **Déclaration de sinistre** : `/declaration` → `POST /api/declaration`. Formulaire structuré (identité et adresse, identification du sinistre, témoin, partie adverse, remarques, pièces jointes) validé côté serveur, stocké dans `declarations` + `declaration_attachments` et suivi dans `/admin/declarations`.
 - **Portails clients** : configurables dans `src/data/portals.ts` (MyBroker, My AG, extensibles).
 - **i18n** : dictionnaire `src/i18n/fr.ts`, prêt pour `nl`/`en`.
 - **SEO** : sitemap, robots.txt, Open Graph, canoniques, pages légales (mentions, vie privée, cookies, durabilité, protection du client).
@@ -61,9 +62,17 @@ Les autres personnes créent leur compte sur `/admin/register`. Elles arrivent e
 
 ### Vérification de l’adresse e-mail
 
-Quand un fournisseur d’e-mail est configuré (`BREVO_API_KEY` + `EMAIL_FROM`), les nouveaux comptes doivent confirmer leur adresse avant de pouvoir se connecter : lien à usage unique, valable 24 h, dont seule l’empreinte SHA-256 est stockée. En l’absence de fournisseur, cette exigence est **désactivée** — sinon une inscription sans e-mail reçu resterait bloquée.
+Quand un fournisseur d’e-mail est configuré (`RESEND_API_KEY` + `EMAIL_FROM`), les nouveaux comptes doivent confirmer leur adresse avant de pouvoir se connecter : lien à usage unique, valable 24 h, dont seule l’empreinte SHA-256 est stockée. En l’absence de fournisseur, cette exigence est **désactivée** — sinon une inscription sans e-mail reçu resterait bloquée.
 
 La vérification et l’approbation sont deux filtres distincts : la première prouve que la personne contrôle la boîte, la seconde décide de l’accès aux données.
+
+Configurer Resend en une commande. La même clé est écrite dans `.env` (lue par `src/lib/email.ts`) et dans le bloc `env` du serveur MCP `resend` de Cline ; avant toute écriture, elle est vérifiée auprès de l’API et les domaines d’envoi sont listés — la clé n’est jamais affichée en clair.
+
+```bash
+npm run resend:key -- --key re_xxxxxxxx --from "BDT Sironval <no-reply@votre-domaine.be>"
+```
+
+Le domaine d’envoi doit être vérifié dans Resend, et `EMAIL_FROM` doit se trouver sur ce domaine : la commande signale celui du compte qui ne l’est pas encore. Seule une sauvegarde `.bak` est écrite à côté du fichier de réglages MCP, qui vit hors du dépôt.
 
 ```bash
 # Local : les e-mails (et les liens) sont écrits dans les logs du serveur
@@ -74,6 +83,16 @@ EMAIL_FROM="BDT Sironval <no-reply@example.invalid>"
 **Sécurité.** Les mots de passe ne sont jamais stockés : seule une empreinte scrypt salée l’est, comparée à temps constant. La session est un cookie signé (HMAC) `HttpOnly`, `SameSite=Lax`, valable 8 heures, et ne contient que l’identifiant du compte — le rôle est relu en base à chaque requête, donc une rétrogradation prend effet immédiatement. `ADMIN_SESSION_SECRET` signe ces cookies et permet d’invalider toutes les sessions en le changeant. Connexions limitées à 8 par quart d’heure et par IP, inscriptions à 5, renvois d’e-mail à 60 secondes par compte ; les identifiants saisis ne sont jamais journalisés. Les pages `/admin` sont en `noindex` et un middleware refuse tout par défaut. Astro protège les formulaires par vérification d’origine (CSRF), réimplémentée dans le middleware car l’adaptateur Node ignore `x-forwarded-proto` derrière le proxy Railway.
 
 Les clés d’API des fournisseurs ne sont **jamais** stockées en base : seuls le fournisseur et le modèle le sont, dans la table `settings`.
+
+### Déclarations de sinistre
+
+L’onglet **Déclarations** (`/admin/declarations`) liste les sinistres reçus, filtrables par statut et par recherche (nom, e-mail, téléphone, n° de police, commune), avec tri chronologique et export CSV. Chaque ligne indique la date du sinistre, la présence éventuelle d’un témoin ou d’une partie adverse et le nombre de pièces jointes ; **Ouvrir le dossier** (`/admin/declarations/<id>`) affiche le détail complet et permet de télécharger les pièces jointes.
+
+Le cycle de vie d’un dossier suit les mêmes statuts que les messages : `new`, `in_progress`, `closed`, `spam`.
+
+**Pièces jointes.** Les fichiers sont stockés en base (colonne `content_base64`), pas sur le disque : un redéploiement Railway recrée le conteneur, et le projet ne déclare pas d’*object storage*. Limites appliquées côté serveur : 3 fichiers, 4 Mo par fichier, 6 Mo au total, types `jpg`, `jpeg`, `png`, `pdf`, `doc`, `docx`. Le téléchargement passe par `/admin/declarations/attachment/<id>`, protégé par le même middleware que le reste de `/admin`.
+
+Le formulaire public applique les mêmes limites côté navigateur (compteur de fichiers) et un honeypot ; les envois sont limités en débit (3 par minute, 8 par quart d’heure et par IP).
 
 ## Cache des documents
 
@@ -116,7 +135,7 @@ title,partner,audience,category,productType,documentType,language,fileUrl,extern
 npm run migrate            # applique db/migrations/*.sql (idempotent, suivi dans public.schema_migrations)
 ```
 
-Le client utilise `@neondatabase/serverless` en mode HTTP : aucune socket n'est maintenue ouverte, ce qui évite les connexions périmées quand Neon met la base en veille. Les requêtes sont paramétrées (`$1`, `$2`, …) et la migration `db/migrations/0001_create_inquiries.sql` crée la table `inquiries` (contraintes `check`, index `status`/`created_at`, trigger `updated_at`). Sur Neon il n'y a ni rôles `anon`/`authenticated`/`service_role` ni RLS : l'accès est restreint par le fait que seul le serveur Astro détient `DATABASE_URL`.
+Le client utilise `@neondatabase/serverless` en mode HTTP : aucune socket n'est maintenue ouverte, ce qui évite les connexions périmées quand Neon met la base en veille. Les requêtes sont paramétrées (`$1`, `$2`, …) et la migration `db/migrations/0001_create_inquiries.sql` crée la table `inquiries` (contraintes `check`, index `status`/`created_at`, trigger `updated_at`), tandis que `0007_create_declarations.sql` crée `declarations` et `declaration_attachments` (déclarations de sinistre et leurs pièces jointes). Sur Neon il n'y a ni rôles `anon`/`authenticated`/`service_role` ni RLS : l'accès est restreint par le fait que seul le serveur Astro détient `DATABASE_URL`.
 
 ## Images
 

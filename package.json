@@ -16,6 +16,8 @@
     "migrate": "tsx scripts/migrate.ts",
     "ingest:documents": "tsx scripts/ingest-document-texts.ts",
     "admin:user": "tsx scripts/create-admin-user.ts",
+    "resend:key": "tsx scripts/configure-resend.ts",
+    "resend:test": "tsx scripts/test-email.ts",
     "discover": "tsx scripts/discover-bdts-documents.ts",
     "import:documents": "tsx scripts/import-documents.ts",
     "test": "npm run validate && npm run check && npm run build"

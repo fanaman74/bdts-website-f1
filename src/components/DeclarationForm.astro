@@ -1,0 +1,455 @@
+---
+import { COUNTRIES } from '../data/countries';
+import { t } from '../i18n/fr';
+
+const inputClass =
+  'w-full rounded-xl border-0 bg-white px-4 py-3 text-sm text-ink-900 ring-1 ring-ink-200 placeholder:text-ink-400 focus:ring-2 focus:ring-pulse-500';
+const selectClass = inputClass;
+const labelClass = 'mb-1.5 block text-sm font-semibold text-ink-800';
+const legendClass = 'font-display text-lg font-semibold tracking-tight text-ink-900';
+const sectionClass = 'space-y-5 border-t border-ink-200/70 pt-6';
+const hintClass = 'mt-1.5 block text-xs leading-5 text-ink-500';
+
+const titles = [
+  { value: '', label: 'Aucun(e)' },
+  { value: 'mr', label: 'Monsieur' },
+  { value: 'mrs', label: 'Madame' }
+];
+
+const id = (name: string) => `declaration-${name}`;
+---
+
+<form class="declaration-form space-y-7" method="POST" action="/api/declaration" novalidate enctype="multipart/form-data">
+  <fieldset class="space-y-5">
+    <legend class={legendClass}>Mes informations de contact</legend>
+
+    <div class="grid gap-5 sm:grid-cols-2">
+      <div>
+        <label for={id('personTitle')} class={labelClass}>Titre</label>
+        <select id={id('personTitle')} name="personTitle" class={selectClass}>
+          {titles.map((title) => <option value={title.value}>{title.label}</option>)}
+        </select>
+      </div>
+      <div>
+        <label for={id('dateOfBirth')} class={labelClass}>Date de naissance</label>
+        <input id={id('dateOfBirth')} name="dateOfBirth" type="date" class={inputClass} />
+      </div>
+    </div>
+
+    <div class="grid gap-5 sm:grid-cols-2">
+      <div>
+        <label for={id('lastName')} class={labelClass}>Nom *</label>
+        <input id={id('lastName')} name="lastName" type="text" required autocomplete="family-name" class={inputClass} />
+      </div>
+      <div>
+        <label for={id('firstName')} class={labelClass}>Prénom *</label>
+        <input id={id('firstName')} name="firstName" type="text" required autocomplete="given-name" class={inputClass} />
+      </div>
+    </div>
+
+    <div class="grid gap-5 sm:grid-cols-[2fr_1fr_1fr]">
+      <div>
+        <label for={id('street')} class={labelClass}>Rue</label>
+        <input id={id('street')} name="street" type="text" autocomplete="address-line1" class={inputClass} />
+      </div>
+      <div>
+        <label for={id('streetNumber')} class={labelClass}>Numéro</label>
+        <input id={id('streetNumber')} name="streetNumber" type="text" class={inputClass} />
+      </div>
+      <div>
+        <label for={id('bus')} class={labelClass}>Numéro de boîte</label>
+        <input id={id('bus')} name="bus" type="text" class={inputClass} />
+      </div>
+    </div>
+
+    <div class="grid gap-5 sm:grid-cols-[1fr_2fr]">
+      <div>
+        <label for={id('postalCode')} class={labelClass}>Code postal</label>
+        <input id={id('postalCode')} name="postalCode" type="text" autocomplete="postal-code" class={inputClass} />
+      </div>
+      <div>
+        <label for={id('city')} class={labelClass}>Commune</label>
+        <input id={id('city')} name="city" type="text" autocomplete="address-level2" class={inputClass} />
+      </div>
+    </div>
+
+    <div class="grid gap-5 sm:grid-cols-2">
+      <div>
+        <label for={id('country')} class={labelClass}>Pays</label>
+        <select id={id('country')} name="country" autocomplete="country-name" class={selectClass}>
+          {COUNTRIES.map((country) => <option value={country} selected={country === 'Belgique'}>{country}</option>)}
+        </select>
+      </div>
+      <div>
+        <label for={id('company')} class={labelClass}>Société</label>
+        <input id={id('company')} name="company" type="text" autocomplete="organization" class={inputClass} />
+      </div>
+    </div>
+
+    <div class="grid gap-5 sm:grid-cols-2">
+      <div>
+        <label for={id('phoneFixed')} class={labelClass}>Numéro de téléphone fixe</label>
+        <input id={id('phoneFixed')} name="phoneFixed" type="tel" class={inputClass} />
+      </div>
+      <div>
+        <label for={id('phoneMobile')} class={labelClass}>Numéro de GSM</label>
+        <input id={id('phoneMobile')} name="phoneMobile" type="tel" autocomplete="tel" class={inputClass} />
+      </div>
+    </div>
+
+    <div>
+      <label for={id('email')} class={labelClass}>Adresse e-mail *</label>
+      <input id={id('email')} name="email" type="email" required autocomplete="email" class={inputClass} />
+    </div>
+  </fieldset>
+
+  <fieldset class={sectionClass}>
+    <legend class={legendClass}>Identification du sinistre</legend>
+
+    <div>
+      <label for={id('insuredPersonOrItem')} class={labelClass}>Identification de la personne ou du bien assuré</label>
+      <textarea
+        id={id('insuredPersonOrItem')}
+        name="insuredPersonOrItem"
+        rows={2}
+        placeholder="Ex. : véhicule 1-ABC-123, habitation rue de Wand 29, personne assurée…"
+        class={inputClass}></textarea>
+    </div>
+
+    <div>
+      <label for={id('insurancePolicyNumber')} class={labelClass}>Numéro de police d'assurance</label>
+      <input id={id('insurancePolicyNumber')} name="insurancePolicyNumber" type="text" class={inputClass} />
+    </div>
+
+    <div class="grid gap-5 sm:grid-cols-2">
+      <div>
+        <label for={id('incidentDate')} class={labelClass}>Moment du sinistre : Date</label>
+        <input id={id('incidentDate')} name="incidentDate" type="date" class={inputClass} />
+      </div>
+      <div>
+        <label for={id('incidentTime')} class={labelClass}>Moment du sinistre : Heure</label>
+        <input id={id('incidentTime')} name="incidentTime" type="time" class={inputClass} />
+      </div>
+    </div>
+
+    <div>
+      <label for={id('incidentPlace')} class={labelClass}>Lieu du sinistre</label>
+      <textarea id={id('incidentPlace')} name="incidentPlace" rows={2} class={inputClass}></textarea>
+    </div>
+
+    <div>
+      <label for={id('incidentCircumstances')} class={labelClass}>Circonstances du sinistre</label>
+      <textarea
+        id={id('incidentCircumstances')}
+        name="incidentCircumstances"
+        rows={5}
+        placeholder="Décrivez ce qui s'est passé : dégâts constatés, tiers impliqués, démarches déjà entreprises…"
+        class={inputClass}></textarea>
+    </div>
+  </fieldset>
+
+  <fieldset class={sectionClass}>
+    <legend class={legendClass}>Témoins</legend>
+
+    <div class="sm:max-w-xs">
+      <label for={id('witnessPresent')} class={labelClass}>Une personne a-t-elle été témoin de l'accident ? *</label>
+      <select id={id('witnessPresent')} name="witnessPresent" required data-toggle="witness" class={selectClass}>
+        <option value="no">Non</option>
+        <option value="yes">Oui</option>
+      </select>
+    </div>
+
+    <div data-section="witness" hidden class="space-y-5 rounded-2xl bg-white/50 p-5">
+      <p class="eyebrow text-ink-500">Informations sur le témoin</p>
+
+      <div class="grid gap-5 sm:grid-cols-3">
+        <div>
+          <label for={id('witnessTitle')} class={labelClass}>Titre</label>
+          <select id={id('witnessTitle')} name="witnessTitle" disabled class={selectClass}>
+            {titles.map((title) => <option value={title.value}>{title.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label for={id('witnessLastName')} class={labelClass}>Nom</label>
+          <input id={id('witnessLastName')} name="witnessLastName" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('witnessFirstName')} class={labelClass}>Prénom</label>
+          <input id={id('witnessFirstName')} name="witnessFirstName" type="text" disabled class={inputClass} />
+        </div>
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-[2fr_1fr_1fr]">
+        <div>
+          <label for={id('witnessStreet')} class={labelClass}>Rue</label>
+          <input id={id('witnessStreet')} name="witnessStreet" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('witnessStreetNumber')} class={labelClass}>Numéro</label>
+          <input id={id('witnessStreetNumber')} name="witnessStreetNumber" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('witnessBus')} class={labelClass}>Numéro de boîte</label>
+          <input id={id('witnessBus')} name="witnessBus" type="text" disabled class={inputClass} />
+        </div>
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-3">
+        <div>
+          <label for={id('witnessPostalCode')} class={labelClass}>Code postal</label>
+          <input id={id('witnessPostalCode')} name="witnessPostalCode" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('witnessCity')} class={labelClass}>Commune</label>
+          <input id={id('witnessCity')} name="witnessCity" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('witnessCountry')} class={labelClass}>Pays</label>
+          <select id={id('witnessCountry')} name="witnessCountry" disabled class={selectClass}>
+            {COUNTRIES.map((country) => <option value={country} selected={country === 'Belgique'}>{country}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div class="sm:max-w-xs">
+        <label for={id('witnessPhone')} class={labelClass}>Numéro de téléphone</label>
+        <input id={id('witnessPhone')} name="witnessPhone" type="tel" disabled class={inputClass} />
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class={sectionClass}>
+    <legend class={legendClass}>Partie adverse</legend>
+
+    <div class="sm:max-w-xs">
+      <label for={id('counterpartyPresent')} class={labelClass}>Existe-t-il une partie adverse ? *</label>
+      <select id={id('counterpartyPresent')} name="counterpartyPresent" required data-toggle="counterparty" class={selectClass}>
+        <option value="no">Non</option>
+        <option value="yes">Oui</option>
+      </select>
+    </div>
+
+    <div data-section="counterparty" hidden class="space-y-5 rounded-2xl bg-white/50 p-5">
+      <p class="eyebrow text-ink-500">Coordonnées de la partie adverse</p>
+
+      <div class="grid gap-5 sm:grid-cols-3">
+        <div>
+          <label for={id('counterpartyTitle')} class={labelClass}>Titre</label>
+          <select id={id('counterpartyTitle')} name="counterpartyTitle" disabled class={selectClass}>
+            {titles.map((title) => <option value={title.value}>{title.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label for={id('counterpartyLastName')} class={labelClass}>Nom</label>
+          <input id={id('counterpartyLastName')} name="counterpartyLastName" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('counterpartyFirstName')} class={labelClass}>Prénom</label>
+          <input id={id('counterpartyFirstName')} name="counterpartyFirstName" type="text" disabled class={inputClass} />
+        </div>
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-[2fr_1fr_1fr]">
+        <div>
+          <label for={id('counterpartyStreet')} class={labelClass}>Rue</label>
+          <input id={id('counterpartyStreet')} name="counterpartyStreet" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('counterpartyStreetNumber')} class={labelClass}>Numéro</label>
+          <input id={id('counterpartyStreetNumber')} name="counterpartyStreetNumber" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('counterpartyBus')} class={labelClass}>Numéro de boîte</label>
+          <input id={id('counterpartyBus')} name="counterpartyBus" type="text" disabled class={inputClass} />
+        </div>
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-3">
+        <div>
+          <label for={id('counterpartyPostalCode')} class={labelClass}>Code postal</label>
+          <input id={id('counterpartyPostalCode')} name="counterpartyPostalCode" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('counterpartyCity')} class={labelClass}>Commune</label>
+          <input id={id('counterpartyCity')} name="counterpartyCity" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('counterpartyCountry')} class={labelClass}>Pays</label>
+          <select id={id('counterpartyCountry')} name="counterpartyCountry" disabled class={selectClass}>
+            {COUNTRIES.map((country) => <option value={country} selected={country === 'Belgique'}>{country}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-3">
+        <div>
+          <label for={id('counterpartyPhone')} class={labelClass}>Numéro de téléphone</label>
+          <input id={id('counterpartyPhone')} name="counterpartyPhone" type="tel" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('counterpartyInsuranceCompany')} class={labelClass}>Compagnie d'assurance</label>
+          <input id={id('counterpartyInsuranceCompany')} name="counterpartyInsuranceCompany" type="text" disabled class={inputClass} />
+        </div>
+        <div>
+          <label for={id('counterpartyInsurancePolicyNumber')} class={labelClass}>Numéro de police d'assurance</label>
+          <input
+            id={id('counterpartyInsurancePolicyNumber')}
+            name="counterpartyInsurancePolicyNumber"
+            type="text"
+            disabled
+            class={inputClass}
+          />
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class={sectionClass}>
+    <legend class={legendClass}>Autres</legend>
+
+    <div>
+      <label for={id('remarks')} class={labelClass}>Remarques éventuelles</label>
+      <textarea id={id('remarks')} name="remarks" rows={4} class={inputClass}></textarea>
+    </div>
+
+    <div>
+      <label for={id('files')} class={labelClass}>Télécharger une photo ou un fichier</label>
+      <input
+        id={id('files')}
+        name="files"
+        type="file"
+        multiple
+        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,image/jpeg,image/png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        class="block w-full cursor-pointer rounded-xl bg-white px-4 py-3 text-sm text-ink-700 ring-1 ring-ink-200 file:mr-3 file:rounded-full file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink-700"
+        data-files
+      />
+      <span class={hintClass} data-files-hint>
+        Maximum 3 fichiers, 4 Mo par fichier et 6 Mo au total. Types autorisés : jpg, jpeg, png, pdf, doc, docx.
+      </span>
+    </div>
+  </fieldset>
+
+  <div class="flex items-start gap-3">
+    <input
+      id={id('consent')}
+      name="consent"
+      type="checkbox"
+      required
+      class="mt-0.5 h-5 w-5 rounded border-ink-300 text-pulse-600 focus:ring-pulse-500"
+    />
+    <label for={id('consent')} class="text-sm leading-relaxed text-ink-600">
+      {t.forms.consent}
+      <a href="/vie-privee" class="font-medium text-pulse-600 underline underline-offset-2">Politique de confidentialité</a>
+    </label>
+  </div>
+
+  <!-- Honeypot: hidden from humans, bots fill it -->
+  <div class="absolute -left-[9999px]" aria-hidden="true">
+    <label>
+      Ne pas remplir ce champ
+      <input type="text" name="url" tabindex="-1" autocomplete="off" />
+    </label>
+  </div>
+
+  <button type="submit" class="btn-primary w-full sm:w-auto" data-submit>
+    <span data-label>{t.forms.submit}</span>
+  </button>
+
+  <p class="hidden rounded-xl bg-mint-100 p-4 text-sm font-medium text-mint-700" data-status="success" role="status">
+    {t.forms.success}
+  </p>
+  <p class="hidden rounded-xl bg-coral-50 p-4 text-sm font-medium text-coral-800" data-status="error" role="alert">
+    {t.forms.error}
+  </p>
+
+
+
+</form>
+
+<script>
+  /** Human-readable file size for the picker hint. */
+  function formatSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} o`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  }
+
+  document.querySelectorAll<HTMLFormElement>('.declaration-form').forEach((form) => {
+    // The witness and third-party blocks only appear once the visitor answers
+    // "yes", and their inputs are enabled at the same moment, so a hidden block
+    // is never submitted as empty data.
+    const toggles = Array.from(form.querySelectorAll<HTMLSelectElement>('select[data-toggle]')).map((select) => {
+      const section = form.querySelector<HTMLElement>(`[data-section="${select.dataset.toggle}"]`)!;
+      const fields = Array.from(
+        section.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea')
+      );
+      const update = () => {
+        const on = select.value === 'yes';
+        section.hidden = !on;
+        for (const field of fields) field.disabled = !on;
+      };
+      select.addEventListener('change', update);
+      update();
+      return update;
+    });
+
+    const fileInput = form.querySelector<HTMLInputElement>('[data-files]');
+    const fileHint = form.querySelector<HTMLElement>('[data-files-hint]');
+    const defaultHint = fileHint?.textContent ?? '';
+    fileInput?.addEventListener('change', () => {
+      const files = Array.from(fileInput.files ?? []);
+      if (!fileHint) return;
+      if (files.length === 0) {
+        fileHint.textContent = defaultHint;
+        return;
+      }
+      const total = files.reduce((sum, file) => sum + file.size, 0);
+      fileHint.textContent = `${files.length} fichier(s) sélectionné(s) · ${formatSize(total)}`;
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector<HTMLButtonElement>('[data-submit]')!;
+      const label = btn.querySelector('[data-label]')!;
+      const success = form.querySelector('[data-status="success"]')!;
+      const error = form.querySelector('[data-status="error"]')!;
+      const initialLabel = label.textContent ?? 'Envoyer';
+      const initialError = error.textContent ?? '';
+      success.classList.add('hidden');
+      error.classList.add('hidden');
+      error.textContent = initialError;
+
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      btn.disabled = true;
+      label.textContent = 'Envoi en cours…';
+
+      try {
+        const res = await fetch('/api/declaration', { method: 'POST', body: new FormData(form) });
+        if (!res.ok) {
+          let message = `HTTP ${res.status}`;
+          try {
+            const data = await res.json();
+            if (typeof data?.error === 'string' && data.error) message = data.error;
+          } catch {
+            // keep fallback message
+          }
+          throw new Error(message);
+        }
+        form.reset();
+        for (const update of toggles) update();
+        if (fileHint) fileHint.textContent = defaultHint;
+        success.classList.remove('hidden');
+      } catch (err) {
+        if (err instanceof Error && err.message) error.textContent = err.message;
+        error.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        label.textContent = initialLabel;
+      }
+    });
+  });
+</script>

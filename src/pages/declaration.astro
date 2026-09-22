@@ -1,23 +1,19 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import InquiryForm from '../components/InquiryForm.astro';
+import DeclarationForm from '../components/DeclarationForm.astro';
 import PageHero from '../components/PageHero.astro';
 ---
 
 <BaseLayout
-  title="Déclarer un sinistre"
-  description="Déclarez votre sinistre en ligne : nous gérons le dossier auprès de la compagnie et défendons vos intérêts."
+  title="Déclaration"
+  description="Dommages à votre maison, votre voiture, … ? Déclarez votre sinistre en ligne : nous ouvrons le dossier auprès de la compagnie et suivons l’indemnisation avec vous."
 >
   <div class="page-shell">
-    <PageHero eyebrow="Sinistre" title="Nous reprenons le dossier avec vous." description="Décrivez ce qui s’est passé. Nous ouvrons le dossier, contactons la compagnie et suivons l’indemnisation avec vous." image="/images/photos/particulier-mobilite-auto.jpg" compact />
+    <PageHero eyebrow="Déclaration" title="Nous reprenons le dossier avec vous." description="Dommages à votre maison, votre voiture, … ? Remplissez le formulaire avec les informations correctes et nous vous contacterons dès que possible." image="/images/photos/particulier-mobilite-auto.jpg" compact />
 
   <div class="organic-form-layout">
     <section aria-label="Formulaire de déclaration" class="card p-6 sm:p-8">
-      <InquiryForm
-        formType="declaration"
-        messageLabel="Description du sinistre"
-        messagePlaceholder="Date, lieu, circonstances, dégâts constatés, éventuels tiers impliqués…"
-      />
+      <DeclarationForm />
     </section>
 
     <aside class="space-y-6">
