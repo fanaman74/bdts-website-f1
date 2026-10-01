@@ -10,7 +10,7 @@ import AdminIcon from '../components/AdminIcon.astro';
 
 interface Props {
   title: string;
-  active: 'dashboard' | 'messages' | 'declarations' | 'insurers' | 'users';
+  active: 'dashboard' | 'messages' | 'declarations' | 'insurers' | 'api' | 'users';
   search?: string;
   /** Where the header search box submits; each list page keeps its own filters. */
   searchAction?: string;
@@ -29,8 +29,12 @@ const tabs: Array<{ id: Props['active']; label: string; href: string }> = [
   { id: 'declarations', label: 'Déclarations', href: '/admin/declarations' },
   { id: 'insurers', label: 'Assureurs', href: '/admin/insurers' }
 ];
-// Account management is for the admin role only, so the tab stays hidden from collaborators.
-if (admin?.role === 'admin') tabs.push({ id: 'users', label: 'Utilisateurs', href: '/admin/users' });
+// Service tests and account management are for the admin role only, so these
+// tabs stay hidden from collaborators.
+if (admin?.role === 'admin') {
+  tabs.push({ id: 'api', label: 'API', href: '/admin/api' });
+  tabs.push({ id: 'users', label: 'Utilisateurs', href: '/admin/users' });
+}
 ---
 
 <!doctype html>
