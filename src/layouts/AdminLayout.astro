@@ -10,7 +10,7 @@ import AdminIcon from '../components/AdminIcon.astro';
 
 interface Props {
   title: string;
-  active: 'dashboard' | 'messages' | 'declarations';
+  active: 'dashboard' | 'messages' | 'declarations' | 'api';
   search?: string;
   /** Where the header search box submits; each list page keeps its own filters. */
   searchAction?: string;
@@ -25,7 +25,8 @@ const initials = operator.slice(0, 2).toUpperCase();
 const tabs: Array<{ id: Props['active']; label: string; href: string }> = [
   { id: 'dashboard', label: 'Dashboard', href: '/admin' },
   { id: 'messages', label: 'Messages', href: '/admin/messages' },
-  { id: 'declarations', label: 'Déclarations', href: '/admin/declarations' }
+  { id: 'declarations', label: 'Déclarations', href: '/admin/declarations' },
+  { id: 'api', label: 'API', href: '/admin/api' }
 ];
 ---
 
