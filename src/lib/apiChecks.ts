@@ -251,9 +251,11 @@ function assistantCheck(providerId: string): ApiCheck {
           const reason = response.status === 401 || response.status === 403 ? 'Clé refusée' : 'Requête refusée';
           return fail(reason, await httpError(provider.name, response), latencyMs);
         }
-        // DeepSeek says whether the balance still covers API calls.
-        const body = (await response.json().catch(() => ({}))) as { is_available?: boolean };
-        if (body.is_available === false) {
+        // DeepSeek says whether the balance still covers API calls; OpenRouter
+        // reports what is left of the key's spending limit (null = no limit).
+        const body = (await response.json().catch(() => ({}))) as { is_available?: boolean; data?: { limit_remaining?: number | null } };
+        const remaining = body.data?.limit_remaining;
+        if (body.is_available === false || (typeof remaining === 'number' && remaining <= 0)) {
           return { ok: true, summary: 'Clé acceptée', details: [], error: null, latencyMs, warning: 'Crédit épuisé' };
         }
         return { ok: true, summary: 'Clé acceptée', details: [], error: null, latencyMs };

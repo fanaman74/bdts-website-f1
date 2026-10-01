@@ -41,14 +41,15 @@ export const PROVIDERS: Record<string, AssistantProvider> = {
     // out of a supplied document rather than reasoning from scratch.
     extraBody: { thinking: { type: 'disabled' } }
   },
-  routera: {
-    id: 'routera',
-    name: 'Routera',
-    chatEndpoint: 'https://api.routera.one/v1/chat/completions',
-    keyEnvVar: 'ROUTERA_API_KEY',
-    defaultModel: 'openai/gpt-5.6-luna',
-    fallbackModels: ['qwen/qwen3.5-27b'],
-    statusEndpoint: 'https://api.routera.one/v1/balance'
+  openrouter: {
+    id: 'openrouter',
+    name: 'OpenRouter',
+    chatEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    keyEnvVar: 'OPENROUTER_API_KEY',
+    defaultModel: 'google/gemini-2.5-flash',
+    fallbackModels: ['openai/gpt-4o-mini', 'deepseek/deepseek-chat'],
+    // Describes the key (usage, remaining limit) without spending tokens.
+    statusEndpoint: 'https://openrouter.ai/api/v1/key'
   }
 };
 
@@ -65,7 +66,17 @@ export interface ResolvedAssistant {
 /** Reads the active provider and model from the admin-editable settings. */
 export async function resolveAssistant(): Promise<ResolvedAssistant> {
   const settings = await getSettings();
-  const provider = PROVIDERS[settings.assistant_provider] ?? PROVIDERS[DEFAULT_PROVIDER_ID]!;
+  const provider = PROVIDERS[settings.assistant_provider];
+  if (!provider) {
+    // A provider that no longer exists: its saved model means nothing to the
+    // default provider, so use that provider's own models.
+    const fallback = PROVIDERS[DEFAULT_PROVIDER_ID]!;
+    return {
+      provider: fallback,
+      apiKey: process.env[fallback.keyEnvVar]?.trim() || null,
+      chain: [fallback.defaultModel, ...fallback.fallbackModels]
+    };
+  }
 
   const apiKey = process.env[provider.keyEnvVar]?.trim() || null;
 

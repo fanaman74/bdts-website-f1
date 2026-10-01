@@ -13,8 +13,8 @@ function json(body: unknown): Response {
 /**
  * Reports whether the document assistant can reach its provider, for the status
  * box in the chat drawer. The API key is never returned, only whether the
- * provider accepted it. Routera's GET /balance is authenticated and spends no
- * tokens, so it proves the key without generating anything.
+ * provider accepted it. The provider's balance or key endpoint is authenticated
+ * and spends no tokens, so it proves the key without generating anything.
  */
 export const GET: APIRoute = async () => {
   const { provider, apiKey, chain } = await resolveAssistant();
@@ -46,11 +46,13 @@ export const GET: APIRoute = async () => {
       });
     }
 
-    // DeepSeek reports whether the balance actually covers API calls.
+    // DeepSeek reports whether the balance actually covers API calls;
+    // OpenRouter reports what is left of the key's spending limit.
     let hasCredit: boolean | null = null;
     try {
-      const body = (await response.json()) as { is_available?: boolean };
+      const body = (await response.json()) as { is_available?: boolean; data?: { limit_remaining?: number | null } };
       if (typeof body.is_available === 'boolean') hasCredit = body.is_available;
+      else if (typeof body.data?.limit_remaining === 'number') hasCredit = body.data.limit_remaining > 0;
     } catch {
       // Balance payloads differ per provider; missing detail is not an error.
     }
