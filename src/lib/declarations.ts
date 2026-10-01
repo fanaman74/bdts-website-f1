@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { getDbClient } from './db';
+import { toDeclarationLanguage, type DeclarationLanguage } from './declarationI18n';
 
 /**
  * Claim declarations submitted from /declaration.
@@ -92,6 +93,10 @@ export interface Declaration extends DeclarationInput {
   /** Insurer id from src/lib/insurers.ts, once matched or chosen. */
   insurer: string | null;
   insurerSource: InsurerSource | null;
+  /** The language the customer declared in, for emails sent to them. */
+  language: DeclarationLanguage;
+  /** The staff member following the claim, as typed in /admin. */
+  assignedTo: string | null;
   /** Only populated by getDeclaration(). */
   attachments: DeclarationAttachment[];
 }
@@ -205,13 +210,25 @@ function rowToInput(row: Record<string, unknown>): DeclarationInput {
  * The triage columns, read defensively: before migration 0008 has run they are
  * simply absent and the claim reads as not yet matched.
  */
-function insurerFields(row: Record<string, unknown>): Pick<Declaration, 'insurer' | 'insurerSource'> {
+function insurerFields(
+  row: Record<string, unknown>
+): Pick<Declaration, 'insurer' | 'insurerSource' | 'language' | 'assignedTo'> {
   const insurer = typeof row.insurer === 'string' && row.insurer ? row.insurer : null;
   const source = String(row.insurer_source ?? '');
   return {
+    language: toDeclarationLanguage(row.language),
+    assignedTo: typeof row.assigned_to === 'string' && row.assigned_to.trim() ? row.assigned_to : null,
     insurer,
     insurerSource: insurer && (INSURER_SOURCES as readonly string[]).includes(source) ? (source as InsurerSource) : null
   };
+}
+
+/**
+ * A timestamp column as ISO text, keeping milliseconds: going through
+ * String(Date) drops them, which reorders actions made in the same second.
+ */
+export function toIsoTimestamp(value: unknown): string {
+  return (value instanceof Date ? value : new Date(String(value))).toISOString();
 }
 
 function localIsoDate(date: Date): string {
@@ -225,7 +242,7 @@ function rowToAttachment(row: Record<string, unknown>): DeclarationAttachment {
     filename: String(row.filename),
     contentType: String(row.content_type),
     byteSize: Number(row.byte_size),
-    createdAt: new Date(String(row.created_at)).toISOString()
+    createdAt: toIsoTimestamp(row.created_at)
   };
 }
 
@@ -251,15 +268,16 @@ export function declarationTitleLabel(code: string | null): string {
  */
 export async function createDeclaration(
   input: DeclarationInput,
-  attachments: AttachmentInput[] = []
+  attachments: AttachmentInput[] = [],
+  language: DeclarationLanguage = 'fr'
 ): Promise<string | null> {
   const db = getDbClient();
   if (!db) return null;
 
   const id = randomUUID();
-  const columns = ['id', ...FIELDS.map(([column]) => column)];
+  const columns = ['id', 'language', ...FIELDS.map(([column]) => column)];
   const placeholders = columns.map((_, index) => `$${index + 1}`);
-  const values: unknown[] = [id, ...FIELDS.map(([, key]) => input[key])];
+  const values: unknown[] = [id, language, ...FIELDS.map(([, key]) => input[key])];
 
   const statements = [
     db.query(
@@ -341,9 +359,9 @@ export async function listDeclarations(filters: DeclarationFilters = {}): Promis
     id: String(row.id),
     ...rowToInput(row),
     status: String(row.status) as DeclarationStatus,
-    consentedAt: new Date(String(row.consented_at)).toISOString(),
-    createdAt: new Date(String(row.created_at)).toISOString(),
-    updatedAt: new Date(String(row.updated_at)).toISOString(),
+    consentedAt: toIsoTimestamp(row.consented_at),
+    createdAt: toIsoTimestamp(row.created_at),
+    updatedAt: toIsoTimestamp(row.updated_at),
     attachmentCount: Number(row.attachment_count ?? 0),
     imageCount: Number(row.image_count ?? 0),
     ...insurerFields(row),
@@ -374,9 +392,9 @@ export async function getDeclaration(id: string): Promise<Declaration | null> {
     id: String(row.id),
     ...rowToInput(row),
     status: String(row.status) as DeclarationStatus,
-    consentedAt: new Date(String(row.consented_at)).toISOString(),
-    createdAt: new Date(String(row.created_at)).toISOString(),
-    updatedAt: new Date(String(row.updated_at)).toISOString(),
+    consentedAt: toIsoTimestamp(row.consented_at),
+    createdAt: toIsoTimestamp(row.created_at),
+    updatedAt: toIsoTimestamp(row.updated_at),
     attachmentCount: attachments.length,
     imageCount: attachments.filter((attachment) => attachment.contentType.startsWith('image/')).length,
     ...insurerFields(row),
@@ -575,7 +593,7 @@ export async function listDeclarationForwards(declarationId: string): Promise<De
       sentBy: row.sent_by ? String(row.sent_by) : null,
       ok: Boolean(row.ok),
       error: row.error ? String(row.error) : null,
-      createdAt: new Date(String(row.created_at)).toISOString()
+      createdAt: toIsoTimestamp(row.created_at)
     }));
   } catch (error) {
     console.error('[declarations] Forward log read failed:', error instanceof Error ? error.message : error);

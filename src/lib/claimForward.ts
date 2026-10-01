@@ -4,7 +4,6 @@ import {
   getDeclarationAttachmentsWithContent,
   logDeclarationForward,
   setDeclarationInsurer,
-  updateDeclarationStatus,
   type Declaration,
   type InsurerSource
 } from './declarations';
@@ -12,6 +11,7 @@ import { declarationReference, formatDeclarationDate } from './declarationSummar
 import { renderDeclarationPdf } from './declarationPdf';
 import { declarationPdfFilename } from './declarationEmail';
 import { sendEmail } from './email';
+import { changeDeclarationStatus } from './claimTimeline';
 import { insurerName, parseEmailList, type ForwardSettings } from './insurers';
 
 /**
@@ -87,7 +87,8 @@ export type ForwardResult = { ok: true; to: string[] } | { ok: false; error: str
 
 /**
  * Sends the claim with its PDF summary and every attached file, logs the
- * attempt on the claim either way, and moves a new claim to "En cours".
+ * attempt on the claim either way, and moves a new claim to "En cours"
+ * (which emails the customer, see claimTimeline.ts).
  */
 export async function forwardDeclaration(
   declaration: Declaration,
@@ -156,7 +157,10 @@ export async function forwardDeclaration(
   if (declaration.insurer !== draft.insurer) {
     await setDeclarationInsurer(declaration.id, draft.insurer, options.insurerSource);
   }
-  if (declaration.status === 'new') await updateDeclarationStatus(declaration.id, 'in_progress');
+  // Sending a new claim to its insurer is taking it in hand: the customer is told.
+  if (declaration.status === 'new') {
+    await changeDeclarationStatus(declaration, 'in_progress', { author: options.sentBy, notify: true });
+  }
 
   console.info(`[forward] ${reference} sent to ${insurerName(draft.insurer)} (${to.join(', ')}).`);
   return { ok: true, to };
