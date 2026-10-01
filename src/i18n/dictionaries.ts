@@ -1,5 +1,7 @@
 import english from './generated/en.json';
 import dutch from './generated/nl.json';
+import reviewedEnglish from './reviewed/en.json';
+import reviewedDutch from './reviewed/nl.json';
 import { translationOverrides } from './overrides';
 import type { SiteLanguage } from './navigation';
 
@@ -7,9 +9,13 @@ import type { SiteLanguage } from './navigation';
 export const LOCALIZED_LANGUAGES = ['en', 'nl'] as const;
 export type LocalizedLanguage = (typeof LOCALIZED_LANGUAGES)[number];
 
+/**
+ * generated/ is machine output (scripts/generate-translations.py overwrites it);
+ * reviewed/ holds human-checked corrections that survive regeneration.
+ */
 export const dictionaries: Record<LocalizedLanguage, Record<string, string>> = {
-  en: { ...english, ...translationOverrides.en },
-  nl: { ...dutch, ...translationOverrides.nl }
+  en: { ...english, ...reviewedEnglish, ...translationOverrides.en },
+  nl: { ...dutch, ...reviewedDutch, ...translationOverrides.nl }
 };
 
 export function isLocalizedLanguage(value: string | null | undefined): value is LocalizedLanguage {
