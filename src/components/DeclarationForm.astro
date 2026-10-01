@@ -343,6 +343,9 @@ const id = (name: string) => `declaration-${name}`;
     </label>
   </div>
 
+  <!-- Language of the page, so the confirmation email and PDF match it. Set by the script below. -->
+  <input type="hidden" name="language" value="fr" data-language />
+
   <!-- Honeypot: hidden from humans, bots fill it -->
   <div class="absolute -left-[9999px]" aria-hidden="true">
     <label>
@@ -379,6 +382,9 @@ const id = (name: string) => `declaration-${name}`;
   }
 
   document.querySelectorAll<HTMLFormElement>('.declaration-form').forEach((form) => {
+    const languageInput = form.querySelector<HTMLInputElement>('[data-language]');
+    if (languageInput) languageInput.value = document.documentElement.lang || 'fr';
+
     // The witness and third-party blocks only appear once the visitor answers
     // "yes", and their inputs are enabled at the same moment, so a hidden block
     // is never submitted as empty data.

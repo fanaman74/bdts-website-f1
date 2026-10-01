@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import PDFDocument from 'pdfkit';
 import type { DeclarationInput } from './declarations';
 import { declarationSections } from './declarationSummary';
+import { DECLARATION_LOCALES, declarationText, type DeclarationLanguage } from './declarationI18n';
 
 /**
  * The PDF summary of a claim declaration, sent to the customer with their
@@ -14,6 +15,7 @@ export interface DeclarationPdfInput {
   submittedAt: Date;
   declaration: DeclarationInput;
   attachmentNames: string[];
+  language: DeclarationLanguage;
 }
 
 const BRAND = '#606c38';
@@ -75,19 +77,24 @@ function logoBytes(): Buffer | null {
   return null;
 }
 
-const stamp = (date: Date) =>
-  new Intl.DateTimeFormat('fr-BE', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Brussels' }).format(date);
+const stamp = (date: Date, language: DeclarationLanguage) =>
+  new Intl.DateTimeFormat(DECLARATION_LOCALES[language], {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Europe/Brussels'
+  }).format(date);
 
 export function renderDeclarationPdf(input: DeclarationPdfInput): Promise<Buffer> {
+  const t = (french: string, values?: Record<string, string | number>) => declarationText(input.language, french, values);
   const doc = new PDFDocument({
     size: 'A4',
     // The footer lives in the extra bottom margin, so flowing text never runs into it.
     margins: { top: PAGE_MARGIN, bottom: PAGE_MARGIN + FOOTER_SPACE, left: PAGE_MARGIN, right: PAGE_MARGIN },
     bufferPages: true,
     info: {
-      Title: `Déclaration de sinistre ${input.reference}`,
+      Title: `${t('Déclaration de sinistre')} ${input.reference}`,
       Author: 'BDTS',
-      Subject: 'Récapitulatif de déclaration de sinistre'
+      Subject: t('Récapitulatif de déclaration de sinistre')
     }
   });
 
@@ -122,26 +129,26 @@ export function renderDeclarationPdf(input: DeclarationPdfInput): Promise<Buffer
     .font('Helvetica-Bold')
     .fontSize(18)
     .fillColor(INK)
-    .text('Déclaration de sinistre', left, headerTop + 4, { width, align: 'right' });
+    .text(pdfSafe(t('Déclaration de sinistre')), left, headerTop + 4, { width, align: 'right' });
   doc
     .font('Helvetica')
     .fontSize(9.5)
     .fillColor(MUTED)
-    .text('Récapitulatif de votre déclaration en ligne', left, headerTop + 28, { width, align: 'right' });
+    .text(pdfSafe(t('Récapitulatif de votre déclaration en ligne')), left, headerTop + 28, { width, align: 'right' });
 
   doc.moveTo(left, headerTop + 60).lineTo(left + width, headerTop + 60).lineWidth(1.5).strokeColor(BRAND).stroke();
 
   // Reference panel.
   const panelTop = headerTop + 74;
   doc.roundedRect(left, panelTop, width, 48, 6).fillColor(PANEL).fill();
-  doc.font('Helvetica').fontSize(8.5).fillColor(MUTED).text('RÉFÉRENCE', left + 16, panelTop + 10);
+  doc.font('Helvetica').fontSize(8.5).fillColor(MUTED).text(pdfSafe(t('Référence').toUpperCase()), left + 16, panelTop + 10);
   doc.font('Helvetica-Bold').fontSize(14).fillColor(BRAND).text(input.reference, left + 16, panelTop + 22);
-  doc.font('Helvetica').fontSize(8.5).fillColor(MUTED).text('REÇUE LE', left + width / 2, panelTop + 10);
+  doc.font('Helvetica').fontSize(8.5).fillColor(MUTED).text(pdfSafe(t('Reçue le').toUpperCase()), left + width / 2, panelTop + 10);
   doc
     .font('Helvetica-Bold')
     .fontSize(11)
     .fillColor(INK)
-    .text(pdfSafe(stamp(input.submittedAt)), left + width / 2, panelTop + 24, { width: width / 2 - 16 });
+    .text(pdfSafe(stamp(input.submittedAt, input.language)), left + width / 2, panelTop + 24, { width: width / 2 - 16 });
 
   doc.y = panelTop + 66;
 
@@ -185,18 +192,18 @@ export function renderDeclarationPdf(input: DeclarationPdfInput): Promise<Buffer
     doc.y += 6;
   };
 
-  for (const section of declarationSections(input.declaration)) {
+  for (const section of declarationSections(input.declaration, input.language)) {
     if (section.rows.length === 0 && !section.note) continue;
     sectionHeading(section.title);
     if (section.note) note(section.note);
     for (const [label, value] of section.rows) row(label, value);
   }
 
-  sectionHeading('Pièces jointes');
+  sectionHeading(t('Pièces jointes'));
   if (input.attachmentNames.length === 0) {
-    note('Aucun fichier joint.');
+    note(t('Aucun fichier joint.'));
   } else {
-    input.attachmentNames.forEach((name, index) => row(`Fichier ${index + 1}`, name));
+    input.attachmentNames.forEach((name, index) => row(t('Fichier {n}', { n: index + 1 }), name));
   }
 
   ensureSpace(60);
@@ -206,7 +213,11 @@ export function renderDeclarationPdf(input: DeclarationPdfInput): Promise<Buffer
     .fontSize(9)
     .fillColor(MUTED)
     .text(
-      'Ce document reprend les informations que vous nous avez transmises via notre site. Il ne constitue pas une acceptation du sinistre par la compagnie d’assurance. Conservez la référence ci-dessus pour tout échange avec notre bureau.',
+      pdfSafe(
+        t(
+          'Ce document reprend les informations que vous nous avez transmises via notre site. Il ne constitue pas une acceptation du sinistre par la compagnie d’assurance. Conservez la référence ci-dessus pour tout échange avec notre bureau.'
+        )
+      ),
       left,
       doc.y,
       { width, lineGap: 1.5 }

@@ -8,6 +8,7 @@ import { declarationReference } from '../../lib/declarationSummary';
 import { renderDeclarationPdf } from '../../lib/declarationPdf';
 import { buildDeclarationConfirmation, declarationPdfFilename } from '../../lib/declarationEmail';
 import { isEmailConfigured, sendEmail } from '../../lib/email';
+import { toDeclarationLanguage, type DeclarationLanguage } from '../../lib/declarationI18n';
 
 export const prerender = false;
 
@@ -224,19 +225,30 @@ export const POST: APIRoute = async ({ request }) => {
   const reference = declarationReference(id);
   const attachments = attachmentResult.attachments;
 
-  let pdfBase64: string | null = null;
-  try {
-    const pdf = await renderDeclarationPdf({
-      reference,
-      submittedAt: new Date(),
-      declaration: d,
-      attachmentNames: attachments.map((attachment) => attachment.filename)
-    });
-    pdfBase64 = pdf.toString('base64');
-  } catch (error) {
-    console.error('[declaration] PDF summary failed:', error instanceof Error ? error.message : 'unknown error');
-  }
-  const pdfAttachment = pdfBase64 ? [{ filename: declarationPdfFilename(reference), contentBase64: pdfBase64 }] : undefined;
+  // The customer gets the email and PDF in the language they used on the site;
+  // the office always gets the French PDF.
+  const language = toDeclarationLanguage(form.get('language'));
+  const submittedAt = new Date();
+  const renderPdf = async (pdfLanguage: DeclarationLanguage): Promise<string | null> => {
+    try {
+      const pdf = await renderDeclarationPdf({
+        reference,
+        submittedAt,
+        declaration: d,
+        attachmentNames: attachments.map((attachment) => attachment.filename),
+        language: pdfLanguage
+      });
+      return pdf.toString('base64');
+    } catch (error) {
+      console.error('[declaration] PDF summary failed:', error instanceof Error ? error.message : 'unknown error');
+      return null;
+    }
+  };
+  const officePdfBase64 = await renderPdf('fr');
+  const pdfBase64 = language === 'fr' ? officePdfBase64 : await renderPdf(language);
+  const pdfAttachment = officePdfBase64
+    ? [{ filename: declarationPdfFilename(reference), contentBase64: officePdfBase64 }]
+    : undefined;
 
   // Without a provider and a From address the confirmation could not arrive, so
   // the visitor is not told one is on its way.
@@ -261,7 +273,7 @@ export const POST: APIRoute = async ({ request }) => {
       attachments: pdfAttachment
     }),
     canEmailCustomer
-      ? sendEmail(buildDeclarationConfirmation({ reference, declaration: d, attachmentCount: attachments.length, pdfBase64 }))
+      ? sendEmail(buildDeclarationConfirmation({ reference, declaration: d, attachmentCount: attachments.length, pdfBase64, language }))
       : Promise.resolve(null)
   ]);
 
