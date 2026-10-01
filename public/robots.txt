@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.bdts.be/sitemap-index.xml
+Sitemap: https://bdts-website-f1-production.up.railway.app/sitemap-index.xml

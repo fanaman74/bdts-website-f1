@@ -1,0 +1,199 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import {
+  DECLARATION_STATUSES,
+  DECLARATION_STATUS_LABELS,
+  declarationName,
+  declarationTitleLabel,
+  getDeclaration,
+  updateDeclarationStatus
+} from '../../../lib/declarations';
+
+export const prerender = false;
+
+const id = Astro.params.id ?? '';
+const declaration = id ? await getDeclaration(id) : null;
+
+// An unknown id (stale bookmark, deleted row) falls back to the list.
+if (!declaration) return Astro.redirect('/admin/declarations');
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  if (form.get('action') === 'status') {
+    await updateDeclarationStatus(declaration.id, String(form.get('status') ?? ''));
+  }
+  return Astro.redirect(`/admin/declarations/${declaration.id}?updated=1`);
+}
+
+const updated = Astro.url.searchParams.get('updated') === '1';
+
+const stamp = (date: Date) =>
+  new Intl.DateTimeFormat('fr-BE', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Brussels' }).format(date);
+
+/** Drops the empty lines so the detail view shows only what was filled in. */
+function filled(entries: Array<[string, string | null]>): Array<[string, string]> {
+  return entries
+    .map(([label, value]) => [label, (value ?? '').trim()] as [string, string])
+    .filter(([, value]) => value.length > 0);
+}
+
+/** Street, number and box on one line, the way it is read on an envelope. */
+function streetLine(street: string | null, number: string | null, bus: string | null): string | null {
+  const parts = [street, number].map((part) => part?.trim()).filter((part): part is string => Boolean(part));
+  if (parts.length === 0) return null;
+  const line = parts.join(' ');
+  return bus?.trim() ? `${line} bte ${bus.trim()}` : line;
+}
+
+const contactDetails: Array<[string, string | null]> = [
+  ['Titre', declarationTitleLabel(declaration.personTitle)],
+  ['Nom', declaration.lastName],
+  ['Prénom', declaration.firstName],
+  ['Date de naissance', declaration.dateOfBirth],
+  ['Adresse', streetLine(declaration.street, declaration.streetNumber, declaration.bus)],
+  ['Code postal', declaration.postalCode],
+  ['Commune', declaration.city],
+  ['Pays', declaration.country],
+  ['Société', declaration.company],
+  ['Téléphone fixe', declaration.phoneFixed],
+  ['GSM', declaration.phoneMobile],
+  ['Adresse e-mail', declaration.email]
+];
+
+const incidentDetails: Array<[string, string | null]> = [
+  ['Personne ou bien assuré', declaration.insuredPersonOrItem],
+  ['Numéro de police', declaration.insurancePolicyNumber],
+  ['Date du sinistre', declaration.incidentDate],
+  ['Heure du sinistre', declaration.incidentTime?.slice(0, 5) ?? null],
+  ['Lieu du sinistre', declaration.incidentPlace],
+  ['Circonstances', declaration.incidentCircumstances]
+];
+
+const witnessDetails: Array<[string, string | null]> = [
+  ['Titre', declarationTitleLabel(declaration.witnessTitle)],
+  ['Nom', declaration.witnessLastName],
+  ['Prénom', declaration.witnessFirstName],
+  ['Adresse', streetLine(declaration.witnessStreet, declaration.witnessStreetNumber, declaration.witnessBus)],
+  ['Code postal', declaration.witnessPostalCode],
+  ['Commune', declaration.witnessCity],
+  ['Pays', declaration.witnessCountry],
+  ['Téléphone', declaration.witnessPhone]
+];
+
+const counterpartyDetails: Array<[string, string | null]> = [
+  ['Titre', declarationTitleLabel(declaration.counterpartyTitle)],
+  ['Nom', declaration.counterpartyLastName],
+  ['Prénom', declaration.counterpartyFirstName],
+  ['Adresse', streetLine(declaration.counterpartyStreet, declaration.counterpartyStreetNumber, declaration.counterpartyBus)],
+  ['Code postal', declaration.counterpartyPostalCode],
+  ['Commune', declaration.counterpartyCity],
+  ['Pays', declaration.counterpartyCountry],
+  ['Téléphone', declaration.counterpartyPhone],
+  ["Compagnie d'assurance", declaration.counterpartyInsuranceCompany],
+  ['Numéro de police', declaration.counterpartyInsurancePolicyNumber]
+];
+
+const sections: Array<{ title: string; rows: Array<[string, string]>; note: string | null }> = [
+  { title: 'Mes informations de contact', rows: filled(contactDetails), note: null },
+  { title: 'Identification du sinistre', rows: filled(incidentDetails), note: null },
+  {
+    title: 'Témoin',
+    rows: declaration.witnessPresent ? filled(witnessDetails) : [],
+    note: declaration.witnessPresent ? null : 'Aucun témoin signalé.'
+  },
+  {
+    title: 'Partie adverse',
+    rows: declaration.counterpartyPresent ? filled(counterpartyDetails) : [],
+    note: declaration.counterpartyPresent ? null : 'Aucune partie adverse signalée.'
+  },
+  { title: 'Remarques', rows: filled([['Remarques éventuelles', declaration.remarks]]), note: null }
+];
+
+/** Human-readable attachment size, matching the picker hint on the form. */
+function fileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+---
+
+<AdminLayout title="Dossier sinistre" active="declarations">
+  <a href="/admin/declarations" class="text-xs text-[#d4a24c] underline-offset-2 hover:underline">← Toutes les déclarations</a>
+
+  <div class="mt-4 flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-4xl leading-none font-semibold tracking-tight uppercase">
+        <span class="mr-1 text-[#d4a24c]">/</span>{declarationName(declaration)}
+      </h1>
+      <p class="mt-3 text-sm text-[#8b908b]">
+        Déclaration reçue le {stamp(new Date(declaration.createdAt))} · référence {declaration.id}
+      </p>
+    </div>
+
+    <form method="post" class="flex items-center gap-2">
+      <input type="hidden" name="action" value="status" />
+      <label class="text-xs text-[#7f857f] uppercase" for="declaration-status">Statut</label>
+      <select
+        id="declaration-status"
+        name="status"
+        class="rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-1.5 text-sm text-[#c8c6c0] focus:border-[#d4a24c] focus:outline-none"
+      >
+        {DECLARATION_STATUSES.map((option) => (
+          <option value={option} selected={option === declaration.status}>{DECLARATION_STATUS_LABELS[option]}</option>
+        ))}
+      </select>
+      <button type="submit" class="rounded-lg bg-[#d4a24c] px-4 py-1.5 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">
+        Enregistrer
+      </button>
+    </form>
+  </div>
+
+  {updated && (
+    <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Statut mis à jour.</p>
+  )}
+
+  <div class="mt-8 grid gap-6 lg:grid-cols-2">
+    {sections.map((section) => (
+      <section class="rounded-xl border border-[#262a28] bg-[#111312] px-5 py-5">
+        <h2 class="text-xs tracking-[.12em] text-[#7f857f] uppercase">{section.title}</h2>
+        {section.note && <p class="mt-3 text-sm text-[#6d726d]">{section.note}</p>}
+        {section.rows.length > 0 && (
+          <dl class="mt-4 space-y-2.5">
+            {section.rows.map(([label, value]) => (
+              <div class="grid gap-1 sm:grid-cols-[190px_minmax(0,1fr)] sm:gap-4">
+                <dt class="text-xs text-[#7f857f]">{label}</dt>
+                <dd class="text-sm whitespace-pre-line text-[#e8e6e1]">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </section>
+    ))}
+  </div>
+
+  <section class="mt-6 rounded-xl border border-[#262a28] bg-[#111312] px-5 py-5">
+    <h2 class="text-xs tracking-[.12em] text-[#7f857f] uppercase">Pièces jointes</h2>
+    {declaration.attachments.length === 0 && <p class="mt-3 text-sm text-[#6d726d]">Aucun fichier joint.</p>}
+    {declaration.attachments.length > 0 && (
+      <ul class="mt-4 space-y-2">
+        {declaration.attachments.map((attachment) => (
+          <li class="flex flex-wrap items-center gap-3 rounded-lg border border-[#212524] bg-[#141716] px-4 py-2.5">
+            <a
+              href={`/admin/declarations/attachment/${attachment.id}`}
+              class="text-sm text-[#d4a24c] underline-offset-2 hover:underline"
+            >
+              {attachment.filename}
+            </a>
+            <span class="text-[11px] text-[#6d726d]">{fileSize(attachment.byteSize)} · {attachment.contentType}</span>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+
+  <p class="mt-6 text-[11px] leading-5 text-[#6d726d]">
+    Consentement à la politique de confidentialité enregistré le {stamp(new Date(declaration.consentedAt))}. Dernière mise à
+    jour du dossier le {stamp(new Date(declaration.updatedAt))}.
+  </p>
+</AdminLayout>
+

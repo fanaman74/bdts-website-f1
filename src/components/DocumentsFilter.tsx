@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'preact/hooks';
-import { getDocumentAccessMeta } from '../lib/documentAccess';
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import { canUseDocumentAssistant, getDocumentAccessMeta } from '../lib/documentAccess';
 import DocumentChat from './DocumentChat';
 
 export interface DocumentItem {
@@ -110,6 +110,44 @@ function domainLabel(value: string): string {
   return DOMAIN_LABEL[value] ?? (value.trim() || 'Autres');
 }
 
+type InterfaceLanguage = 'fr' | 'nl' | 'en';
+
+const CONTROL_TEXT: Record<InterfaceLanguage, {
+  assistant: string;
+  synced: string;
+  accessActions: Record<string, string>;
+}> = {
+  fr: {
+    assistant: 'Ouvrir l’assistant pour',
+    synced: 'Catalogue synchronisé le',
+    accessActions: {}
+  },
+  nl: {
+    assistant: 'Assistent openen voor',
+    synced: 'Catalogus gesynchroniseerd op',
+    accessActions: {
+      'Demander le document': 'Document aanvragen',
+      'Accéder au portail': 'Naar het portaal',
+      'Voir la page': 'Pagina bekijken',
+      Télécharger: 'Downloaden',
+      'Ouvrir le PDF': 'PDF openen',
+      'Voir le document': 'Document bekijken'
+    }
+  },
+  en: {
+    assistant: 'Open the assistant for',
+    synced: 'Catalogue synced on',
+    accessActions: {
+      'Demander le document': 'Request document',
+      'Accéder au portail': 'Open portal',
+      'Voir la page': 'View page',
+      Télécharger: 'Download',
+      'Ouvrir le PDF': 'Open PDF',
+      'Voir le document': 'View document'
+    }
+  }
+};
+
 function PdfIcon() {
   return (
     <svg class="h-8 w-8 shrink-0 text-[#c08e3a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -119,21 +157,24 @@ function PdfIcon() {
   );
 }
 
-function DocumentRow({ document, onChat }: { document: DocumentItem; onChat: (document: DocumentItem) => void }) {
+function DocumentRow({ document, onChat, interfaceLanguage }: { document: DocumentItem; onChat: (document: DocumentItem) => void; interfaceLanguage: InterfaceLanguage }) {
   const access = getDocumentAccessMeta(document.source, document.fileUrl, document.externalUrl);
+  const assistantAvailable = canUseDocumentAssistant(document.source, document.fileUrl, document.externalUrl);
   const unavailable = access.accessLabel === 'Document sur demande';
   const contactHref = `/contact?document=${encodeURIComponent(document.title)}`;
+  const controls = CONTROL_TEXT[interfaceLanguage];
+  const accessAction = controls.accessActions[access.actionLabel] ?? access.actionLabel;
 
   return (
     <article class="group flex items-center gap-3 rounded-2xl border border-[#d8cbb6] bg-[#f2e9d9] px-4 py-4 transition-all duration-200 hover:translate-x-0.5 hover:border-[#c08e3a] hover:shadow-sm sm:gap-4">
       <PdfIcon />
 
       <div class="min-w-0 flex-1">
-        <h3 class="line-clamp-2 text-sm font-semibold leading-snug text-[#2f2b24]">{document.title}</h3>
-        <p class="mt-1 truncate text-xs text-[#766952]">{document.productType || document.category}</p>
+        <h3 data-no-translate class="line-clamp-2 text-sm font-semibold leading-snug text-[#2f2b24]">{document.title}</h3>
+        <p data-no-translate={document.productType ? true : undefined} class="mt-1 truncate text-xs text-[#766952]">{document.productType || document.category}</p>
       </div>
 
-      <span class={`hidden min-w-[110px] shrink-0 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap sm:inline-flex ${COMPANY_COLOR[document.partner] ?? 'bg-[#606c38] text-[#f2e9d9]'}`}>
+      <span data-no-translate class={`hidden min-w-[110px] shrink-0 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap sm:inline-flex ${COMPANY_COLOR[document.partner] ?? 'bg-[#606c38] text-[#f2e9d9]'}`}>
         {document.partner}
       </span>
 
@@ -141,11 +182,11 @@ function DocumentRow({ document, onChat }: { document: DocumentItem; onChat: (do
         {TYPE_LABEL[document.documentType] ?? document.documentType}
       </span>
 
-      <button type="button" onClick={() => onChat(document)} class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-600 transition-colors hover:border-sky-300 hover:bg-sky-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500" aria-label={`Ouvrir l’assistant pour ${document.title}`} aria-haspopup="dialog">
+      {assistantAvailable && <button type="button" onClick={() => onChat(document)} class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-600 transition-colors hover:border-sky-300 hover:bg-sky-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500" aria-label={`${controls.assistant} ${document.title}`} aria-haspopup="dialog">
         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-      </button>
+      </button>}
 
-      <a href={unavailable ? contactHref : access.href} target={access.opensExternally && !unavailable ? '_blank' : undefined} rel={access.opensExternally && !unavailable ? 'noopener noreferrer' : undefined} class={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors ${unavailable ? 'border-[#cbb990] bg-[#e8dcc7] text-[#766952] hover:bg-[#d4b895]' : 'border-orange-200 bg-orange-50 text-orange-600 hover:border-orange-300 hover:bg-orange-100'}`} aria-label={`${access.actionLabel} : ${document.title}`} title={access.actionLabel}>
+      <a href={unavailable ? contactHref : access.href} target={access.opensExternally && !unavailable ? '_blank' : undefined} rel={access.opensExternally && !unavailable ? 'noopener noreferrer' : undefined} class={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors ${unavailable ? 'border-[#cbb990] bg-[#e8dcc7] text-[#766952] hover:bg-[#d4b895]' : 'border-orange-200 bg-orange-50 text-orange-600 hover:border-orange-300 hover:bg-orange-100'}`} aria-label={`${accessAction} : ${document.title}`} title={accessAction}>
         {unavailable ? <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM4 7l8 6 8-6" /></svg> : <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" /></svg>}
       </a>
     </article>
@@ -153,7 +194,7 @@ function DocumentRow({ document, onChat }: { document: DocumentItem; onChat: (do
 }
 
 export default function DocumentsFilter({ documents, syncedAt }: Props) {
-  const interfaceLanguage = typeof document === 'undefined' ? 'fr' : document.documentElement.lang;
+  const [interfaceLanguage, setInterfaceLanguage] = useState<InterfaceLanguage>('fr');
   const numberLocale = interfaceLanguage === 'nl' ? 'nl-BE' : interfaceLanguage === 'en' ? 'en-BE' : 'fr-BE';
   const [search, setSearch] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('Tous');
@@ -162,6 +203,11 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
   const [selectedYear, setSelectedYear] = useState('Toutes');
   const [page, setPage] = useState(1);
   const [activeDocument, setActiveDocument] = useState<DocumentItem | null>(null);
+
+  useEffect(() => {
+    const language = document.documentElement.lang;
+    if (language === 'nl' || language === 'en') setInterfaceLanguage(language);
+  }, []);
 
   const domainCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -233,7 +279,7 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
       <div class="flex flex-wrap items-center gap-3">
         <label class="sr-only" for="documents-partner">Compagnie</label>
         <select id="documents-partner" value={selectedPartner} onChange={(event) => updateFilter(setSelectedPartner, (event.target as HTMLSelectElement).value)} class={selectClass}>
-          {partners.map((partner) => <option key={partner} value={partner}>{partner === 'Tous' ? 'Toutes les compagnies' : partner}</option>)}
+          {partners.map((partner) => <option key={partner} value={partner} data-no-translate={partner === 'Tous' ? undefined : true}>{partner === 'Tous' ? 'Toutes les compagnies' : partner}</option>)}
         </select>
 
         <label class="sr-only" for="documents-type">Type de document</label>
@@ -246,7 +292,7 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
           {years.map((year) => <option key={year} value={year}>{year === 'Toutes' ? 'Toutes les années' : year}</option>)}
         </select>
 
-        {syncedAt && <p class="ml-auto text-xs text-[#766952]">Catalogue synchronisé le {new Date(syncedAt).toLocaleDateString('fr-BE')}</p>}
+        {syncedAt && <p class="ml-auto text-xs text-[#766952]">{CONTROL_TEXT[interfaceLanguage].synced} {new Date(syncedAt).toLocaleDateString(numberLocale)}</p>}
       </div>
 
       <p class="text-sm text-[#766952]" role="status" aria-live="polite">
@@ -259,7 +305,7 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
               : `${(pageStart + 1).toLocaleString(numberLocale)}–${pageEnd.toLocaleString(numberLocale)} sur ${filtered.length.toLocaleString(numberLocale)} documents`}
       </p>
 
-      {filtered.length === 0 ? <div class="rounded-2xl bg-[#e8dcc7] p-10 text-center"><p class="font-semibold text-[#2f2b24]">Aucun document ne correspond à votre recherche.</p><button type="button" class="mt-4 text-sm font-semibold text-[#606c38] underline" onClick={() => { setSearch(''); setSelectedDomain('Tous'); setSelectedPartner('Tous'); setSelectedType('Tous'); setSelectedYear('Toutes'); setPage(1); }}>Réinitialiser les filtres</button></div> : <div class="space-y-2">{pageDocuments.map((document) => <DocumentRow key={document.id} document={document} onChat={setActiveDocument} />)}</div>}
+      {filtered.length === 0 ? <div class="rounded-2xl bg-[#e8dcc7] p-10 text-center"><p class="font-semibold text-[#2f2b24]">Aucun document ne correspond à votre recherche.</p><button type="button" class="mt-4 text-sm font-semibold text-[#606c38] underline" onClick={() => { setSearch(''); setSelectedDomain('Tous'); setSelectedPartner('Tous'); setSelectedType('Tous'); setSelectedYear('Toutes'); setPage(1); }}>Réinitialiser les filtres</button></div> : <div class="space-y-2">{pageDocuments.map((document) => <DocumentRow key={document.id} document={document} onChat={setActiveDocument} interfaceLanguage={interfaceLanguage} />)}</div>}
 
       {totalPages > 1 && <nav class="flex items-center justify-center gap-1.5" aria-label="Pagination des documents">
         <button type="button" onClick={() => setPage(Math.max(1, safePage - 1))} disabled={safePage === 1} class="rounded-xl border border-[#d8cbb6] bg-[#f2e9d9] px-3 py-2 text-sm font-medium text-[#2f2b24] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Page précédente">←</button>
