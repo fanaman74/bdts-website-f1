@@ -19,6 +19,22 @@ export interface CheckResult {
   /** Bounded error text when the check failed. */
   error: string | null;
   latencyMs: number | null;
+  /** The service is not set up (no key or variable), as opposed to failing. */
+  notConfigured?: boolean;
+  /** Works, but something needs attention (unverified domain, slow…). */
+  warning?: string;
+}
+
+/** Traffic-light status: green works, orange needs attention, red fails. */
+export type CheckLevel = 'ok' | 'warn' | 'fail';
+
+/** Above this a working service is shown orange rather than green. */
+export const SLOW_MS = 3_000;
+
+export function checkLevel(result: CheckResult): CheckLevel {
+  if (!result.ok) return result.notConfigured ? 'warn' : 'fail';
+  if (result.warning || (result.latencyMs !== null && result.latencyMs > SLOW_MS)) return 'warn';
+  return 'ok';
 }
 
 export interface ApiCheck {
@@ -30,6 +46,11 @@ export interface ApiCheck {
   /** True when this check sends a real email and needs a recipient. */
   needsRecipient?: boolean;
   run(input: { recipient?: string }): Promise<CheckResult>;
+  /**
+   * Cheap variant run automatically when the page loads: never sends email
+   * and never spends tokens. Defaults to `run` when absent.
+   */
+  probe?(): Promise<CheckResult>;
 }
 
 const TIMEOUT_MS = 15_000;
@@ -45,6 +66,10 @@ function cleanError(caught: unknown): string {
     .replace(/postgres(ql)?:\/\/[^\s'"]+/gi, 'postgresql://…')
     .replace(/\b(sk|re|xkeysib)[-_][A-Za-z0-9_-]{8,}/g, '$1-…')
     .slice(0, 300);
+}
+
+function notConfigured(summary: string, error: string, details: string[] = []): CheckResult {
+  return { ok: false, notConfigured: true, summary, details, error, latencyMs: null };
 }
 
 function fail(summary: string, error: string | null, latencyMs: number | null = null, details: string[] = []): CheckResult {
@@ -69,12 +94,12 @@ const databaseCheck: ApiCheck = {
   description: 'Exécute une requête de lecture et vérifie que les tables du site existent.',
   envVars: ['DATABASE_URL'],
   async run() {
-    if (!has('DATABASE_URL')) return fail('Non configurée', 'DATABASE_URL n’est pas défini.');
+    if (!has('DATABASE_URL')) return notConfigured('Non configurée', 'DATABASE_URL n’est pas défini.');
 
     const started = performance.now();
     try {
       const db = getDbClient();
-      if (!db) return fail('Non configurée', 'DATABASE_URL n’est pas défini.');
+      if (!db) return notConfigured('Non configurée', 'DATABASE_URL n’est pas défini.');
 
       const rows = await db.query(
         `select current_database() as database, split_part(version(), ' ', 2) as version,
@@ -107,10 +132,10 @@ const emailKeyCheck: ApiCheck = {
     const details = [`Fournisseur : ${status.provider}`, `Expéditeur : ${status.from ?? 'non défini'}`, ...status.problems.map((p) => `À corriger : ${p}`)];
 
     if (!provider.apiKeyEnv) {
-      return fail('Aucun fournisseur', 'Aucune clé d’e-mail n’est configurée : les messages sont seulement écrits dans les logs.', null, details);
+      return notConfigured('Aucun fournisseur', 'Aucune clé d’e-mail n’est configurée : les messages sont seulement écrits dans les logs.', details);
     }
     const apiKey = process.env[provider.apiKeyEnv]?.trim();
-    if (!apiKey) return fail('Non configurée', `${provider.apiKeyEnv} n’est pas défini.`, null, details);
+    if (!apiKey) return notConfigured('Non configurée', `${provider.apiKeyEnv} n’est pas défini.`, details);
 
     // Resend: GET /domains also lists whether the sending domain is verified.
     // Brevo: GET /account is the documented key check.
@@ -128,7 +153,7 @@ const emailKeyCheck: ApiCheck = {
         // A "sending access" key is valid but may not list domains.
         const body = await response.text().catch(() => '');
         if (body.includes('restricted_api_key')) {
-          return { ok: true, summary: 'Clé acceptée (envoi uniquement)', details, error: null, latencyMs };
+          return { ok: true, summary: 'Clé acceptée (envoi uniquement)', details, error: null, latencyMs, warning: status.problems[0] };
         }
         return fail('Clé refusée', cleanError(`Resend HTTP 401 : ${body.slice(0, 200)}`), latencyMs, details);
       }
@@ -137,8 +162,10 @@ const emailKeyCheck: ApiCheck = {
       if (provider.id === 'resend') {
         const body = (await response.json().catch(() => ({}))) as { data?: Array<{ name?: string; status?: string }> };
         for (const domain of body.data ?? []) details.push(`Domaine ${domain.name} : ${domain.status}`);
+        const unverified = (body.data ?? []).find((domain) => domain.status !== 'verified');
+        if (unverified) return { ok: true, summary: 'Clé acceptée', details, error: null, latencyMs, warning: `Domaine ${unverified.name} non vérifié` };
       }
-      return { ok: true, summary: 'Clé acceptée', details, error: null, latencyMs };
+      return { ok: true, summary: 'Clé acceptée', details, error: null, latencyMs, warning: status.problems[0] };
     } catch (caught) {
       return fail('Fournisseur injoignable', cleanError(caught), null, details);
     }
@@ -151,6 +178,8 @@ const emailSendCheck: ApiCheck = {
   description: 'Envoie un vrai message de test à l’adresse indiquée, avec la configuration utilisée par le site.',
   envVars: ['RESEND_API_KEY', 'BREVO_API_KEY', 'EMAIL_PROVIDER', 'EMAIL_FROM'],
   needsRecipient: true,
+  // On page load, prove the key instead of sending anything.
+  probe: () => emailKeyCheck.run({}),
   async run({ recipient }) {
     const to = recipient?.trim() ?? '';
     if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(to)) return fail('Adresse invalide', 'Indiquez une adresse e-mail valide.');
@@ -192,7 +221,7 @@ const inquiryAlertCheck: ApiCheck = {
 
     const missing = [!has('RESEND_API_KEY') && 'RESEND_API_KEY', !recipients.length && 'INQUIRY_NOTIFY_TO'].filter(Boolean);
     if (missing.length) {
-      return fail('Alerte désactivée', `${missing.join(' et ')} ${missing.length > 1 ? 'ne sont pas définis' : 'n’est pas défini'} : les demandes sont enregistrées mais le bureau n’est pas prévenu.`, null, details);
+      return notConfigured('Alerte désactivée', `${missing.join(' et ')} ${missing.length > 1 ? 'ne sont pas définis' : 'n’est pas défini'} : les demandes sont enregistrées mais le bureau n’est pas prévenu.`, details);
     }
     return { ok: true, summary: 'Configurée', details: [...details, 'Pour un envoi réel, utilisez « E-mail — envoi de test ».'], error: null, latencyMs: null };
   }
@@ -206,6 +235,32 @@ function assistantCheck(providerId: string): ApiCheck {
     name: `Assistant documents — ${provider.name}`,
     description: 'Demande une très courte réponse au modèle configuré (quelques jetons facturés).',
     envVars: [provider.keyEnvVar],
+    // The provider's balance endpoint is authenticated but spends no tokens.
+    async probe() {
+      const apiKey = process.env[provider.keyEnvVar]?.trim();
+      if (!apiKey) return notConfigured('Non configuré', `${provider.keyEnvVar} n’est pas défini.`);
+
+      try {
+        const { value: response, latencyMs } = await timed(() =>
+          fetch(provider.statusEndpoint, { headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(TIMEOUT_MS) })
+        );
+        if (response.status === 404 || response.status === 405) {
+          return { ok: true, summary: 'Clé présente, non vérifiée', details: [], error: null, latencyMs, warning: 'Cliquez sur Tester pour vérifier le modèle.' };
+        }
+        if (!response.ok) {
+          const reason = response.status === 401 || response.status === 403 ? 'Clé refusée' : 'Requête refusée';
+          return fail(reason, await httpError(provider.name, response), latencyMs);
+        }
+        // DeepSeek says whether the balance still covers API calls.
+        const body = (await response.json().catch(() => ({}))) as { is_available?: boolean };
+        if (body.is_available === false) {
+          return { ok: true, summary: 'Clé acceptée', details: [], error: null, latencyMs, warning: 'Crédit épuisé' };
+        }
+        return { ok: true, summary: 'Clé acceptée', details: [], error: null, latencyMs };
+      } catch (caught) {
+        return fail('Fournisseur injoignable', cleanError(caught));
+      }
+    },
     async run() {
       const assistant = await resolveAssistant();
       const active = assistant.provider.id === provider.id;
@@ -214,7 +269,7 @@ function assistantCheck(providerId: string): ApiCheck {
       const details = [active ? 'Fournisseur actif' : 'Fournisseur de secours (non actif)', `Modèle : ${model}`];
 
       const apiKey = process.env[provider.keyEnvVar]?.trim();
-      if (!apiKey) return fail('Non configuré', `${provider.keyEnvVar} n’est pas défini.`, null, details);
+      if (!apiKey) return notConfigured('Non configuré', `${provider.keyEnvVar} n’est pas défini.`, details);
 
       try {
         const { value: response, latencyMs } = await timed(() =>
@@ -256,21 +311,22 @@ export const API_CHECKS: ApiCheck[] = [
   ...Object.keys(ASSISTANT_PROVIDERS).map(assistantCheck)
 ];
 
-export function findCheck(id: string): ApiCheck | undefined {
-  return API_CHECKS.find((check) => check.id === id);
+let probeCache: { at: number; results: Map<string, CheckResult> } | null = null;
+const PROBE_CACHE_MS = 60_000;
+
+/**
+ * Runs every cheap probe in parallel for the status dots. Cached for a minute
+ * so reloading the page does not hammer the providers.
+ */
+export async function probeAll(): Promise<Map<string, CheckResult>> {
+  if (probeCache && Date.now() - probeCache.at < PROBE_CACHE_MS) return probeCache.results;
+
+  const outcomes = await Promise.all(API_CHECKS.map((check) => (check.probe ? check.probe() : check.run({}))));
+  const results = new Map(API_CHECKS.map((check, index) => [check.id, outcomes[index]!]));
+  probeCache = { at: Date.now(), results };
+  return results;
 }
 
-/** Whether each check's variables are present, for the list (no network). */
-export function isCheckConfigured(check: ApiCheck): boolean {
-  switch (check.id) {
-    case 'database':
-      return has('DATABASE_URL');
-    case 'email-key':
-    case 'email-send':
-      return Boolean(emailProvider().apiKeyEnv && has(emailProvider().apiKeyEnv!));
-    case 'inquiry-alert':
-      return has('RESEND_API_KEY') && has('INQUIRY_NOTIFY_TO');
-    default:
-      return check.envVars.every(has);
-  }
+export function findCheck(id: string): ApiCheck | undefined {
+  return API_CHECKS.find((check) => check.id === id);
 }
