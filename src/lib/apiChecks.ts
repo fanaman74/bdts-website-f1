@@ -1,6 +1,8 @@
 import { getDbClient } from './db';
 import { emailProvider, emailStatus, sendEmail } from './email';
-import { PROVIDERS as ASSISTANT_PROVIDERS, resolveAssistant } from './assistantProvider';
+import { customProvider, PROVIDERS as ASSISTANT_PROVIDERS, resolveAssistant, type AssistantProvider } from './assistantProvider';
+import { createRateLimiter } from './rateLimit';
+import { customApiKey, listCustomApis, type CustomApi } from './customApis';
 
 /**
  * Live checks for the external services the site depends on, run from the
@@ -45,6 +47,8 @@ export interface ApiCheck {
   envVars: string[];
   /** True when this check sends a real email and needs a recipient. */
   needsRecipient?: boolean;
+  /** The API added from this page that the check tests, when it is one. */
+  customApi?: CustomApi;
   run(input: { recipient?: string }): Promise<CheckResult>;
   /**
    * Cheap variant run automatically when the page loads: never sends email
@@ -55,13 +59,17 @@ export interface ApiCheck {
 
 const TIMEOUT_MS = 15_000;
 
+/** Saving, deleting and paid tests on the API page, capped per admin. */
+export const checkApiPageLimit = createRateLimiter([{ windowMs: 60_000, limit: 30 }]);
+
 function has(name: string): boolean {
   return Boolean(process.env[name]?.trim());
 }
 
 /** Error text safe to show: bounded, with anything key-shaped masked. */
-function cleanError(caught: unknown): string {
-  const message = caught instanceof Error ? caught.message : String(caught);
+function cleanError(caught: unknown, secret?: string | null): string {
+  let message = caught instanceof Error ? caught.message : String(caught);
+  if (secret && secret.length >= 6) message = message.split(secret).join('…');
   return message
     .replace(/postgres(ql)?:\/\/[^\s'"]+/gi, 'postgresql://…')
     .replace(/\b(sk|re|xkeysib)[-_][A-Za-z0-9_-]{8,}/g, '$1-…')
@@ -83,9 +91,9 @@ async function timed<T>(work: () => Promise<T>): Promise<{ value: T; latencyMs: 
 }
 
 /** Reads a provider's error body without letting it grow unbounded. */
-async function httpError(service: string, response: Response): Promise<string> {
+async function httpError(service: string, response: Response, secret?: string | null): Promise<string> {
   const body = await response.text().catch(() => '');
-  return cleanError(`${service} HTTP ${response.status}${body ? ` : ${body.slice(0, 200)}` : ''}`);
+  return cleanError(`${service} HTTP ${response.status}${body ? ` : ${body.slice(0, 200)}` : ''}`, secret);
 }
 
 const databaseCheck: ApiCheck = {
@@ -227,18 +235,26 @@ const inquiryAlertCheck: ApiCheck = {
   }
 };
 
-/** One check per assistant provider, so a backup can be tested before switching. */
-function assistantCheck(providerId: string): ApiCheck {
-  const provider = ASSISTANT_PROVIDERS[providerId]!;
+/**
+ * One check per assistant provider, built-in or added from this page, so a
+ * backup can be tested before switching.
+ */
+function assistantCheck(provider: AssistantProvider, readKey: () => string | null, customApi?: CustomApi): ApiCheck {
+  const missingKey = provider.custom
+    ? 'La clé enregistrée ne peut plus être déchiffrée (secret de chiffrement modifié) : saisissez-la à nouveau.'
+    : `${provider.keyEnvVar} n’est pas défini.`;
   return {
-    id: `assistant-${provider.id}`,
+    id: `assistant-${provider.id.replace(':', '-')}`,
     name: `Assistant documents — ${provider.name}`,
-    description: 'Demande une très courte réponse au modèle configuré (quelques jetons facturés).',
-    envVars: [provider.keyEnvVar],
-    // The provider's balance endpoint is authenticated but spends no tokens.
+    description: provider.custom
+      ? `API ajoutée depuis cette page (${new URL(provider.chatEndpoint).host}). Tester demande une très courte réponse au modèle (quelques jetons facturés).`
+      : 'Demande une très courte réponse au modèle configuré (quelques jetons facturés).',
+    envVars: provider.custom ? [] : [provider.keyEnvVar],
+    customApi,
+    // The provider's balance, key or model-list endpoint is authenticated but spends no tokens.
     async probe() {
-      const apiKey = process.env[provider.keyEnvVar]?.trim();
-      if (!apiKey) return notConfigured('Non configuré', `${provider.keyEnvVar} n’est pas défini.`);
+      const apiKey = readKey();
+      if (!apiKey) return notConfigured('Non configuré', missingKey);
 
       try {
         const { value: response, latencyMs } = await timed(() =>
@@ -249,7 +265,7 @@ function assistantCheck(providerId: string): ApiCheck {
         }
         if (!response.ok) {
           const reason = response.status === 401 || response.status === 403 ? 'Clé refusée' : 'Requête refusée';
-          return fail(reason, await httpError(provider.name, response), latencyMs);
+          return fail(reason, await httpError(provider.name, response, apiKey), latencyMs);
         }
         // DeepSeek says whether the balance still covers API calls; OpenRouter
         // reports what is left of the key's spending limit (null = no limit).
@@ -260,7 +276,7 @@ function assistantCheck(providerId: string): ApiCheck {
         }
         return { ok: true, summary: 'Clé acceptée', details: [], error: null, latencyMs };
       } catch (caught) {
-        return fail('Fournisseur injoignable', cleanError(caught));
+        return fail('Fournisseur injoignable', cleanError(caught, apiKey));
       }
     },
     async run() {
@@ -269,9 +285,10 @@ function assistantCheck(providerId: string): ApiCheck {
       // The admin-chosen model applies to the active provider only.
       const model = active ? assistant.chain[0]! : provider.defaultModel;
       const details = [active ? 'Fournisseur actif' : 'Fournisseur de secours (non actif)', `Modèle : ${model}`];
+      if (customApi?.keyLast4) details.push(`Clé enregistrée : •••• ${customApi.keyLast4}`);
 
-      const apiKey = process.env[provider.keyEnvVar]?.trim();
-      if (!apiKey) return notConfigured('Non configuré', `${provider.keyEnvVar} n’est pas défini.`, details);
+      const apiKey = readKey();
+      if (!apiKey) return notConfigured('Non configuré', missingKey, details);
 
       try {
         const { value: response, latencyMs } = await timed(() =>
@@ -291,7 +308,7 @@ function assistantCheck(providerId: string): ApiCheck {
         );
         if (!response.ok) {
           const reason = response.status === 401 || response.status === 403 ? 'Clé refusée' : 'Requête refusée';
-          return fail(reason, await httpError(provider.name, response), latencyMs, details);
+          return fail(reason, await httpError(provider.name, response, apiKey), latencyMs, details);
         }
         const body = (await response.json().catch(() => ({}))) as { model?: string; choices?: Array<{ message?: { content?: string } }> };
         const answer = body.choices?.[0]?.message?.content?.trim();
@@ -299,36 +316,50 @@ function assistantCheck(providerId: string): ApiCheck {
         details.push(`Réponse : « ${(answer || '(vide)').slice(0, 60)} »`);
         return { ok: true, summary: 'Le modèle répond', details, error: null, latencyMs };
       } catch (caught) {
-        return fail('Fournisseur injoignable', cleanError(caught), null, details);
+        return fail('Fournisseur injoignable', cleanError(caught, apiKey), null, details);
       }
     }
   };
 }
 
-export const API_CHECKS: ApiCheck[] = [
+/** Checks that need no database: services and the built-in providers. */
+const STATIC_CHECKS: ApiCheck[] = [
   databaseCheck,
   emailKeyCheck,
   emailSendCheck,
   inquiryAlertCheck,
-  ...Object.keys(ASSISTANT_PROVIDERS).map(assistantCheck)
+  ...Object.values(ASSISTANT_PROVIDERS).map((provider) => assistantCheck(provider, () => process.env[provider.keyEnvVar]?.trim() || null))
 ];
 
-let probeCache: { at: number; results: Map<string, CheckResult> } | null = null;
-const PROBE_CACHE_MS = 60_000;
-
-/**
- * Runs every cheap probe in parallel for the status dots. Cached for a minute
- * so reloading the page does not hammer the providers.
- */
-export async function probeAll(): Promise<Map<string, CheckResult>> {
-  if (probeCache && Date.now() - probeCache.at < PROBE_CACHE_MS) return probeCache.results;
-
-  const outcomes = await Promise.all(API_CHECKS.map((check) => (check.probe ? check.probe() : check.run({}))));
-  const results = new Map(API_CHECKS.map((check, index) => [check.id, outcomes[index]!]));
-  probeCache = { at: Date.now(), results };
-  return results;
+/** Every check, including one per API added from the admin area. */
+export async function getApiChecks(): Promise<ApiCheck[]> {
+  const custom = await listCustomApis();
+  return [...STATIC_CHECKS, ...custom.map((api) => assistantCheck(customProvider(api), () => customApiKey(api), api))];
 }
 
-export function findCheck(id: string): ApiCheck | undefined {
-  return API_CHECKS.find((check) => check.id === id);
+const probeCache = new Map<string, { at: number; result: CheckResult }>();
+const PROBE_CACHE_MS = 60_000;
+
+/** Forget cached probes, after an API is added, changed or removed. */
+export function clearProbeCache(id?: string): void {
+  if (id) probeCache.delete(id);
+  else probeCache.clear();
+}
+
+/**
+ * Runs every cheap probe in parallel for the status dots. Each result is
+ * cached for a minute so reloading the page does not hammer the providers.
+ */
+export async function probeAll(checks: ApiCheck[]): Promise<Map<string, CheckResult>> {
+  const now = Date.now();
+  const outcomes = await Promise.all(
+    checks.map(async (check) => {
+      const cached = probeCache.get(check.id);
+      if (cached && now - cached.at < PROBE_CACHE_MS) return cached.result;
+      const result = await (check.probe ? check.probe() : check.run({}));
+      probeCache.set(check.id, { at: Date.now(), result });
+      return result;
+    })
+  );
+  return new Map(checks.map((check, index) => [check.id, outcomes[index]!]));
 }

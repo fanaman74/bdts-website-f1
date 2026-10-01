@@ -61,12 +61,12 @@ function extractReason(responseText: string): string {
   return message.replace(/\s+/g, ' ').trim().slice(0, 240);
 }
 
-function providerErrorMessage(attempts: ModelAttempt[], providerName: string, keyEnvVar: string): string {
+function providerErrorMessage(attempts: ModelAttempt[], providerName: string, keyHint: string): string {
   const last = attempts[attempts.length - 1]!;
   const reason = extractReason(last.detail) || 'aucun détail fourni';
 
   if (last.status === 401 || last.status === 403) {
-    return `Clé ${providerName} refusée pour la génération (HTTP ${last.status}) : ${reason}. Vérifiez ${keyEnvVar} dans Railway, et que le compte ${providerName} dispose bien de crédits.`;
+    return `Clé ${providerName} refusée pour la génération (HTTP ${last.status}) : ${reason}. Vérifiez ${keyHint}, et que le compte ${providerName} dispose bien de crédits.`;
   }
   if (last.status === 402) return `Le compte ${providerName} ne dispose plus de crédits. Réponse du service : ${reason}.`;
   if (last.status === 429) return `Le service d’assistance est temporairement limité par ${providerName} : ${reason}. Réessayez dans un instant.`;
@@ -120,7 +120,7 @@ export const POST: APIRoute = async ({ request }) => {
     if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') return json('Ce document ne peut pas être lu par l’assistant.', 422);
 
     const { provider, apiKey, chain: modelChain } = await resolveAssistant();
-    if (!apiKey) return json(`L’assistant documents n’est pas encore configuré. Ajoutez ${provider.keyEnvVar} dans Railway.`, 503);
+    if (!apiKey) return json(`L’assistant documents n’est pas encore configuré. Configurez ${provider.keyHint}.`, 503);
 
     // Prefer cached text so each document is downloaded and parsed only once.
     // The cache is also the escape hatch for hosts that refuse datacenter IPs:
@@ -190,7 +190,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     if (!upstream) {
       console.error('[document-chat] Provider error:', JSON.stringify(attempts).slice(0, 800));
-      return json(providerErrorMessage(attempts, provider.name, provider.keyEnvVar), 502);
+      return json(providerErrorMessage(attempts, provider.name, provider.keyHint), 502);
     }
     if (!upstream.body) return json('Le service d’assistance n’a renvoyé aucune réponse.', 502);
 

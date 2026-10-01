@@ -1,6 +1,11 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { API_CHECKS, checkLevel, findCheck, probeAll, SLOW_MS, type CheckLevel, type CheckResult } from '../../lib/apiChecks';
+import { checkApiPageLimit, checkLevel, clearProbeCache, getApiChecks, probeAll, SLOW_MS, type CheckLevel, type CheckResult } from '../../lib/apiChecks';
+import { CUSTOM_PREFIX, API_PRESETS, createCustomApi, deleteCustomApi, getCustomApi, normaliseEndpoint, updateCustomApi, validateCustomApi } from '../../lib/customApis';
+import { getDbClient } from '../../lib/db';
+import { canEncrypt } from '../../lib/secretBox';
+import { DEFAULT_PROVIDER_ID, PROVIDERS } from '../../lib/assistantProvider';
+import { getSettings, SETTING_KEYS, setSetting } from '../../lib/settings';
 
 export const prerender = false;
 
@@ -10,24 +15,77 @@ if (Astro.locals.admin?.role !== 'admin') return new Response('Accès réservé 
 
 const defaultRecipient = (process.env.INQUIRY_NOTIFY_TO ?? '').split(',')[0]?.trim() ?? '';
 
-let selectedId = Astro.url.searchParams.get('check') ?? API_CHECKS[0]!.id;
+const checks = await getApiChecks();
+let selectedId = Astro.url.searchParams.get('check') ?? checks[0]!.id;
 let recipient = defaultRecipient;
 const results = new Map<string, CheckResult>();
 let ranAll = false;
+let formError: string | null = null;
+let showAddForm = Astro.url.searchParams.get('add') === '1';
+let addValues = { name: '', chatEndpoint: '', model: '' };
+const notice = ({ added: 'API ajoutée. Cliquez sur « Tester » pour vérifier la clé et le modèle.', updated: 'Modifications enregistrées.', deleted: 'API supprimée.' } as Record<string, string>)[Astro.url.searchParams.get('done') ?? ''];
 
 if (Astro.request.method === 'POST') {
+  const limit = checkApiPageLimit(Astro.locals.admin.username);
+  if (!limit.ok) {
+    return new Response('Trop de demandes en peu de temps. Patientez un instant.', { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } });
+  }
+
   const form = await Astro.request.formData();
   const action = String(form.get('action') ?? '');
   recipient = String(form.get('recipient') ?? defaultRecipient).trim();
+  const field = (name: string) => String(form.get(name) ?? '').trim();
 
-  if (action === 'all') {
+  if (action === 'add-api' || action === 'update-api') {
+    const input = { name: field('name'), chatEndpoint: field('chatEndpoint') && normaliseEndpoint(field('chatEndpoint')), model: field('model'), apiKey: field('apiKey') };
+    const existing = action === 'update-api' ? await getCustomApi(field('id')) : null;
+    formError =
+      action === 'update-api' && !existing ? 'Cette API n’existe plus.'
+      : !getDbClient() ? 'La base de données n’est pas configurée.'
+      : !canEncrypt() ? 'Le chiffrement des clés demande ADMIN_SESSION_SECRET (ou APP_ENCRYPTION_KEY) d’au moins 32 caractères dans Railway.'
+      : validateCustomApi(input, action === 'add-api');
+
+    if (!formError) {
+      try {
+        if (existing) {
+          await updateCustomApi(existing.id, input);
+          clearProbeCache(`assistant-custom-${existing.id}`);
+          return Astro.redirect(`/admin/api?check=assistant-custom-${existing.id}&done=updated`);
+        }
+        const id = await createCustomApi(input);
+        return Astro.redirect(`/admin/api?check=assistant-custom-${id}&done=added`);
+      } catch (caught) {
+        console.error('[admin-api] Save failed:', caught instanceof Error ? caught.message : caught);
+        formError = 'Enregistrement impossible. Vérifiez que la migration 0011 a été appliquée.';
+      }
+    }
+    if (action === 'add-api') {
+      showAddForm = true;
+      addValues = { name: input.name, chatEndpoint: input.chatEndpoint, model: input.model };
+    } else if (existing) {
+      selectedId = `assistant-custom-${existing.id}`;
+    }
+  } else if (action === 'delete-api') {
+    const existing = await getCustomApi(field('id'));
+    if (existing) {
+      await deleteCustomApi(existing.id);
+      clearProbeCache(`assistant-custom-${existing.id}`);
+      // Deleting the active provider hands the assistant back to the default.
+      const settings = await getSettings();
+      if (settings.assistant_provider === `${CUSTOM_PREFIX}${existing.id}`) {
+        await setSetting(SETTING_KEYS.provider, DEFAULT_PROVIDER_ID);
+        await setSetting(SETTING_KEYS.model, PROVIDERS[DEFAULT_PROVIDER_ID]!.defaultModel);
+      }
+    }
+    return Astro.redirect('/admin/api?done=deleted');
+  } else if (action === 'all') {
     // Everything except the real send, which needs an explicit click.
     ranAll = true;
-    const runnable = API_CHECKS.filter((check) => !check.needsRecipient);
+    const runnable = checks.filter((check) => !check.needsRecipient);
     const outcomes = await Promise.all(runnable.map((check) => check.run({})));
     runnable.forEach((check, index) => results.set(check.id, outcomes[index]!));
   } else {
-    const check = findCheck(String(form.get('check') ?? ''));
+    const check = checks.find((entry) => entry.id === field('check'));
     if (check) {
       selectedId = check.id;
       results.set(check.id, await check.run({ recipient }));
@@ -36,19 +94,21 @@ if (Astro.request.method === 'POST') {
 }
 
 // Cheap probes colour every dot on load; a test just run replaces its probe.
-const probes = await probeAll();
+const probes = await probeAll(checks);
 
-const selected = findCheck(selectedId) ?? API_CHECKS[0]!;
+const selected = checks.find((check) => check.id === selectedId) ?? checks[0]!;
 // Before any click, the panel shows the automatic check for this service.
 const selectedTested = results.has(selected.id);
 const selectedResult = results.get(selected.id) ?? probes.get(selected.id);
 const selectedLevel = selectedResult ? checkLevel(selectedResult) : null;
+const selectedApi = selected.customApi;
+const INPUT = 'w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] placeholder:text-[#6d726d] focus:border-[#d4a24c] focus:outline-none';
 const PANEL: Record<CheckLevel, string> = {
   ok: 'border-[#2b5c40] bg-[#12241a]',
   warn: 'border-[#6b4a1f] bg-[#2a1d0e]',
   fail: 'border-[#5e2f28] bg-[#2a1614]'
 };
-const rows = API_CHECKS.map((check) => {
+const rows = checks.map((check) => {
   const status = results.get(check.id) ?? probes.get(check.id)!;
   return { check, result: results.get(check.id), status, level: checkLevel(status) };
 });
@@ -86,15 +146,18 @@ function statusLine(result: CheckResult): string {
     </form>
   </div>
 
+  {notice && <p role="status" class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">{notice}</p>}
+  {formError && <p role="alert" class="mt-6 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-4 py-2 text-sm text-[#e8c1b9]">{formError}</p>}
+
   <div class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
     <nav aria-label="Services" class="space-y-2">
       {rows.map(({ check, status, level }) => (
         <a
           href={`/admin/api?check=${check.id}`}
-          aria-current={check.id === selected.id ? 'page' : undefined}
+          aria-current={!showAddForm && check.id === selected.id ? 'page' : undefined}
           class:list={[
             'flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm transition-colors',
-            check.id === selected.id
+            !showAddForm && check.id === selected.id
               ? 'border-[#d4a24c] bg-[#181b1a] text-[#f2efe8]'
               : 'border-[#262a28] bg-[#111312] text-[#c8c6c0] hover:border-[#3a3f3c]'
           ]}
@@ -108,6 +171,13 @@ function statusLine(result: CheckResult): string {
           </span>
         </a>
       ))}
+      <a
+        href="/admin/api?add=1"
+        class:list={[
+          'flex items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 text-sm font-medium transition-colors',
+          showAddForm ? 'border-[#d4a24c] text-[#f2efe8]' : 'border-[#3a3f3c] text-[#d4a24c] hover:border-[#d4a24c]'
+        ]}
+      >+ Ajouter une API</a>
       <p class="flex flex-wrap gap-x-4 gap-y-1 px-1 pt-2 text-xs text-[#8b908b]">
         {(['ok', 'warn', 'fail'] as const).map((key) => (
           <span class="inline-flex items-center gap-1.5"><span class={`h-2 w-2 rounded-full ${LEVEL[key].dot}`}></span>{LEVEL[key].label}</span>
@@ -116,14 +186,74 @@ function statusLine(result: CheckResult): string {
       <p class="px-1 text-xs leading-5 text-[#6d726d]">Vérifié automatiquement à l’ouverture de la page, sans envoyer d’e-mail ni consommer de jetons. Orange : non configuré, à vérifier ou lent.</p>
     </nav>
 
+    {showAddForm && (
+    <section class="rounded-xl border border-[#262a28] bg-[#111312] px-6 py-6">
+      <h2 class="text-xl font-semibold text-[#f2efe8]">Ajouter une API</h2>
+      <p class="mt-2 text-sm leading-6 text-[#8b908b]">
+        Toute API compatible avec le format OpenAI (chat completions). Une fois ajoutée, elle apparaît dans cette liste avec son bouton « Tester », et peut être choisie comme fournisseur dans « Assistant ».
+      </p>
+
+      <form method="post" action="/admin/api?add=1" class="mt-6 max-w-xl space-y-4" id="add-api-form">
+        <input type="hidden" name="action" value="add-api" />
+        <label class="block">
+          <span class="mb-1 block text-xs text-[#8b908b]">Modèle de départ</span>
+          <select id="api-preset" class={INPUT}>
+            <option value="">Choisir un fournisseur connu…</option>
+            {API_PRESETS.map((preset, index) => <option value={String(index)}>{preset.name}</option>)}
+            <option value="other">Autre</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs text-[#8b908b]">Nom</span>
+          <input name="name" required maxlength="80" value={addValues.name} placeholder="OpenRouter" class={INPUT} />
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs text-[#8b908b]">Adresse de l’API</span>
+          <input name="chatEndpoint" type="url" required value={addValues.chatEndpoint} placeholder="https://openrouter.ai/api/v1" class={INPUT} />
+          <span class="mt-1 block text-[11px] text-[#6d726d]">L’adresse de base (…/v1) ou l’adresse complète …/chat/completions.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs text-[#8b908b]">Clé API</span>
+          <input name="apiKey" type="password" required autocomplete="off" placeholder="sk-…" class={INPUT} />
+          <span class="mt-1 block text-[11px] text-[#6d726d]">Chiffrée avant d’être enregistrée, et jamais réaffichée : seuls ses 4 derniers caractères restent visibles.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs text-[#8b908b]">Modèle</span>
+          <input name="model" required maxlength="200" value={addValues.model} placeholder="google/gemini-2.5-flash" class={INPUT} />
+        </label>
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" class="rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">Ajouter</button>
+          <a href="/admin/api" class="rounded-lg border border-[#2a2f2d] px-4 py-2 text-sm text-[#c8c6c0] hover:border-[#3a3f3c]">Annuler</a>
+        </div>
+      </form>
+      <script is:inline define:vars={{ presets: API_PRESETS }}>
+        const form = document.getElementById('add-api-form');
+        document.getElementById('api-preset')?.addEventListener('change', (event) => {
+          const preset = presets[Number(event.target.value)];
+          if (!form || !preset) return;
+          form.elements.namedItem('name').value = preset.name;
+          form.elements.namedItem('chatEndpoint').value = preset.chatEndpoint;
+          form.elements.namedItem('model').value = preset.model;
+          form.elements.namedItem('apiKey').focus();
+        });
+      </script>
+    </section>
+    )}
+
+    {!showAddForm && (
     <section class="rounded-xl border border-[#262a28] bg-[#111312] px-6 py-6">
       <h2 class="text-xl font-semibold text-[#f2efe8]">{selected.name}</h2>
       <p class="mt-2 text-sm leading-6 text-[#8b908b]">{selected.description}</p>
+      {selected.envVars.length > 0 && (
       <p class="mt-3 text-xs text-[#6d726d]">
         Variables Railway : {selected.envVars.map((name, index) => (
           <>{index > 0 && ', '}<code class="text-[#c8c6c0]">{name}</code></>
         ))}
       </p>
+      )}
+      {selectedApi && (
+        <p class="mt-3 text-xs text-[#6d726d]">Modèle : <code class="text-[#c8c6c0]">{selectedApi.model}</code> · Clé enregistrée : <code class="text-[#c8c6c0]">•••• {selectedApi.keyLast4}</code></p>
+      )}
 
       <form method="post" action={`/admin/api?check=${selected.id}`} class="mt-6 flex flex-wrap items-end gap-3">
         <input type="hidden" name="action" value="one" />
@@ -188,6 +318,39 @@ function statusLine(result: CheckResult): string {
           <p class="mt-3 text-xs text-[#6d726d]">L’envoi d’e-mail réel n’est pas inclus : lancez-le depuis « E-mail — envoi de test ».</p>
         </div>
       )}
+
+      {selectedApi && (
+        <div class="mt-6 border-t border-[#212524] pt-5">
+          <h3 class="text-xs font-medium tracking-wide text-[#8b908b] uppercase">Modifier cette API</h3>
+          <form method="post" action={`/admin/api?check=${selected.id}`} class="mt-4 max-w-xl space-y-4">
+            <input type="hidden" name="action" value="update-api" />
+            <input type="hidden" name="id" value={selectedApi.id} />
+            <label class="block">
+              <span class="mb-1 block text-xs text-[#8b908b]">Nom</span>
+              <input name="name" required maxlength="80" value={selectedApi.name} class={INPUT} />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs text-[#8b908b]">Adresse de l’API</span>
+              <input name="chatEndpoint" type="url" required value={selectedApi.chatEndpoint} class={INPUT} />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs text-[#8b908b]">Modèle</span>
+              <input name="model" required maxlength="200" value={selectedApi.model} class={INPUT} />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs text-[#8b908b]">Nouvelle clé API</span>
+              <input name="apiKey" type="password" autocomplete="off" placeholder={`•••• ${selectedApi.keyLast4} (laisser vide pour conserver)`} class={INPUT} />
+            </label>
+            <button type="submit" class="rounded-lg border border-[#d4a24c] px-4 py-2 text-sm font-medium text-[#d4a24c] transition-colors hover:bg-[#d4a24c] hover:text-[#1a1408]">Enregistrer</button>
+          </form>
+          <form method="post" action="/admin/api" class="mt-4" onsubmit="return confirm('Supprimer cette API et sa clé ?')">
+            <input type="hidden" name="action" value="delete-api" />
+            <input type="hidden" name="id" value={selectedApi.id} />
+            <button type="submit" class="text-xs text-[#e08b7c] underline-offset-2 hover:underline">Supprimer cette API</button>
+          </form>
+        </div>
+      )}
     </section>
+    )}
   </div>
 </AdminLayout>

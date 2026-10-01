@@ -1,3 +1,4 @@
+import { CUSTOM_PREFIX, customApiKey, getCustomApi, listCustomApis, statusEndpointFor, type CustomApi } from './customApis';
 import { getSettings } from './settings';
 
 /**
@@ -8,15 +9,19 @@ import { getSettings } from './settings';
  * parser in `/api/document-chat` is provider-neutral and swapping providers is a
  * configuration change rather than a rewrite.
  *
- * API keys live in environment variables, never in the database: the admin area
- * stores only the provider id and the model name.
+ * Built-in providers read their key from an environment variable. APIs added
+ * from /admin/api keep theirs encrypted in the database (see customApis).
  */
 export interface AssistantProvider {
   id: string;
   name: string;
   chatEndpoint: string;
-  /** Environment variable holding this provider's API key. */
+  /** Environment variable holding this provider's API key; empty for an added API. */
   keyEnvVar: string;
+  /** Where the key is set, for messages ("OPENROUTER_API_KEY dans Railway"). */
+  keyHint: string;
+  /** Added from /admin/api rather than built in. */
+  custom?: boolean;
   /** Used when the admin has not pinned a model. */
   defaultModel: string;
   /** Tried in order when the configured model is refused. */
@@ -27,25 +32,30 @@ export interface AssistantProvider {
   extraBody?: Record<string, unknown>;
 }
 
+// DeepSeek's thinking mode is on by default at high effort. It adds latency and
+// bills the chain of thought as output tokens, while this assistant reads
+// answers out of a supplied document rather than reasoning from scratch.
+const DEEPSEEK_EXTRA_BODY = { thinking: { type: 'disabled' } };
+
+/** Providers configured through Railway variables. */
 export const PROVIDERS: Record<string, AssistantProvider> = {
   deepseek: {
     id: 'deepseek',
     name: 'DeepSeek',
     chatEndpoint: 'https://api.deepseek.com/chat/completions',
     keyEnvVar: 'DEEPSEEK_API_KEY',
+    keyHint: 'DEEPSEEK_API_KEY dans Railway',
     defaultModel: 'deepseek-flash',
     fallbackModels: ['deepseek-v4-pro'],
     statusEndpoint: 'https://api.deepseek.com/user/balance',
-    // Thinking mode is on by default at high effort. It adds latency and bills
-    // the chain of thought as output tokens, while this assistant reads answers
-    // out of a supplied document rather than reasoning from scratch.
-    extraBody: { thinking: { type: 'disabled' } }
+    extraBody: DEEPSEEK_EXTRA_BODY
   },
   openrouter: {
     id: 'openrouter',
     name: 'OpenRouter',
     chatEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
     keyEnvVar: 'OPENROUTER_API_KEY',
+    keyHint: 'OPENROUTER_API_KEY dans Railway',
     defaultModel: 'google/gemini-2.5-flash',
     fallbackModels: ['openai/gpt-4o-mini', 'deepseek/deepseek-chat'],
     // Describes the key (usage, remaining limit) without spending tokens.
@@ -63,11 +73,43 @@ export interface ResolvedAssistant {
   chain: string[];
 }
 
+/** An API added from /admin/api, seen as a provider. */
+export function customProvider(api: CustomApi): AssistantProvider {
+  const host = new URL(api.chatEndpoint).hostname;
+  return {
+    id: `${CUSTOM_PREFIX}${api.id}`,
+    name: api.name,
+    chatEndpoint: api.chatEndpoint,
+    keyEnvVar: '',
+    keyHint: `la clé de « ${api.name} » dans Administration → API`,
+    custom: true,
+    defaultModel: api.model,
+    fallbackModels: [],
+    statusEndpoint: statusEndpointFor(api.chatEndpoint),
+    extraBody: host === 'api.deepseek.com' ? DEEPSEEK_EXTRA_BODY : undefined
+  };
+}
+
+/** Built-in providers followed by the APIs added from the admin area. */
+export async function listProviders(): Promise<AssistantProvider[]> {
+  const custom = await listCustomApis();
+  return [...Object.values(PROVIDERS), ...custom.map(customProvider)];
+}
+
+/** A provider by id with its key, built-in or added; null when unknown. */
+export async function findProvider(id: string): Promise<{ provider: AssistantProvider; apiKey: string | null } | null> {
+  const builtIn = PROVIDERS[id];
+  if (builtIn) return { provider: builtIn, apiKey: process.env[builtIn.keyEnvVar]?.trim() || null };
+  if (!id.startsWith(CUSTOM_PREFIX)) return null;
+  const api = await getCustomApi(id.slice(CUSTOM_PREFIX.length));
+  return api ? { provider: customProvider(api), apiKey: customApiKey(api) } : null;
+}
+
 /** Reads the active provider and model from the admin-editable settings. */
 export async function resolveAssistant(): Promise<ResolvedAssistant> {
   const settings = await getSettings();
-  const provider = PROVIDERS[settings.assistant_provider];
-  if (!provider) {
+  const found = await findProvider(settings.assistant_provider);
+  if (!found) {
     // A provider that no longer exists: its saved model means nothing to the
     // default provider, so use that provider's own models.
     const fallback = PROVIDERS[DEFAULT_PROVIDER_ID]!;
@@ -78,8 +120,7 @@ export async function resolveAssistant(): Promise<ResolvedAssistant> {
     };
   }
 
-  const apiKey = process.env[provider.keyEnvVar]?.trim() || null;
-
+  const { provider, apiKey } = found;
   const chain: string[] = [];
   for (const candidate of [settings.assistant_model, provider.defaultModel, ...provider.fallbackModels]) {
     const model = candidate?.trim();

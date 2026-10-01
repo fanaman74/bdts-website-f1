@@ -1,6 +1,6 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { PROVIDERS, resolveAssistant } from '../../lib/assistantProvider';
+import { findProvider, listProviders, resolveAssistant } from '../../lib/assistantProvider';
 import { getSettings, SETTING_KEYS, setSetting } from '../../lib/settings';
 
 export const prerender = false;
@@ -16,10 +16,11 @@ if (Astro.request.method === 'POST') {
   if (form.get('action') === 'assistant') {
     const provider = String(form.get('provider') ?? '').trim();
     const model = String(form.get('model') ?? '').trim();
-    if (provider in PROVIDERS) {
+    const found = await findProvider(provider);
+    if (found) {
       await setSetting(SETTING_KEYS.provider, provider);
       // An empty model falls back to that provider's default.
-      await setSetting(SETTING_KEYS.model, model || PROVIDERS[provider]!.defaultModel);
+      await setSetting(SETTING_KEYS.model, model || found.provider.defaultModel);
     }
   }
   // Redirect after POST so refreshing cannot resubmit the form.
@@ -27,7 +28,7 @@ if (Astro.request.method === 'POST') {
 }
 
 const saved = Astro.url.searchParams.get('saved') === '1';
-const [assistant, settings] = await Promise.all([resolveAssistant(), getSettings()]);
+const [assistant, settings, providers] = await Promise.all([resolveAssistant(), getSettings(), listProviders()]);
 const keyConfigured = assistant.apiKey !== null;
 const suggestions = [assistant.provider.defaultModel, ...assistant.provider.fallbackModels];
 ---
@@ -58,7 +59,7 @@ const suggestions = [assistant.provider.defaultModel, ...assistant.provider.fall
         <p class="mt-2 text-xs leading-5 text-[#8b908b]">
           {keyConfigured
             ? `Fournisseur actif : ${assistant.provider.name}. Le modèle réellement utilisé est affiché dans le tiroir de discussion.`
-            : `Ajoutez ${assistant.provider.keyEnvVar} dans les variables Railway pour activer l’assistant.`}
+            : `Configurez ${assistant.provider.keyHint} pour activer l’assistant.`}
         </p>
         <a href="/api/assistant-status" class="mt-3 inline-block text-xs text-[#d4a24c] underline-offset-2 hover:underline">Vérifier l’état en direct →</a>
       </div>
@@ -69,16 +70,20 @@ const suggestions = [assistant.provider.defaultModel, ...assistant.provider.fall
 
         <label class="block">
           <span class="text-xs tracking-[.12em] text-[#7f857f] uppercase">Fournisseur</span>
-          <select name="provider" class="mt-1.5 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none">
-            {Object.values(PROVIDERS).map((entry) => (
-              <option value={entry.id} selected={entry.id === settings.assistant_provider}>{entry.name}</option>
+          <select name="provider" id="provider-select" class="mt-1.5 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none">
+            {providers.map((entry) => (
+              <option value={entry.id} data-model={entry.defaultModel} selected={entry.id === assistant.provider.id}>{entry.name}{entry.custom ? ' (ajoutée)' : ''}</option>
             ))}
           </select>
+          <span class="mt-1.5 block text-[11px] leading-5 text-[#6d726d]">
+            Pour une autre API, ajoutez-la avec sa clé et son modèle dans <a href="/admin/api?add=1" class="text-[#d4a24c] underline-offset-2 hover:underline">API</a>.
+          </span>
         </label>
 
         <label class="block">
           <span class="text-xs tracking-[.12em] text-[#7f857f] uppercase">Modèle</span>
           <input
+            id="model-input"
             name="model"
             value={settings.assistant_model}
             list="model-suggestions"
@@ -88,14 +93,22 @@ const suggestions = [assistant.provider.defaultModel, ...assistant.provider.fall
             {suggestions.map((model) => <option value={model} />)}
           </datalist>
           <span class="mt-1.5 block text-[11px] leading-5 text-[#6d726d]">
-            Défaut : {assistant.provider.defaultModel} · repli : {assistant.provider.fallbackModels.join(', ')}
+            Défaut : {assistant.provider.defaultModel}{assistant.provider.fallbackModels.length > 0 && ` · repli : ${assistant.provider.fallbackModels.join(', ')}`}
           </span>
         </label>
 
         <button type="submit" class="rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">Enregistrer</button>
+        <script is:inline>
+          // A model name belongs to one provider: switching provider proposes its own default.
+          document.getElementById('provider-select')?.addEventListener('change', (event) => {
+            const model = event.target.selectedOptions[0]?.dataset.model;
+            const input = document.getElementById('model-input');
+            if (model && input) input.value = model;
+          });
+        </script>
 
         <p class="border-t border-[#212524] pt-3 text-[11px] leading-5 text-[#6d726d]">
-          Les clés d’API restent dans les variables d’environnement, jamais en base : une fuite de la base ne donne aucun accès aux fournisseurs.
+          Les clés de DeepSeek et OpenRouter restent dans les variables Railway. Les clés des API ajoutées sont chiffrées en base : une fuite de la base seule ne donne aucun accès aux fournisseurs.
         </p>
       </form>
       )}
