@@ -8,6 +8,8 @@ import { declarationReference } from '../../lib/declarationSummary';
 import { renderDeclarationPdf } from '../../lib/declarationPdf';
 import { buildDeclarationConfirmation, declarationPdfFilename } from '../../lib/declarationEmail';
 import { isEmailConfigured, sendEmail } from '../../lib/email';
+import { autoAssignInsurer, missingInfo } from '../../lib/claimTriage';
+import { insurerName } from '../../lib/insurers';
 import { toDeclarationLanguage, type DeclarationLanguage } from '../../lib/declarationI18n';
 
 export const prerender = false;
@@ -225,6 +227,15 @@ export const POST: APIRoute = async ({ request }) => {
   const reference = declarationReference(id);
   const attachments = attachmentResult.attachments;
 
+  // Sort the claim straight away so it shows up matched in /admin.
+  const match = await autoAssignInsurer(id, d);
+  const missing = missingInfo({
+    ...d,
+    attachmentCount: attachments.length,
+    imageCount: attachments.filter((attachment) => attachment.contentType.startsWith('image/')).length,
+    insurer: match?.insurer ?? null
+  }).filter((item) => item.blocking || item.id === 'photos');
+
   // The customer gets the email and PDF in the language they used on the site;
   // the office always gets the French PDF.
   const language = toDeclarationLanguage(form.get('language'));
@@ -265,6 +276,8 @@ export const POST: APIRoute = async ({ request }) => {
         d.incidentDate && `Date du sinistre : ${d.incidentDate}`,
         d.incidentPlace && `Lieu : ${d.incidentPlace}`,
         d.insurancePolicyNumber && `N° de police : ${d.insurancePolicyNumber}`,
+        match && `Assureur probable : ${insurerName(match.insurer)}`,
+        missing.length > 0 && `À compléter : ${missing.map((item) => item.label).join(', ')}.`,
         d.incidentCircumstances,
         attachments.length > 0 && `${attachments.length} pièce(s) jointe(s).`,
         pdfAttachment && 'Récapitulatif PDF en pièce jointe.',

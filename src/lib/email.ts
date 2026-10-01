@@ -15,7 +15,9 @@ export interface EmailAttachment {
 }
 
 export interface EmailMessage {
-  to: string;
+  to: string | string[];
+  cc?: string[];
+  replyTo?: string;
   subject: string;
   text: string;
   html?: string;
@@ -42,7 +44,9 @@ const PROVIDERS: Record<string, EmailProvider> = {
         headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           sender: parseFromAddress(from),
-          to: [{ email: message.to }],
+          to: recipients(message.to).map((email) => ({ email })),
+          ...(message.cc?.length ? { cc: message.cc.map((email) => ({ email })) } : {}),
+          ...(message.replyTo ? { replyTo: { email: message.replyTo } } : {}),
           subject: message.subject,
           textContent: message.text,
           ...(message.html ? { htmlContent: message.html } : {}),
@@ -69,7 +73,9 @@ const PROVIDERS: Record<string, EmailProvider> = {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from,
-          to: [message.to],
+          to: recipients(message.to),
+          ...(message.cc?.length ? { cc: message.cc } : {}),
+          ...(message.replyTo ? { reply_to: message.replyTo } : {}),
           subject: message.subject,
           text: message.text,
           html: message.html,
@@ -93,13 +99,18 @@ const PROVIDERS: Record<string, EmailProvider> = {
     async send(message, _apiKey, from) {
       console.info('[email] console provider — nothing was actually sent');
       console.info(`[email] from: ${from}`);
-      console.info(`[email] to:   ${message.to}`);
+      console.info(`[email] to:   ${recipients(message.to).join(', ')}`);
+      if (message.cc?.length) console.info(`[email] cc:   ${message.cc.join(', ')}`);
       console.info(`[email] subj: ${message.subject}`);
       console.info(message.text);
       for (const file of message.attachments ?? []) console.info(`[email] attachment: ${file.filename}`);
     }
   }
 };
+
+function recipients(to: string | string[]): string[] {
+  return Array.isArray(to) ? to : [to];
+}
 
 /** Brevo wants the sender split into name and email. */
 function parseFromAddress(from: string): { name?: string; email: string } {

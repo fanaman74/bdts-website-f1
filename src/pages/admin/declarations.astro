@@ -10,6 +10,8 @@ import {
   updateDeclarationStatus,
   type Declaration
 } from '../../lib/declarations';
+import { missingInfo } from '../../lib/claimTriage';
+import { INSURERS, insurerName, isInsurerId } from '../../lib/insurers';
 
 export const prerender = false;
 
@@ -24,12 +26,15 @@ const params = Astro.url.searchParams;
 let status = params.get('status') ?? '';
 const search = params.get('q')?.trim() ?? '';
 const order = params.get('order') === 'oldest' ? 'oldest' : 'newest';
+let insurer = params.get('insurer') ?? '';
+if (insurer !== 'none' && !isInsurerId(insurer)) insurer = '';
+const incomplete = params.get('incomplete') === '1' ? '1' : '';
 
 if (!(DECLARATION_STATUSES as readonly string[]).includes(status)) status = '';
 
 /** Builds a link that preserves the active filters, with optional overrides. */
 function withParams(overrides: Record<string, string>): string {
-  const merged: Record<string, string> = { status, q: search, order, ...overrides };
+  const merged: Record<string, string> = { status, q: search, insurer, incomplete, order, ...overrides };
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(merged)) {
     // `newest` and empty values are defaults, so they stay out of the URL.
@@ -48,10 +53,14 @@ if (Astro.request.method === 'POST') {
   return Astro.redirect(withParams(changed ? { updated: '1' } : {}));
 }
 
-const [counts, rows] = await Promise.all([
+const [counts, listed] = await Promise.all([
   declarationCounts(),
-  listDeclarations({ status, search, order, limit: 200 })
+  listDeclarations({ status, search, insurer, order, limit: 200 })
 ]);
+
+const triaged = listed.map((declaration) => ({ declaration, missing: missingInfo(declaration) }));
+// "À compléter" keeps the claims an insurer would bounce: a blocking item is missing.
+const rows = incomplete ? triaged.filter(({ missing }) => missing.some((item) => item.blocking)) : triaged;
 
 const segments = [
   { id: '', label: 'Toutes', count: counts.total },
@@ -61,7 +70,7 @@ const segments = [
   { id: 'spam', label: 'Indésirables', count: counts.byStatus.spam }
 ];
 
-const hasFilters = Boolean(status || search);
+const hasFilters = Boolean(status || search || insurer || incomplete);
 const nextOrder = order === 'newest' ? 'oldest' : 'newest';
 const listHref = withParams({});
 const csvHref = `/admin/declarations.csv${listHref.includes('?') ? listHref.slice(listHref.indexOf('?')) : ''}`;
@@ -130,8 +139,38 @@ function incidentWhen(declaration: Declaration): string {
       </a>
     ))}
     <a
+      href={withParams({ incomplete: incomplete ? '' : '1' })}
+      aria-current={incomplete ? 'page' : undefined}
+      class:list={[
+        'rounded-full border px-3 py-1.5 text-xs transition-colors',
+        incomplete ? 'border-[#d1695a] text-[#e08b7c]' : 'border-[#2a2f2d] text-[#8b908b] hover:border-[#3a403d] hover:text-[#c8c6c0]'
+      ]}
+    >
+      À compléter
+    </a>
+    <form method="get" action="/admin/declarations" class="ml-auto flex items-center gap-1.5">
+      {status && <input type="hidden" name="status" value={status} />}
+      {search && <input type="hidden" name="q" value={search} />}
+      {incomplete && <input type="hidden" name="incomplete" value="1" />}
+      {order === 'oldest' && <input type="hidden" name="order" value="oldest" />}
+      <label class="sr-only" for="insurer-filter">Assureur</label>
+      <select
+        id="insurer-filter"
+        name="insurer"
+        onchange="this.form.submit()"
+        class="rounded-full border border-[#2a2f2d] bg-[#141716] px-3 py-1.5 text-xs text-[#c8c6c0] focus:border-[#d4a24c] focus:outline-none"
+      >
+        <option value="" selected={!insurer}>Tous les assureurs</option>
+        <option value="none" selected={insurer === 'none'}>Assureur non identifié</option>
+        {INSURERS.map((entry) => (
+          <option value={entry.id} selected={insurer === entry.id}>{entry.name}</option>
+        ))}
+      </select>
+      <noscript><button type="submit" class="text-xs text-[#d4a24c]">OK</button></noscript>
+    </form>
+    <a
       href={withParams({ order: nextOrder })}
-      class="ml-auto rounded-full border border-[#2a2f2d] px-3 py-1.5 text-xs text-[#8b908b] transition-colors hover:border-[#3a403d] hover:text-[#c8c6c0]"
+      class="rounded-full border border-[#2a2f2d] px-3 py-1.5 text-xs text-[#8b908b] transition-colors hover:border-[#3a403d] hover:text-[#c8c6c0]"
     >
       Trier : {order === 'newest' ? 'plus récentes' : 'plus anciennes'}
     </a>
@@ -144,7 +183,7 @@ function incidentWhen(declaration: Declaration): string {
       </p>
     )}
 
-    {rows.map((declaration) => {
+    {rows.map(({ declaration, missing }) => {
       const pill = STATUS_PILL[declaration.status] ?? STATUS_PILL.new!;
       const isNew = declaration.status === 'new';
       const when = incidentWhen(declaration);
@@ -172,10 +211,28 @@ function incidentWhen(declaration: Declaration): string {
 
           <div class="min-w-0">
             {when && <p class="text-xs text-[#c8c6c0]">Sinistre : {when}</p>}
-            {declaration.insurancePolicyNumber && (
-              <p class="mt-0.5 truncate text-[11px] text-[#6d726d]">Police {declaration.insurancePolicyNumber}</p>
+            {(declaration.insurer || declaration.insurancePolicyNumber) && (
+              <p class="mt-0.5 truncate text-[11px] text-[#6d726d]">
+                {declaration.insurer && <span class="text-[#c8c6c0]">{insurerName(declaration.insurer)}</span>}
+                {declaration.insurer && declaration.insurancePolicyNumber && ' · '}
+                {declaration.insurancePolicyNumber && `Police ${declaration.insurancePolicyNumber}`}
+              </p>
             )}
             <p class="mt-1.5 line-clamp-3 text-xs leading-5 text-[#8b908b]">{summaryOf(declaration)}</p>
+            {missing.length > 0 && (
+              <div class="mt-2 flex flex-wrap gap-1">
+                {missing.map((item) => (
+                  <span
+                    class:list={[
+                      'rounded-full border px-2 py-0.5 text-[10px]',
+                      item.blocking ? 'border-[#5e2f28] bg-[#2a1614] text-[#e08b7c]' : 'border-[#3a3420] bg-[#1c170c] text-[#c9a560]'
+                    ]}
+                  >
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div class="flex flex-wrap items-center gap-1.5 lg:block lg:space-y-1.5">
