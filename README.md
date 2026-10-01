@@ -21,7 +21,7 @@ npm run dev        # http://localhost:4321
 | `npm run validate` | Sanity-checks du contenu (fichiers locaux, liens de navigation, ids uniques) |
 | `npm run migrate` | Applique les migrations SQL sur la base Neon (`db/migrations/`) |
 | `npm run ingest:documents -- [options]` | Met en cache le texte des PDF du catalogue (voir « Cache des documents ») |
-| `npm run admin:user -- --email … --role admin` | Crée ou réinitialise un compte d’administration |
+| `npm run admin:hash` | Génère l’empreinte du mot de passe admin et un secret de session pour Railway |
 | `npm test` | validate + check + build |
 | `npm run discover` | Découverte éthique des documents publics du site de référence → `data/discovered-documents.json` |
 | `npm run import:documents -- fichier.csv` | Import CSV vers le catalogue de documents |
@@ -40,31 +40,25 @@ npm run dev        # http://localhost:4321
 
 ## Administration
 
-L’espace d’administration vit sous `/admin` : comptes nominatifs, rôles, et suivi de toutes les soumissions des formulaires.
+L’espace d’administration vit sous `/admin` : un seul compte administrateur local, et le suivi de toutes les soumissions des formulaires.
 
-### Comptes et rôles
+### Compte administrateur
 
-| Rôle | Accès |
+Il n’y a ni inscription ni table de comptes : l’identifiant et l’empreinte du mot de passe vivent uniquement dans les variables Railway.
+
+| Variable | Contenu |
 | --- | --- |
-| `pending` | Peut se connecter, mais ne voit **aucune** donnée tant qu’un administrateur ne l’a pas approuvé |
-| `member` | Consulte et traite les demandes reçues |
-| `admin` | Idem, plus la gestion des comptes et le choix du fournisseur/modèle de l’assistant |
+| `ADMIN_USERNAME` | L’identifiant de connexion |
+| `ADMIN_PASSWORD_HASH` | Empreinte scrypt du mot de passe, jamais le mot de passe lui-même |
+| `ADMIN_SESSION_SECRET` | Au moins 32 caractères aléatoires ; signe le cookie de session |
 
-Créer le premier administrateur :
+Générer l’empreinte et un secret (le mot de passe est saisi sans écho et n’est jamais affiché) :
 
 ```bash
-npm run admin:user -- --email vous@example.be --name "Prénom Nom" --role admin --password "une longue phrase secrète"
+npm run admin:hash
 ```
 
-Relancer la même commande pour une adresse existante **réinitialise** son mot de passe et son rôle — c’est le seul chemin de réinitialisation aujourd’hui.
-
-Les autres personnes créent leur compte sur `/admin/register`. Elles arrivent en `pending`, puis un administrateur approuve depuis `/admin/users`. L’approbation est délibérément nécessaire : la boîte contient des données personnelles de clients.
-
-### Vérification de l’adresse e-mail
-
-Quand un fournisseur d’e-mail est configuré (`RESEND_API_KEY` + `EMAIL_FROM`), les nouveaux comptes doivent confirmer leur adresse avant de pouvoir se connecter : lien à usage unique, valable 24 h, dont seule l’empreinte SHA-256 est stockée. En l’absence de fournisseur, cette exigence est **désactivée** — sinon une inscription sans e-mail reçu resterait bloquée.
-
-La vérification et l’approbation sont deux filtres distincts : la première prouve que la personne contrôle la boîte, la seconde décide de l’accès aux données.
+Coller les valeurs dans Railway → service → *Variables*, puis redéployer. Changer le mot de passe (nouvelle empreinte) ou le secret déconnecte toutes les sessions ouvertes. La page de connexion indique quelle variable manque ou est invalide.
 
 Configurer Resend en une commande. La même clé est écrite dans `.env` (lue par `src/lib/email.ts`) et dans le bloc `env` du serveur MCP `resend` de Cline ; avant toute écriture, elle est vérifiée auprès de l’API et les domaines d’envoi sont listés — la clé n’est jamais affichée en clair.
 
@@ -80,7 +74,7 @@ EMAIL_PROVIDER=console
 EMAIL_FROM="BDT Sironval <no-reply@example.invalid>"
 ```
 
-**Sécurité.** Les mots de passe ne sont jamais stockés : seule une empreinte scrypt salée l’est, comparée à temps constant. La session est un cookie signé (HMAC) `HttpOnly`, `SameSite=Lax`, valable 8 heures, et ne contient que l’identifiant du compte — le rôle est relu en base à chaque requête, donc une rétrogradation prend effet immédiatement. `ADMIN_SESSION_SECRET` signe ces cookies et permet d’invalider toutes les sessions en le changeant. Connexions limitées à 8 par quart d’heure et par IP, inscriptions à 5, renvois d’e-mail à 60 secondes par compte ; les identifiants saisis ne sont jamais journalisés. Les pages `/admin` sont en `noindex` et un middleware refuse tout par défaut. Astro protège les formulaires par vérification d’origine (CSRF), réimplémentée dans le middleware car l’adaptateur Node ignore `x-forwarded-proto` derrière le proxy Railway.
+**Sécurité.** Le mot de passe n’est stocké nulle part : seule une empreinte scrypt salée (N=2^15) l’est, dans Railway, comparée à temps constant ; un identifiant erroné coûte le même temps de calcul qu’un mot de passe erroné. La session est un cookie signé (HMAC) `HttpOnly`, `Secure` en HTTPS, `SameSite=Lax`, valable 8 heures ; sa clé combine `ADMIN_SESSION_SECRET` et l’empreinte, donc changer l’un ou l’autre invalide toutes les sessions. Connexions limitées à 8 par quart d’heure et par IP, et à 50 échecs par quart d’heure au total ; les identifiants saisis ne sont jamais journalisés. Les pages `/admin` sont en `noindex` et un middleware refuse tout par défaut. Astro protège les formulaires par vérification d’origine (CSRF), réimplémentée dans le middleware car l’adaptateur Node ignore `x-forwarded-proto` derrière le proxy Railway.
 
 Les clés d’API des fournisseurs ne sont **jamais** stockées en base : seuls le fournisseur et le modèle le sont, dans la table `settings`.
 

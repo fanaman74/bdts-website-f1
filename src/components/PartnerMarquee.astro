@@ -1,8 +1,34 @@
 ---
-const partners = ['AG Insurance', 'AXA', 'Baloise', 'Allianz', 'DKV', 'NN', 'Vivium', 'Ethias', 'ARAG', 'Europ Assistance'];
+// Official logo files live in src/assets/partners/<id>.(svg|png|webp).
+// A partner without a file falls back to its name as a wordmark.
+const logoFiles = import.meta.glob<{ default: { src: string } }>('../assets/partners/*.{svg,png,webp}', { eager: true });
+const logoFor = (id: string) => Object.entries(logoFiles).find(([path]) => path.split('/').pop()?.replace(/\.\w+$/, '') === id)?.[1].default.src;
+
+const partners = [
+  { id: 'ag-insurance', name: 'AG Insurance' },
+  { id: 'axa', name: 'AXA' },
+  { id: 'baloise', name: 'Baloise' },
+  { id: 'allianz', name: 'Allianz' },
+  { id: 'dkv', name: 'DKV' },
+  { id: 'nn', name: 'NN' },
+  { id: 'vivium', name: 'Vivium' },
+  { id: 'ethias', name: 'Ethias' },
+  { id: 'arag', name: 'ARAG' },
+  { id: 'europ-assistance', name: 'Europ Assistance' }
+].map((partner) => ({ ...partner, logo: logoFor(partner.id) }));
 ---
 
 <section class="partner-band" aria-labelledby="partners-title">
   <div><p class="organic-kicker">À découvrir</p><h2 id="partners-title">Nos compagnies partenaires</h2></div>
-  <ul>{partners.map((name) => <li>{name}</li>)}</ul>
+  <div class="partner-marquee">
+    {[0, 1].map((copy) => (
+      <ul class="partner-marquee__track" aria-hidden={copy === 1 ? 'true' : undefined}>
+        {partners.map(({ name, logo }) => (
+          <li class="partner-logo">
+            {logo ? <img src={logo} alt={copy === 1 ? '' : name} loading="lazy" decoding="async" /> : <span>{name}</span>}
+          </li>
+        ))}
+      </ul>
+    ))}
+  </div>
 </section>

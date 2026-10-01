@@ -1,11 +1,10 @@
 import { defineMiddleware } from 'astro:middleware';
 import { ADMIN_COOKIE, verifySessionToken } from './lib/adminAuth';
-import { findUserById } from './lib/users';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Reachable without a session; everything else under /admin is not. */
-const PUBLIC_ADMIN_PATHS = new Set(['/admin/login', '/admin/register', '/admin/verify', '/admin/logout']);
+const PUBLIC_ADMIN_PATHS = new Set(['/admin/login', '/admin/logout']);
 
 /**
  * The origin the browser actually used.
@@ -47,39 +46,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
   if (!pathname.startsWith('/admin')) return next();
 
-  // Resolve the account from the session. Role is always read fresh, so a
-  // suspended or demoted account loses access on its next request.
   const token = context.cookies.get(ADMIN_COOKIE)?.value;
-  const session = verifySessionToken(token);
-  const user = session ? await findUserById(session.userId) : null;
+  const admin = verifySessionToken(token);
 
-  if (user) {
-    context.locals.user = user;
+  if (admin) {
+    context.locals.admin = admin;
   } else if (token) {
     context.cookies.delete(ADMIN_COOKIE, { path: '/' });
   }
 
-  if (PUBLIC_ADMIN_PATHS.has(pathname)) {
-    // Deliberately no redirect for signed-in users. Bouncing them to /admin made
-    // a *failed* logout indistinguishable from a successful one, and blocked two
-    // legitimate moves: switching accounts, and creating a second account.
-    return next();
-  }
+  if (PUBLIC_ADMIN_PATHS.has(pathname)) return next();
 
-  if (!user) {
+  if (!admin) {
     const attempted = `${pathname}${context.url.search}`;
     return context.redirect(`/admin/login?next=${encodeURIComponent(attempted)}`);
-  }
-
-  // A self-registered account can sign in but sees nothing until an admin
-  // approves it — the inbox holds customer personal data.
-  if (user.role === 'pending' && pathname !== '/admin/pending') {
-    return context.redirect('/admin/pending');
-  }
-
-  // Account management is for admins only.
-  if (pathname.startsWith('/admin/users') && user.role !== 'admin') {
-    return new Response('Accès réservé aux administrateurs.', { status: 403 });
   }
 
   return next();
