@@ -25,12 +25,11 @@ const FORM_LABEL: Record<string, string> = {
   declaration: 'Sinistre'
 };
 
-const currentUser = Astro.locals.user;
-const isAdmin = currentUser?.role === 'admin';
+// The middleware only lets the signed-in administrator through; this is a
+// second check so the settings form never relies on routing alone.
+const isAdmin = Boolean(Astro.locals.admin);
 
 if (Astro.request.method === 'POST') {
-  // Assistant settings are admin-only. The middleware hides the form, but a
-  // member could still POST here directly, so the check lives here too.
   if (!isAdmin) return new Response('Accès réservé aux administrateurs.', { status: 403 });
 
   const form = await Astro.request.formData();
