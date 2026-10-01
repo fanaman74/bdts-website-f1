@@ -9,6 +9,8 @@ export interface InquiryNotification {
   email: string;
   phone: string;
   message: string;
+  /** Files to attach, base64-encoded (the claim PDF). */
+  attachments?: Array<{ filename: string; contentBase64: string }>;
 }
 
 const FORM_LABELS: Record<InquiryNotification['formType'], string> = {
@@ -49,7 +51,10 @@ export async function sendInquiryNotification(inquiry: InquiryNotification): Pro
         to: recipients,
         reply_to: inquiry.email,
         subject: `${label} — ${inquiry.name.replace(/[\r\n]+/g, ' ')}`,
-        text
+        text,
+        ...(inquiry.attachments?.length
+          ? { attachments: inquiry.attachments.map((file) => ({ filename: file.filename, content: file.contentBase64 })) }
+          : {})
       }),
       signal: AbortSignal.timeout(10_000)
     });

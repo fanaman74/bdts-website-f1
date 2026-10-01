@@ -8,11 +8,20 @@
  * Verification is only enforced when a real provider is configured, because
  * requiring a link we cannot send would dead-end registration.
  */
+export interface EmailAttachment {
+  filename: string;
+  /** File content, base64-encoded. */
+  contentBase64: string;
+}
+
 export interface EmailMessage {
-  to: string;
+  to: string | string[];
+  cc?: string[];
+  replyTo?: string;
   subject: string;
   text: string;
   html?: string;
+  attachments?: EmailAttachment[];
 }
 
 interface EmailProvider {
@@ -35,10 +44,15 @@ const PROVIDERS: Record<string, EmailProvider> = {
         headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           sender: parseFromAddress(from),
-          to: [{ email: message.to }],
+          to: recipients(message.to).map((email) => ({ email })),
+          ...(message.cc?.length ? { cc: message.cc.map((email) => ({ email })) } : {}),
+          ...(message.replyTo ? { replyTo: { email: message.replyTo } } : {}),
           subject: message.subject,
           textContent: message.text,
-          ...(message.html ? { htmlContent: message.html } : {})
+          ...(message.html ? { htmlContent: message.html } : {}),
+          ...(message.attachments?.length
+            ? { attachment: message.attachments.map((file) => ({ name: file.filename, content: file.contentBase64 })) }
+            : {})
         }),
         signal: AbortSignal.timeout(15_000)
       });
@@ -59,10 +73,15 @@ const PROVIDERS: Record<string, EmailProvider> = {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from,
-          to: [message.to],
+          to: recipients(message.to),
+          ...(message.cc?.length ? { cc: message.cc } : {}),
+          ...(message.replyTo ? { reply_to: message.replyTo } : {}),
           subject: message.subject,
           text: message.text,
-          html: message.html
+          html: message.html,
+          ...(message.attachments?.length
+            ? { attachments: message.attachments.map((file) => ({ filename: file.filename, content: file.contentBase64 })) }
+            : {})
         }),
         signal: AbortSignal.timeout(15_000)
       });
@@ -80,12 +99,18 @@ const PROVIDERS: Record<string, EmailProvider> = {
     async send(message, _apiKey, from) {
       console.info('[email] console provider — nothing was actually sent');
       console.info(`[email] from: ${from}`);
-      console.info(`[email] to:   ${message.to}`);
+      console.info(`[email] to:   ${recipients(message.to).join(', ')}`);
+      if (message.cc?.length) console.info(`[email] cc:   ${message.cc.join(', ')}`);
       console.info(`[email] subj: ${message.subject}`);
       console.info(message.text);
+      for (const file of message.attachments ?? []) console.info(`[email] attachment: ${file.filename}`);
     }
   }
 };
+
+function recipients(to: string | string[]): string[] {
+  return Array.isArray(to) ? to : [to];
+}
 
 /** Brevo wants the sender split into name and email. */
 function parseFromAddress(from: string): { name?: string; email: string } {
