@@ -1,99 +1,89 @@
 ---
-import english from '../i18n/generated/en.json';
-import dutch from '../i18n/generated/nl.json';
-import { translationOverrides } from '../i18n/overrides';
-
-const translations = {
-  en: { ...english, ...translationOverrides.en },
-  nl: { ...dutch, ...translationOverrides.nl }
-};
+// /en and /nl pages arrive already translated (see src/integrations/localizedPages.ts).
+// This script only translates text that interactive islands render in the browser,
+// such as document search results, the document chat and the cookie banner.
 ---
 
-<script is:inline define:vars={{ translations }}>
+<script is:inline>
   (() => {
-    const supported = ['fr', 'nl', 'en'];
-    const requested = new URLSearchParams(window.location.search).get('lang');
-    let stored = null;
-    try { stored = window.localStorage.getItem('bdts-language'); } catch { /* Storage can be blocked. */ }
-    const language = supported.includes(requested) ? requested : supported.includes(stored) ? stored : 'fr';
-    const dictionary = translations[language] || null;
+    const language = document.documentElement.lang;
+    if (language !== 'en' && language !== 'nl') return;
 
-    document.documentElement.lang = language;
-    document.documentElement.dataset.language = language;
-    try {
-      window.localStorage.setItem('bdts-language', language);
-      document.cookie = `bdts-language=${language}; Path=/; Max-Age=31536000; SameSite=Lax`;
-    } catch { /* Preferences still work for this page when storage is unavailable. */ }
-
-    function translateText(node) {
-      if (!dictionary) return;
-      const value = node.nodeValue || '';
-      const key = value.trim().replace(/\s+/g, ' ');
-      const translated = dictionary[key];
-      if (!translated || translated === key) return;
-      const leading = value.match(/^\s*/)?.[0] || '';
-      const trailing = value.match(/\s*$/)?.[0] || '';
-      node.nodeValue = `${leading}${translated}${trailing}`;
+    function isPagePath(pathname) {
+      if (!pathname.startsWith('/') || pathname.startsWith('//')) return false;
+      if (/^\/(?:api|_astro|i18n|images|videos)(?:\/|$)/.test(pathname) || /^\/epso/.test(pathname)) return false;
+      if (/^\/(?:en|nl)(?:\/|$)/.test(pathname)) return false;
+      return !(pathname.split('/').pop() || '').includes('.');
     }
 
-    function translateElement(element) {
-      if (!dictionary || !(element instanceof Element)) return;
-      for (const attribute of ['aria-label', 'content', 'placeholder', 'title']) {
-        const value = element.getAttribute(attribute);
-        if (!value) continue;
+    function start(dictionary) {
+      function translate(value) {
         const key = value.trim().replace(/\s+/g, ' ');
         const translated = dictionary[key];
-        if (!translated || translated === key) continue;
-        element.setAttribute(attribute, translated);
+        return translated && translated !== key ? translated : null;
       }
-    }
 
-    function translateTree(root) {
-      if (!dictionary) return;
-      if (root.nodeType === Node.TEXT_NODE) {
-        translateText(root);
-        return;
+      function translateText(node) {
+        const value = node.nodeValue || '';
+        const translated = translate(value);
+        if (!translated) return;
+        const leading = value.match(/^\s*/)?.[0] || '';
+        const trailing = value.match(/\s*$/)?.[0] || '';
+        node.nodeValue = `${leading}${translated}${trailing}`;
       }
-      if (!(root instanceof Element || root instanceof Document)) return;
-      if (root instanceof Element) translateElement(root);
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
-      let current;
-      while ((current = walker.nextNode())) {
-        if (current.nodeType === Node.TEXT_NODE) translateText(current);
-        else translateElement(current);
-      }
-    }
 
-    function localizeLinks(root = document) {
-      root.querySelectorAll?.('a[href]').forEach((anchor) => {
+      function translateElement(element) {
+        if (!(element instanceof Element)) return;
+        for (const attribute of ['aria-label', 'content', 'placeholder', 'title', 'alt']) {
+          const value = element.getAttribute(attribute);
+          const translated = value && translate(value);
+          if (translated) element.setAttribute(attribute, translated);
+        }
+        if (element instanceof HTMLAnchorElement && !element.dataset.languageCode) localizeLink(element);
+      }
+
+      function localizeLink(anchor) {
         const raw = anchor.getAttribute('href');
-        if (!raw || raw.startsWith('#') || /^(?:mailto:|tel:|javascript:)/i.test(raw)) return;
-        const url = new URL(raw, window.location.href);
-        if (url.origin !== window.location.origin) return;
-        url.searchParams.set('lang', anchor.dataset.languageCode || language);
-        anchor.setAttribute('href', `${url.pathname}${url.search}${url.hash}`);
-      });
-    }
+        if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return;
+        const url = new URL(raw, window.location.origin);
+        if (!isPagePath(url.pathname)) return;
+        anchor.setAttribute('href', `/${language}${url.pathname}${url.search}${url.hash}`);
+      }
 
-    translateTree(document);
-    localizeLinks();
-
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'characterData') translateText(mutation.target);
-        if (mutation.type === 'attributes') translateElement(mutation.target);
-        for (const node of mutation.addedNodes) {
-          translateTree(node);
-          if (node instanceof Element) localizeLinks(node);
+      function translateTree(root) {
+        if (root.nodeType === Node.TEXT_NODE) return translateText(root);
+        if (!(root instanceof Element)) return;
+        if (root.closest('script, style')) return;
+        translateElement(root);
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+        let current;
+        while ((current = walker.nextNode())) {
+          if (current.nodeType === Node.TEXT_NODE) {
+            if (!current.parentElement?.closest('script, style')) translateText(current);
+          } else translateElement(current);
         }
       }
-    });
-    observer.observe(document.body, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ['aria-label', 'content', 'placeholder', 'title']
-    });
+
+      new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.type === 'characterData') translateText(mutation.target);
+          if (mutation.type === 'attributes') translateElement(mutation.target);
+          mutation.addedNodes.forEach(translateTree);
+        }
+      }).observe(document.body, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['aria-label', 'content', 'placeholder', 'title', 'alt', 'href']
+      });
+      // Catch anything islands rendered before the dictionary arrived.
+      translateTree(document.body);
+    }
+
+    fetch(`/i18n/${language}.json`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((dictionary) => dictionary && start(dictionary))
+      .catch(() => { /* Pages stay readable; only island text remains in French. */ });
   })();
 </script>

@@ -81,7 +81,3 @@ export const navigationLanguages: Record<SiteLanguage, NavigationLanguage> = {
     top: { '/documents': 'Documenten', '/actualites': 'Nieuws', '/jobs': 'Vacatures', '/documents#portails': 'Klantenzone' }
   }
 };
-
-export function resolveLanguage(value: string | null): SiteLanguage {
-  return value === 'nl' || value === 'en' ? value : 'fr';
-}

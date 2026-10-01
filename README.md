@@ -29,7 +29,7 @@ npm run dev        # http://localhost:4321
 - **Documents** : page `/documents` avec recherche Fuse.js, filtres (public, catégorie, partenaire, type, langue, source), tri, badges « portail uniquement » et fallback `<noscript>`. API : `GET /api/documents.json`.
 - **Formulaires** : contact `/contact`, devis `/devis`, sinistre `/declaration` → `POST /api/contact` (validation Zod côté serveur + honeypot), puis stockage dans la table Supabase privée `inquiries` et notification par e-mail via Resend (`RESEND_API_KEY`, `INQUIRY_NOTIFY_TO`, `INQUIRY_NOTIFY_FROM`).
 - **Portails clients** : configurables dans `src/data/portals.ts` (MyBroker, My AG, extensibles).
-- **i18n** : dictionnaire `src/i18n/fr.ts`, prêt pour `nl`/`en`.
+- **i18n** : le site est rédigé en français. Au build, l'intégration `src/integrations/localizedPages.ts` traduit chaque page avec les dictionnaires `src/i18n/generated/*.json` + `src/i18n/overrides.ts` et publie `/nl/…` et `/en/…` (balises `hreflang`, sitemap). `LanguageRuntime` ne traduit plus que le texte affiché par les îlots interactifs.
 - **SEO** : sitemap, robots.txt, Open Graph, canoniques, pages légales (mentions, vie privée, cookies, durabilité, protection du client).
 
 ## Import CSV
