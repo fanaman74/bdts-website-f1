@@ -318,8 +318,9 @@ img { display: block; }
 .portal-panel__grid { padding: 18px; display: grid; gap: 10px; }
 .portal-card { padding: 24px; border-radius: 20px; color: var(--earth); background: var(--cream); text-decoration: none; }
 .portal-card h3 { margin: 8px 0; }
-.contact-cta { margin: 14px; padding: clamp(50px, 8vw, 110px); display: grid; grid-template-columns: 1.3fr .7fr; align-items: end; gap: 44px; border-radius: 32px; background: var(--terracotta); color: var(--cream); }
+.contact-cta { margin: 14px; padding: clamp(50px, 8vw, 110px); display: grid; grid-template-columns: 1fr; gap: 0; border-radius: 32px; background: var(--terracotta); color: var(--cream); }
 .contact-cta .organic-kicker { color: #ead7c5; }
+.contact-cta .organic-actions { align-items: center; }
 .site-footer { padding: 0 14px 14px; }
 .site-footer__shell { width: min(1440px, 100%); margin: 0 auto; padding: clamp(40px, 7vw, 86px); border-radius: 32px; background: var(--earth); color: var(--cream); }
 .site-footer__lead { display: flex; justify-content: space-between; gap: 30px; align-items: center; padding-bottom: 52px; border-bottom: 1px solid rgb(242 233 217 / .18); }
