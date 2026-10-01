@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { sectorCatalogDocuments } from '../../data/sectorCatalog';
+import { createRateLimiter, getClientIp } from '../../lib/rateLimit';
 
 export const prerender = false;
 
@@ -8,6 +9,16 @@ const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
 const MAX_DOCUMENT_CHARACTERS = 80_000;
 const MAX_MESSAGES = 12;
 const MAX_MESSAGE_CHARACTERS = 4_000;
+const DAY_MS = 24 * 60 * 60_000;
+
+// Every question costs OpenRouter credits, so cap each visitor and the site as a whole.
+const checkVisitorLimit = createRateLimiter([
+  { windowMs: 60_000, limit: 5 },
+  { windowMs: 60 * 60_000, limit: 30 }
+]);
+const checkDailyLimit = createRateLimiter([
+  { windowMs: DAY_MS, limit: Number(process.env.DOCUMENT_CHAT_DAILY_LIMIT) || 500 }
+]);
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -27,8 +38,18 @@ Style:
 - Cite page numbers only when the extracted text makes them reliable.
 - End with this short warning in the user's language: the special conditions remain decisive.`;
 
-function json(error: string, status: number): Response {
-  return Response.json({ error }, { status });
+function json(error: string, status: number, headers: Record<string, string> = {}): Response {
+  return Response.json({ error }, { status, headers });
+}
+
+function isCrossOrigin(request: Request): boolean {
+  const origin = request.headers.get('origin');
+  if (!origin) return false;
+  try {
+    return new URL(origin).host !== new URL(request.url).host;
+  } catch {
+    return true;
+  }
 }
 
 function providerErrorMessage(status: number, responseText: string, model: string): string {
@@ -57,6 +78,8 @@ function isChatMessage(value: unknown): value is ChatMessage {
 }
 
 export const POST: APIRoute = async ({ request }) => {
+  if (isCrossOrigin(request)) return json('Origine de la requête non autorisée.', 403);
+
   try {
     const body = await request.json() as { documentId?: unknown; messages?: unknown };
     if (typeof body.documentId !== 'string' || !Array.isArray(body.messages) || body.messages.length === 0 || body.messages.length > MAX_MESSAGES || !body.messages.every(isChatMessage)) {
@@ -65,6 +88,16 @@ export const POST: APIRoute = async ({ request }) => {
 
     const selectedDocument = sectorCatalogDocuments.find((document) => document.id === body.documentId);
     if (!selectedDocument) return json('Ce document ne figure pas dans le catalogue BDTS.', 404);
+
+    const visitorLimit = checkVisitorLimit(getClientIp(request));
+    if (!visitorLimit.ok) {
+      return json('Vous avez posé beaucoup de questions en peu de temps. Merci de patienter un instant avant de recommencer.', 429, { 'Retry-After': String(visitorLimit.retryAfterSeconds) });
+    }
+    const dailyLimit = checkDailyLimit('site');
+    if (!dailyLimit.ok) {
+      console.warn('[document-chat] Daily question limit reached.');
+      return json('L’assistant documents a atteint sa limite quotidienne. Réessayez demain ou contactez BDTS.', 429, { 'Retry-After': String(dailyLimit.retryAfterSeconds) });
+    }
 
     const documentTitle = selectedDocument.title;
     const documentUrl = selectedDocument.externalUrl || selectedDocument.fileUrl;

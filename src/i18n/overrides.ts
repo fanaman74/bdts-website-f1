@@ -50,7 +50,10 @@ export const translationOverrides = {
     'Habitation': 'Home',
     'Entreprise': 'Business',
     'Toutes les compagnies': 'All insurers',
-    'Toutes les années': 'All years'
+    'Toutes les années': 'All years',
+    'Origine de la requête non autorisée.': 'Request origin not allowed.',
+    'Vous avez posé beaucoup de questions en peu de temps. Merci de patienter un instant avant de recommencer.': 'You have asked a lot of questions in a short time. Please wait a moment before trying again.',
+    'L’assistant documents a atteint sa limite quotidienne. Réessayez demain ou contactez BDTS.': 'The document assistant has reached its daily limit. Please try again tomorrow or contact BDTS.'
   },
   nl: {
     'Des assurances,': 'Verzekerd met',
@@ -102,6 +105,9 @@ export const translationOverrides = {
     'Habitation': 'Wonen',
     'Entreprise': 'Onderneming',
     'Toutes les compagnies': 'Alle verzekeraars',
-    'Toutes les années': 'Alle jaren'
+    'Toutes les années': 'Alle jaren',
+    'Origine de la requête non autorisée.': 'Herkomst van de aanvraag niet toegestaan.',
+    'Vous avez posé beaucoup de questions en peu de temps. Merci de patienter un instant avant de recommencer.': 'U hebt veel vragen gesteld in korte tijd. Wacht even voordat u het opnieuw probeert.',
+    'L’assistant documents a atteint sa limite quotidienne. Réessayez demain ou contactez BDTS.': 'De documentassistent heeft zijn daglimiet bereikt. Probeer het morgen opnieuw of contacteer BDTS.'
   }
 } as const;

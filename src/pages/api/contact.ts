@@ -1,15 +1,15 @@
 import type { APIRoute } from 'astro';
 import { z } from 'astro/zod';
 import { getSupabaseAdminClient } from '../../lib/supabaseServer';
+import { createRateLimiter, getClientIp } from '../../lib/rateLimit';
 
 export const prerender = false;
 
 const MAX_CONTENT_LENGTH = 25_000;
-const BURST_WINDOW_MS = 60_000;
-const BURST_LIMIT = 3;
-const WINDOW_MS = 15 * 60_000;
-const WINDOW_LIMIT = 8;
-const rateLimitHits = new Map<string, number[]>();
+const checkRateLimit = createRateLimiter([
+  { windowMs: 60_000, limit: 3 },
+  { windowMs: 15 * 60_000, limit: 8 }
+]);
 
 const submissionSchema = z.object({
   formType: z.enum(['contact', 'devis', 'declaration']),
@@ -114,34 +114,4 @@ function json(body: unknown, status: number, extraHeaders: Record<string, string
       ...extraHeaders
     }
   });
-}
-
-function getClientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return request.headers.get('x-real-ip') ?? request.headers.get('cf-connecting-ip') ?? 'unknown';
-}
-
-function checkRateLimit(key: string): { ok: true } | { ok: false; retryAfterSeconds: number } {
-  const now = Date.now();
-  const timestamps = (rateLimitHits.get(key) ?? []).filter((ts) => now - ts < WINDOW_MS);
-
-  const burstHits = timestamps.filter((ts) => now - ts < BURST_WINDOW_MS);
-  if (burstHits.length >= BURST_LIMIT) {
-    const oldestBurst = burstHits[0]!;
-    const retryAfterSeconds = Math.max(1, Math.ceil((BURST_WINDOW_MS - (now - oldestBurst)) / 1000));
-    rateLimitHits.set(key, timestamps);
-    return { ok: false, retryAfterSeconds };
-  }
-
-  if (timestamps.length >= WINDOW_LIMIT) {
-    const oldestWindow = timestamps[0]!;
-    const retryAfterSeconds = Math.max(1, Math.ceil((WINDOW_MS - (now - oldestWindow)) / 1000));
-    rateLimitHits.set(key, timestamps);
-    return { ok: false, retryAfterSeconds };
-  }
-
-  timestamps.push(now);
-  rateLimitHits.set(key, timestamps);
-  return { ok: true };
 }
