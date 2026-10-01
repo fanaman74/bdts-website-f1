@@ -5,6 +5,7 @@ import Footer from '../components/Footer.astro';
 import UtilityRail from '../components/UtilityRail.astro';
 import LanguageRuntime from '../components/LanguageRuntime.astro';
 import { t } from '../i18n/fr';
+import { localizedPath } from '../i18n/dictionaries';
 
 interface Props {
   title: string;
@@ -15,17 +16,20 @@ interface Props {
 
 const { title, description = t.site.description, ogImage = '/images/og-default.svg', bodyClass = '' } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
+const alternates = (['fr', 'nl', 'en'] as const).map((language) => ({ language, href: new URL(localizedPath(canonical.pathname, language), Astro.site) }));
 const fullTitle = title === t.site.name ? title : `${title} — ${t.site.name}`;
 ---
 
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-localizable>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    {alternates.map((alternate) => <link rel="alternate" hreflang={alternate.language} href={alternate.href} />)}
+    <link rel="alternate" hreflang="x-default" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
     <meta property="og:type" content="website" />
@@ -37,12 +41,15 @@ const fullTitle = title === t.site.name ? title : `${title} — ${t.site.name}`;
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <script is:inline>
+      // Old links used ?lang=en|nl on French URLs; send them to the matching /en or /nl page.
       (() => {
-        const supported = ['fr', 'nl', 'en'];
-        const requested = new URLSearchParams(window.location.search).get('lang');
-        let stored = null;
-        try { stored = window.localStorage.getItem('bdts-language'); } catch { /* Storage can be blocked. */ }
-        document.documentElement.lang = supported.includes(requested) ? requested : supported.includes(stored) ? stored : 'fr';
+        const url = new URL(window.location.href);
+        const requested = url.searchParams.get('lang');
+        if (!['fr', 'nl', 'en'].includes(requested)) return;
+        const source = url.pathname.replace(/^\/(?:en|nl)(?=\/|$)/, '') || '/';
+        url.pathname = requested === 'fr' ? source : `/${requested}${source === '/' ? '/' : source}`;
+        url.searchParams.delete('lang');
+        window.location.replace(url.href);
       })();
     </script>
 
