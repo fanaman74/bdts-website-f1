@@ -10,6 +10,16 @@ const legalLinks = [
   { label: 'Durabilité', href: '/durabilite' },
   { label: 'Protection du client', href: '/protection-du-client' }
 ];
+
+const navSections = mainNav
+  .filter((s) => s.slug !== 'autres')
+  .map((section) => ({ label: section.label, links: section.groups.map((group) => ({ label: group.label, href: group.items[0]!.href })) }));
+const pratique = {
+  label: 'Pratique',
+  links: [...topNav, { label: 'Contact', href: '/contact' }, { label: 'Sinistre', href: '/declaration' }]
+};
+// Pratique sits right after Particulier so all columns share one row.
+const footerSections = [navSections[0]!, pratique, ...navSections.slice(1)];
 ---
 
 <footer class="site-footer">
@@ -32,20 +42,12 @@ const legalLinks = [
           <a href="mailto:bdts@bdts.be">bdts@bdts.be</a>
         </address>
       </div>
-      {mainNav.filter((s) => s.slug !== 'autres').map((section) => (
+      {footerSections.map((section) => (
         <nav aria-label={`Liens ${section.label}`}>
           <h2>{section.label}</h2>
-          <ul>{section.groups.map((group) => <li><a href={group.items[0]!.href}>{group.label}</a></li>)}</ul>
+          <ul>{section.links.map((link) => <li><a href={link.href}>{link.label}</a></li>)}</ul>
         </nav>
       ))}
-      <nav aria-label="Liens pratiques">
-        <h2>Pratique</h2>
-        <ul>
-          {topNav.map((item) => <li><a href={item.href}>{item.label}</a></li>)}
-          <li><a href="/contact">Contact</a></li>
-          <li><a href="/declaration">Sinistre</a></li>
-        </ul>
-      </nav>
     </div>
 
     <div class="site-footer__legal">
