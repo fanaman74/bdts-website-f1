@@ -1,6 +1,7 @@
 // Emails the office when a contact, quote or claim form is submitted.
 // Uses Resend's HTTP API directly; without RESEND_API_KEY and
 // INQUIRY_NOTIFY_TO the inquiry is still stored, only the email is skipped.
+// The sender defaults to EMAIL_FROM, the address account emails already use.
 
 export interface InquiryNotification {
   formType: 'contact' | 'devis' | 'declaration';
@@ -24,7 +25,7 @@ export async function sendInquiryNotification(inquiry: InquiryNotification): Pro
     return;
   }
 
-  const from = process.env.INQUIRY_NOTIFY_FROM?.trim() || 'BDTS Website <onboarding@resend.dev>';
+  const from = process.env.INQUIRY_NOTIFY_FROM?.trim() || process.env.EMAIL_FROM?.trim() || 'BDTS Website <onboarding@resend.dev>';
   const label = FORM_LABELS[inquiry.formType];
   const text = [
     `${label} reçue via le site web.`,
@@ -36,7 +37,7 @@ export async function sendInquiryNotification(inquiry: InquiryNotification): Pro
     'Message :',
     inquiry.message,
     '',
-    'La demande est également enregistrée dans la table Supabase « inquiries ».'
+    'La demande est également enregistrée dans l’espace d’administration (/admin).'
   ].join('\n');
 
   try {

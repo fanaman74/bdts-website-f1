@@ -16,10 +16,15 @@ function parseUrl(value: string): URL | null {
   }
 }
 
-function isPdfLike(url: string): boolean {
+export function isPdfLike(url: string): boolean {
   const parsed = parseUrl(url);
   if (!parsed) return false;
   return parsed.pathname.toLowerCase().endsWith('.pdf');
+}
+
+export function canUseDocumentAssistant(source: DocumentSource, fileUrl: string, externalUrl?: string): boolean {
+  const href = source !== 'local' && externalUrl ? externalUrl : fileUrl;
+  return source === 'local' || isPdfLike(href);
 }
 
 function formatHostLabel(url: string, source: DocumentSource): string | null {
@@ -73,7 +78,7 @@ export function getDocumentAccessMeta(
       href,
       opensExternally,
       accessLabel: 'PDF direct',
-      actionLabel: source === 'local' ? 'Telecharger' : 'Ouvrir le PDF',
+      actionLabel: source === 'local' ? 'Télécharger' : 'Ouvrir le PDF',
       hostLabel: formatHostLabel(href, source)
     };
   }

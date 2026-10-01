@@ -37,9 +37,3 @@ function pruneStale(hits: Map<string, number[]>, now: number, windowMs: number) 
     if (!timestamps.some((ts) => now - ts < windowMs)) hits.delete(key);
   }
 }
-
-export function getClientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return request.headers.get('x-real-ip') ?? request.headers.get('cf-connecting-ip') ?? 'unknown';
-}

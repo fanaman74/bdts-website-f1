@@ -1,17 +1,18 @@
 import type { APIRoute } from 'astro';
 import { sectorCatalogDocuments } from '../../data/sectorCatalog';
-import { createRateLimiter, getClientIp } from '../../lib/rateLimit';
+import { completionBody, resolveAssistant } from '../../lib/assistantProvider';
+import { getCachedDocumentText, saveDocumentText } from '../../lib/documentText';
+import { fetchDocumentText } from '../../lib/pdfText';
+import { getClientIp } from '../../lib/forms';
+import { createRateLimiter } from '../../lib/rateLimit';
 
 export const prerender = false;
 
-const DEFAULT_MODEL = 'google/gemini-3.5-flash-lite';
-const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
-const MAX_DOCUMENT_CHARACTERS = 80_000;
 const MAX_MESSAGES = 12;
 const MAX_MESSAGE_CHARACTERS = 4_000;
 const DAY_MS = 24 * 60 * 60_000;
 
-// Every question costs OpenRouter credits, so cap each visitor and the site as a whole.
+// Every question costs provider credits, so cap each visitor and the site as a whole.
 const checkVisitorLimit = createRateLimiter([
   { windowMs: 60_000, limit: 5 },
   { windowMs: 60 * 60_000, limit: 30 }
@@ -42,30 +43,41 @@ function json(error: string, status: number, headers: Record<string, string> = {
   return Response.json({ error }, { status, headers });
 }
 
-function isCrossOrigin(request: Request): boolean {
-  const origin = request.headers.get('origin');
-  if (!origin) return false;
-  try {
-    return new URL(origin).host !== new URL(request.url).host;
-  } catch {
-    return true;
-  }
+interface ModelAttempt {
+  model: string;
+  status: number;
+  detail: string;
 }
 
-function providerErrorMessage(status: number, responseText: string, model: string): string {
-  let detail = responseText;
+/** Pulls the provider's own explanation out of an error body. */
+function extractReason(responseText: string): string {
+  let message = responseText;
   try {
     const parsed = JSON.parse(responseText) as { error?: { message?: string } };
-    detail = parsed.error?.message ?? responseText;
+    message = parsed.error?.message ?? responseText;
   } catch {
-    // Keep the provider's non-JSON response for a useful, bounded error.
+    // Keep the provider's non-JSON response.
   }
+  return message.replace(/\s+/g, ' ').trim().slice(0, 240);
+}
 
-  if (status === 401 || status === 403) return 'La clé OpenRouter est invalide ou inactive. Vérifiez OPENROUTER_API_KEY dans Railway.';
-  if (status === 402) return 'Le compte OpenRouter ne dispose plus de crédits.';
-  if (status === 404) return `Le modèle « ${model} » est indisponible. Vérifiez OPENROUTER_MODEL dans Railway.`;
-  if (status === 429) return 'Le service d’assistance est temporairement limité. Réessayez dans un instant.';
-  return `Erreur du service d’assistance (${status}) : ${detail.slice(0, 240)}`;
+function providerErrorMessage(attempts: ModelAttempt[], providerName: string, keyEnvVar: string): string {
+  const last = attempts[attempts.length - 1]!;
+  const reason = extractReason(last.detail) || 'aucun détail fourni';
+
+  if (last.status === 401 || last.status === 403) {
+    return `Clé ${providerName} refusée pour la génération (HTTP ${last.status}) : ${reason}. Vérifiez ${keyEnvVar} dans Railway, et que le compte ${providerName} dispose bien de crédits.`;
+  }
+  if (last.status === 402) return `Le compte ${providerName} ne dispose plus de crédits. Réponse du service : ${reason}.`;
+  if (last.status === 429) return `Le service d’assistance est temporairement limité par ${providerName} : ${reason}. Réessayez dans un instant.`;
+  if (last.status === 404) {
+    const tried = attempts.map((attempt) => `« ${attempt.model} »`).join(', ');
+    const subject = attempts.length > 1
+      ? `Aucun modèle disponible parmi ${tried}`
+      : `Le modèle ${tried} est indisponible`;
+    return `${subject} selon ${providerName} : ${reason}. Vérifiez le modèle choisi dans l’espace d’administration.`;
+  }
+  return `Erreur du service d’assistance (${last.status}) : ${reason}`;
 }
 
 function isChatMessage(value: unknown): value is ChatMessage {
@@ -78,8 +90,6 @@ function isChatMessage(value: unknown): value is ChatMessage {
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  if (isCrossOrigin(request)) return json('Origine de la requête non autorisée.', 403);
-
   try {
     const body = await request.json() as { documentId?: unknown; messages?: unknown };
     if (typeof body.documentId !== 'string' || !Array.isArray(body.messages) || body.messages.length === 0 || body.messages.length > MAX_MESSAGES || !body.messages.every(isChatMessage)) {
@@ -103,97 +113,104 @@ export const POST: APIRoute = async ({ request }) => {
     const documentUrl = selectedDocument.externalUrl || selectedDocument.fileUrl;
     let parsedUrl: URL;
     try {
-      parsedUrl = new URL(documentUrl);
+      parsedUrl = new URL(documentUrl, request.url);
     } catch {
       return json('L’adresse de ce document est invalide.', 422);
     }
     if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') return json('Ce document ne peut pas être lu par l’assistant.', 422);
 
-    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-    const model = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
-    if (!apiKey) return json('L’assistant documents n’est pas encore configuré. Ajoutez OPENROUTER_API_KEY dans Railway.', 503);
+    const { provider, apiKey, chain: modelChain } = await resolveAssistant();
+    if (!apiKey) return json(`L’assistant documents n’est pas encore configuré. Ajoutez ${provider.keyEnvVar} dans Railway.`, 503);
 
+    // Prefer cached text so each document is downloaded and parsed only once.
+    // The cache is also the escape hatch for hosts that refuse datacenter IPs:
+    // `npm run ingest:documents` warms it from an unblocked network.
     let pdfText: string;
-    try {
-      const pdfResponse = await fetch(documentUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; BDTS-Document-Assistant/1.0; +https://www.bdts.be)',
-          Accept: 'application/pdf,*/*;q=0.8',
-          'Accept-Language': 'fr-BE,fr;q=0.9,nl;q=0.8,en;q=0.7',
-          Referer: 'https://app.sectorcatalog.be/'
-        },
-        redirect: 'follow',
-        signal: AbortSignal.timeout(30_000)
-      });
+    const cached = await getCachedDocumentText(selectedDocument.id).catch((error: unknown) => {
+      console.error('[document-chat] Document cache read failed:', error instanceof Error ? error.message : error);
+      return null;
+    });
 
-      if (!pdfResponse.ok) throw new Error(`la compagnie a répondu HTTP ${pdfResponse.status}`);
-      const declaredLength = Number(pdfResponse.headers.get('content-length') || 0);
-      if (declaredLength > MAX_DOCUMENT_BYTES) throw new Error('le fichier dépasse la taille maximale de 25 Mo');
-
-      const bytes = await pdfResponse.arrayBuffer();
-      if (bytes.byteLength > MAX_DOCUMENT_BYTES) throw new Error('le fichier dépasse la taille maximale de 25 Mo');
-
-      // Import the parser implementation directly. The package root executes a
-      // bundled test fixture when loaded by some ESM development runtimes.
-      const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
-      const parsed = await pdfParse(Buffer.from(bytes), { max: 50 });
-      pdfText = (parsed.text || '').trim();
-      if (!pdfText) throw new Error('aucun texte lisible n’a été trouvé; le PDF est peut-être numérisé');
-      if (pdfText.length > MAX_DOCUMENT_CHARACTERS) pdfText = `${pdfText.slice(0, MAX_DOCUMENT_CHARACTERS)}\n\n[Document tronqué après 80 000 caractères]`;
-    } catch (caught) {
-      const detail = caught instanceof Error ? caught.message : 'erreur de lecture inconnue';
-      console.error('[document-chat] PDF extraction failed:', detail);
-      return json(`Impossible de lire ce document : ${detail}. Vous pouvez toujours l’ouvrir directement ou contacter BDTS.`, 422);
+    if (cached) {
+      pdfText = cached.content;
+    } else {
+      try {
+        const extracted = await fetchDocumentText(parsedUrl.href);
+        pdfText = extracted.text;
+        // Best effort: a cache write failure must not fail the answer.
+        await saveDocumentText(selectedDocument.id, parsedUrl.href, extracted.text, extracted.truncated).catch((error: unknown) => {
+          console.error('[document-chat] Document cache write failed:', error instanceof Error ? error.message : error);
+        });
+      } catch (caught) {
+        const detail = caught instanceof Error ? caught.message : 'erreur de lecture inconnue';
+        console.error('[document-chat] PDF extraction failed:', detail);
+        return json(`Impossible de lire ce document : ${detail}. Vous pouvez toujours l’ouvrir directement ou contacter BDTS.`, 422);
+      }
     }
 
     const history = body.messages as ChatMessage[];
+    const conversation = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: `Document « ${documentTitle} » :\n\n---\n${pdfText}\n---\n\nUse only this source for the conversation.` },
+      { role: 'assistant', content: `J’ai lu le document « ${documentTitle} ». Je répondrai uniquement à partir de son contenu.` },
+      ...history
+    ];
+
     async function requestCompletion(selectedModel: string): Promise<Response> {
-      return fetch('https://openrouter.ai/api/v1/chat/completions', {
+      return fetch(provider.chatEndpoint, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://www.bdts.be',
-          'X-Title': 'BDTS Document Assistant',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: `Document « ${documentTitle} » :\n\n---\n${pdfText}\n---\n\nUse only this source for the conversation.` },
-            { role: 'assistant', content: `J’ai lu le document « ${documentTitle} ». Je répondrai uniquement à partir de son contenu.` },
-            ...history
-          ],
-          max_tokens: 1_024,
-          temperature: 0.2,
-          stream: true
-        })
+        body: completionBody(provider, selectedModel, conversation)
       });
     }
 
-    let activeModel = model;
-    let upstream = await requestCompletion(activeModel);
-    if (upstream.status === 404 && activeModel !== DEFAULT_MODEL) {
-      const staleModelError = await upstream.text();
-      console.warn('[document-chat] Configured model unavailable; trying default:', activeModel, staleModelError.slice(0, 240));
-      activeModel = DEFAULT_MODEL;
-      upstream = await requestCompletion(activeModel);
+    // Walk the chain in preference order. Only a model-level refusal (404) is
+    // worth retrying: auth, credit and rate-limit failures repeat identically
+    // for every candidate, so they stop the loop and surface immediately.
+    const attempts: ModelAttempt[] = [];
+    let activeModel = modelChain[0]!;
+    let upstream: Response | null = null;
+
+    for (const candidate of modelChain) {
+      activeModel = candidate;
+      const response = await requestCompletion(candidate);
+      if (response.ok) {
+        upstream = response;
+        break;
+      }
+
+      const detail = await response.text();
+      attempts.push({ model: candidate, status: response.status, detail });
+      console.warn('[document-chat] Model refused:', candidate, response.status, detail.slice(0, 240));
+      if (response.status !== 404) break;
     }
 
-    if (!upstream.ok) {
-      const responseText = await upstream.text();
-      console.error('[document-chat] OpenRouter error:', upstream.status, responseText.slice(0, 500));
-      return json(providerErrorMessage(upstream.status, responseText, activeModel), 502);
+    if (!upstream) {
+      console.error('[document-chat] Provider error:', JSON.stringify(attempts).slice(0, 800));
+      return json(providerErrorMessage(attempts, provider.name, provider.keyEnvVar), 502);
     }
     if (!upstream.body) return json('Le service d’assistance n’a renvoyé aucune réponse.', 502);
 
     const providerBody = upstream.body;
+    const fallbacks = attempts.map((attempt) => attempt.model);
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         const reader = providerBody.getReader();
         const decoder = new TextDecoder();
         const encoder = new TextEncoder();
         let pending = '';
+        let resolvedModel = activeModel;
+
+        function send(payload: Record<string, unknown>) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+        }
+
+        // Announce the answering model before the first token, then again if the
+        // provider reports a different concrete model than the one requested.
+        send({ meta: { model: activeModel, fallbacks } });
 
         function processLine(line: string) {
           if (!line.startsWith('data:')) return;
@@ -201,13 +218,21 @@ export const POST: APIRoute = async ({ request }) => {
           if (!data || data === '[DONE]') return;
 
           try {
-            const event = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }>; error?: { message?: string } };
+            const event = JSON.parse(data) as {
+              model?: string;
+              choices?: Array<{ delta?: { content?: string } }>;
+              error?: { message?: string };
+            };
             if (event.error?.message) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: event.error.message })}\n\n`));
+              send({ error: event.error.message });
               return;
             }
+            if (typeof event.model === 'string' && event.model !== resolvedModel) {
+              resolvedModel = event.model;
+              send({ meta: { model: resolvedModel, routedFrom: activeModel } });
+            }
             const content = event.choices?.[0]?.delta?.content;
-            if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+            if (content) send({ content });
           } catch {
             // Ignore one malformed event without dropping later complete events.
           }

@@ -1,16 +1,12 @@
 import type { APIRoute } from 'astro';
 import { z } from 'astro/zod';
-import { getSupabaseAdminClient } from '../../lib/supabaseServer';
-import { createRateLimiter, getClientIp } from '../../lib/rateLimit';
+import { getDbClient, type SqlClient } from '../../lib/db';
+import { checkRateLimit, getClientIp, json, rateLimitMessage } from '../../lib/forms';
 import { sendInquiryNotification } from '../../lib/inquiryNotification';
 
 export const prerender = false;
 
 const MAX_CONTENT_LENGTH = 25_000;
-const checkRateLimit = createRateLimiter([
-  { windowMs: 60_000, limit: 3 },
-  { windowMs: 15 * 60_000, limit: 8 }
-]);
 
 const submissionSchema = z.object({
   formType: z.enum(['contact', 'devis', 'declaration']),
@@ -59,47 +55,32 @@ export const POST: APIRoute = async ({ request }) => {
   const rateLimitResult = checkRateLimit(rateLimitKey);
 
   if (!rateLimitResult.ok) {
-    return json(
-      {
-        ok: false,
-        error:
-          rateLimitResult.retryAfterSeconds > 60
-            ? 'Trop de demandes en peu de temps. Merci de réessayer dans quelques minutes.'
-            : 'Trop de demandes en peu de temps. Merci de patienter un instant avant de recommencer.'
-      },
-      429,
-      {
-        'Retry-After': String(rateLimitResult.retryAfterSeconds)
-      }
-    );
-  }
-
-  let supabase;
-  try {
-    supabase = getSupabaseAdminClient();
-  } catch (error) {
-    console.error('[contact] Supabase configuration error:', error instanceof Error ? error.message : 'unknown error');
-    return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
-  }
-
-  if (!supabase) {
-    console.error('[contact] Supabase is not configured.');
-    return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
-  }
-
-  const { error: insertError } = await supabase.from('inquiries').insert({
-    form_type: formType,
-    name,
-    email,
-    phone,
-    message
-  });
-
-  if (insertError) {
-    console.error('[contact] Supabase insert failed:', {
-      code: insertError.code,
-      message: insertError.message
+    return json({ ok: false, error: rateLimitMessage(rateLimitResult.retryAfterSeconds) }, 429, {
+      'Retry-After': String(rateLimitResult.retryAfterSeconds)
     });
+  }
+
+  let db: SqlClient | null;
+  try {
+    db = getDbClient();
+  } catch (error) {
+    console.error('[contact] Database configuration error:', error instanceof Error ? error.message : 'unknown error');
+    return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
+  }
+
+  if (!db) {
+    console.error('[contact] DATABASE_URL is not configured.');
+    return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
+  }
+
+  try {
+    await db.query(
+      `insert into public.inquiries (form_type, name, email, phone, message)
+       values ($1, $2, $3, $4, $5)`,
+      [formType, name, email, phone, message]
+    );
+  } catch (error) {
+    console.error('[contact] Database insert failed:', error instanceof Error ? error.message : 'unknown error');
     return json({ ok: false, error: "Votre demande n'a pas pu être enregistrée. Merci de réessayer." }, 502);
   }
 
@@ -108,14 +89,3 @@ export const POST: APIRoute = async ({ request }) => {
 
   return json({ ok: true }, 200);
 };
-
-function json(body: unknown, status: number, extraHeaders: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store',
-      ...extraHeaders
-    }
-  });
-}

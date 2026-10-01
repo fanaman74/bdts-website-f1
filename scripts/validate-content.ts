@@ -7,7 +7,7 @@
  * Run: npm run validate
  */
 import { existsSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -58,9 +58,10 @@ function walk(dir: string): string[] {
   });
 }
 
-const serviceIds = walk(join(ROOT, 'src/content/services'))
+const servicesRoot = join(ROOT, 'src/content/services');
+const serviceIds = walk(servicesRoot)
   .filter((f) => f.endsWith('.md'))
-  .map((f) => f.slice(join(ROOT, 'src/content/services').length + 1, -3));
+  .map((f) => relative(servicesRoot, f).slice(0, -3).replaceAll('\\', '/'));
 
 for (const id of serviceIds) {
   const photo = join(ROOT, 'public/images/photos', `${id.replaceAll('/', '-')}.jpg`);

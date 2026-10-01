@@ -62,9 +62,14 @@ export const translationOverrides = {
     'Entreprise': 'Business',
     'Toutes les compagnies': 'All insurers',
     'Toutes les années': 'All years',
-    'Origine de la requête non autorisée.': 'Request origin not allowed.',
     'Vous avez posé beaucoup de questions en peu de temps. Merci de patienter un instant avant de recommencer.': 'You have asked a lot of questions in a short time. Please wait a moment before trying again.',
-    'L’assistant documents a atteint sa limite quotidienne. Réessayez demain ou contactez BDTS.': 'The document assistant has reached its daily limit. Please try again tomorrow or contact BDTS.'
+    'L’assistant documents a atteint sa limite quotidienne. Réessayez demain ou contactez BDTS.': 'The document assistant has reached its daily limit. Please try again tomorrow or contact BDTS.',
+    'Assistant connecté': 'Assistant connected',
+    'Vérification de la connexion…': 'Checking the connection…',
+    'Clé API absente': 'API key missing',
+    'Clé API refusée': 'API key rejected',
+    'État de connexion inconnu': 'Connection status unknown',
+    'Modèle': 'Model'
   },
   nl: {
     'Des assurances,': 'Verzekerd met',
@@ -128,8 +133,13 @@ export const translationOverrides = {
     'Entreprise': 'Onderneming',
     'Toutes les compagnies': 'Alle verzekeraars',
     'Toutes les années': 'Alle jaren',
-    'Origine de la requête non autorisée.': 'Herkomst van de aanvraag niet toegestaan.',
     'Vous avez posé beaucoup de questions en peu de temps. Merci de patienter un instant avant de recommencer.': 'U hebt veel vragen gesteld in korte tijd. Wacht even voordat u het opnieuw probeert.',
-    'L’assistant documents a atteint sa limite quotidienne. Réessayez demain ou contactez BDTS.': 'De documentassistent heeft zijn daglimiet bereikt. Probeer het morgen opnieuw of contacteer BDTS.'
+    'L’assistant documents a atteint sa limite quotidienne. Réessayez demain ou contactez BDTS.': 'De documentassistent heeft zijn daglimiet bereikt. Probeer het morgen opnieuw of contacteer BDTS.',
+    'Assistant connecté': 'Assistent verbonden',
+    'Vérification de la connexion…': 'Verbinding controleren…',
+    'Clé API absente': 'API-sleutel ontbreekt',
+    'Clé API refusée': 'API-sleutel geweigerd',
+    'État de connexion inconnu': 'Verbindingsstatus onbekend',
+    'Modèle': 'Model'
   }
 } as const;
