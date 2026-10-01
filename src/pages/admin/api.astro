@@ -1,6 +1,6 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { API_CHECKS, findCheck, isCheckConfigured, type CheckResult } from '../../lib/apiChecks';
+import { API_CHECKS, checkLevel, findCheck, probeAll, SLOW_MS, type CheckLevel, type CheckResult } from '../../lib/apiChecks';
 
 export const prerender = false;
 
@@ -35,9 +35,37 @@ if (Astro.request.method === 'POST') {
   }
 }
 
+// Cheap probes colour every dot on load; a test just run replaces its probe.
+const probes = await probeAll();
+
 const selected = findCheck(selectedId) ?? API_CHECKS[0]!;
-const selectedResult = results.get(selected.id);
-const rows = API_CHECKS.map((check) => ({ check, configured: isCheckConfigured(check), result: results.get(check.id) }));
+// Before any click, the panel shows the automatic check for this service.
+const selectedTested = results.has(selected.id);
+const selectedResult = results.get(selected.id) ?? probes.get(selected.id);
+const selectedLevel = selectedResult ? checkLevel(selectedResult) : null;
+const PANEL: Record<CheckLevel, string> = {
+  ok: 'border-[#2b5c40] bg-[#12241a]',
+  warn: 'border-[#6b4a1f] bg-[#2a1d0e]',
+  fail: 'border-[#5e2f28] bg-[#2a1614]'
+};
+const rows = API_CHECKS.map((check) => {
+  const status = results.get(check.id) ?? probes.get(check.id)!;
+  return { check, result: results.get(check.id), status, level: checkLevel(status) };
+});
+
+const LEVEL: Record<CheckLevel, { label: string; dot: string; text: string }> = {
+  ok: { label: 'Connecté', dot: 'bg-[#3fbf6f] shadow-[0_0_8px_#3fbf6f80]', text: 'text-[#8fd0a8]' },
+  warn: { label: 'Attention', dot: 'bg-[#e8952f] shadow-[0_0_8px_#e8952f80]', text: 'text-[#f0b46a]' },
+  fail: { label: 'En panne', dot: 'bg-[#e0473c] shadow-[0_0_8px_#e0473c80]', text: 'text-[#e08b7c]' }
+};
+
+/** One line under each service: why it is orange or red, else its summary. */
+function statusLine(result: CheckResult): string {
+  if (!result.ok) return result.notConfigured ? `Non configuré` : result.summary;
+  if (result.warning) return result.warning;
+  if (result.latencyMs !== null && result.latencyMs > SLOW_MS) return `Lent (${result.latencyMs} ms)`;
+  return result.latencyMs !== null ? `${result.summary} · ${result.latencyMs} ms` : result.summary;
+}
 ---
 
 <AdminLayout title="API" active="api">
@@ -60,7 +88,7 @@ const rows = API_CHECKS.map((check) => ({ check, configured: isCheckConfigured(c
 
   <div class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
     <nav aria-label="Services" class="space-y-2">
-      {rows.map(({ check, configured, result }) => (
+      {rows.map(({ check, status, level }) => (
         <a
           href={`/admin/api?check=${check.id}`}
           aria-current={check.id === selected.id ? 'page' : undefined}
@@ -73,17 +101,19 @@ const rows = API_CHECKS.map((check) => ({ check, configured: isCheckConfigured(c
         >
           <span class="min-w-0">
             <span class="block truncate font-medium">{check.name}</span>
-            <span class="mt-0.5 block text-xs text-[#6d726d]">{configured ? 'Configuré' : 'Non configuré'}</span>
+            <span class:list={['mt-0.5 block truncate text-xs', LEVEL[level].text]}>{statusLine(status)}</span>
           </span>
-          {result ? (
-            <span class:list={['shrink-0 rounded-full px-2 py-0.5 text-xs', result.ok ? 'bg-[#12241a] text-[#8fd0a8]' : 'bg-[#2a1614] text-[#e08b7c]']}>
-              {result.ok ? 'OK' : 'Échec'}
-            </span>
-          ) : (
-            <span class:list={['h-2 w-2 shrink-0 rounded-full', configured ? 'bg-[#4f5652]' : 'bg-[#5e2f28]']}></span>
-          )}
+          <span class={`h-2.5 w-2.5 shrink-0 rounded-full ${LEVEL[level].dot}`} title={LEVEL[level].label}>
+            <span class="sr-only">{LEVEL[level].label}</span>
+          </span>
         </a>
       ))}
+      <p class="flex flex-wrap gap-x-4 gap-y-1 px-1 pt-2 text-xs text-[#8b908b]">
+        {(['ok', 'warn', 'fail'] as const).map((key) => (
+          <span class="inline-flex items-center gap-1.5"><span class={`h-2 w-2 rounded-full ${LEVEL[key].dot}`}></span>{LEVEL[key].label}</span>
+        ))}
+      </p>
+      <p class="px-1 text-xs leading-5 text-[#6d726d]">Vérifié automatiquement à l’ouverture de la page, sans envoyer d’e-mail ni consommer de jetons. Orange : non configuré, à vérifier ou lent.</p>
     </nav>
 
     <section class="rounded-xl border border-[#262a28] bg-[#111312] px-6 py-6">
@@ -121,15 +151,19 @@ const rows = API_CHECKS.map((check) => ({ check, configured: isCheckConfigured(c
           role="status"
           class:list={[
             'mt-6 rounded-lg border px-4 py-4',
-            selectedResult.ok ? 'border-[#2b5c40] bg-[#12241a]' : 'border-[#5e2f28] bg-[#2a1614]'
+            PANEL[selectedLevel!]
           ]}
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class:list={['text-sm font-medium', selectedResult.ok ? 'text-[#8fd0a8]' : 'text-[#e08b7c]']}>
-              {selectedResult.ok ? 'OK' : 'Échec'} · {selectedResult.summary}
+            <p class:list={['inline-flex items-center gap-2 text-sm font-medium', LEVEL[selectedLevel!].text]}>
+              <span class={`h-2.5 w-2.5 rounded-full ${LEVEL[selectedLevel!].dot}`}></span>
+              {LEVEL[selectedLevel!].label} · {selectedResult.summary}
             </p>
-            {selectedResult.latencyMs !== null && <p class="text-xs text-[#8b908b]">{selectedResult.latencyMs} ms</p>}
+            <p class="text-xs text-[#8b908b]">
+              {selectedTested ? 'Test complet' : 'Vérification automatique'}{selectedResult.latencyMs !== null && ` · ${selectedResult.latencyMs} ms`}
+            </p>
           </div>
+          {selectedResult.warning && <p class="mt-2 text-sm text-[#f0b46a]">{selectedResult.warning}</p>}
           {selectedResult.error && <p class="mt-2 text-sm break-words text-[#e8c1b9]">{selectedResult.error}</p>}
           {selectedResult.details.length > 0 && (
             <ul class="mt-3 space-y-1 text-xs text-[#c8c6c0]">
@@ -145,7 +179,7 @@ const rows = API_CHECKS.map((check) => ({ check, configured: isCheckConfigured(c
           <ul class="mt-3 space-y-2 text-sm">
             {rows.filter((row) => row.result).map(({ check, result }) => (
               <li class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span class:list={['w-12 font-medium', result!.ok ? 'text-[#8fd0a8]' : 'text-[#e08b7c]']}>{result!.ok ? 'OK' : 'Échec'}</span>
+                <span class:list={['inline-flex w-24 items-center gap-1.5 font-medium', LEVEL[checkLevel(result!)].text]}><span class={`h-2 w-2 rounded-full ${LEVEL[checkLevel(result!)].dot}`}></span>{LEVEL[checkLevel(result!)].label}</span>
                 <span class="text-[#e8e6e1]">{check.name}</span>
                 <span class="text-xs text-[#8b908b]">{result!.latencyMs !== null ? `${result!.latencyMs} ms · ` : ''}{result!.error ?? result!.summary}</span>
               </li>
