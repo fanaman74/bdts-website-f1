@@ -4,6 +4,9 @@ builder = "NIXPACKS"
 buildCommand = "npm run build"
 
 [deploy]
+# Applies pending db/migrations before the new version goes live. If a
+# migration fails, Railway keeps the previous deployment running.
+preDeployCommand = ["npm run migrate"]
 startCommand = "HOST=0.0.0.0 node ./dist/server/entry.mjs"
 healthcheckPath = "/health"
 healthcheckTimeout = 100

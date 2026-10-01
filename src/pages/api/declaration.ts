@@ -4,6 +4,13 @@ import { getDbClient, type SqlClient } from '../../lib/db';
 import { checkRateLimit, getClientIp, json, rateLimitMessage } from '../../lib/forms';
 import { createDeclaration, type AttachmentInput } from '../../lib/declarations';
 import { sendInquiryNotification } from '../../lib/inquiryNotification';
+import { declarationReference } from '../../lib/declarationSummary';
+import { renderDeclarationPdf } from '../../lib/declarationPdf';
+import { buildDeclarationConfirmation, declarationPdfFilename } from '../../lib/declarationEmail';
+import { isEmailConfigured, sendEmail } from '../../lib/email';
+import { autoAssignInsurer, missingInfo } from '../../lib/claimTriage';
+import { insurerName } from '../../lib/insurers';
+import { toDeclarationLanguage, type DeclarationLanguage } from '../../lib/declarationI18n';
 
 export const prerender = false;
 
@@ -206,32 +213,88 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
   }
 
+  let id: string | null;
   try {
-    const id = await createDeclaration(parsed.data, attachmentResult.attachments);
+    id = await createDeclaration(parsed.data, attachmentResult.attachments, toDeclarationLanguage(form.get('language')));
     if (!id) return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
   } catch (error) {
     console.error('[declaration] Database insert failed:', error instanceof Error ? error.message : 'unknown error');
     return json({ ok: false, error: "Votre déclaration n'a pas pu être enregistrée. Merci de réessayer." }, 502);
   }
 
-  // The declaration is already saved, so a failed email never fails the submission.
+  // The declaration is already saved: from here on nothing fails the submission.
   const d = parsed.data;
-  await sendInquiryNotification({
-    formType: 'declaration',
-    name: `${d.firstName} ${d.lastName}`,
-    email: d.email,
-    phone: d.phoneMobile ?? d.phoneFixed ?? '',
-    message: [
-      d.incidentDate && `Date du sinistre : ${d.incidentDate}`,
-      d.incidentPlace && `Lieu : ${d.incidentPlace}`,
-      d.insurancePolicyNumber && `N° de police : ${d.insurancePolicyNumber}`,
-      d.incidentCircumstances,
-      attachmentResult.attachments.length > 0 && `${attachmentResult.attachments.length} pièce(s) jointe(s).`,
-      'Dossier complet dans /admin/declarations.'
-    ].filter(Boolean).join('\n')
-  });
+  const reference = declarationReference(id);
+  const attachments = attachmentResult.attachments;
 
-  return json({ ok: true }, 200);
+  // Sort the claim straight away so it shows up matched in /admin.
+  const match = await autoAssignInsurer(id, d);
+  const missing = missingInfo({
+    ...d,
+    attachmentCount: attachments.length,
+    imageCount: attachments.filter((attachment) => attachment.contentType.startsWith('image/')).length,
+    insurer: match?.insurer ?? null
+  }).filter((item) => item.blocking || item.id === 'photos');
+
+  // The customer gets the email and PDF in the language they used on the site;
+  // the office always gets the French PDF.
+  const language = toDeclarationLanguage(form.get('language'));
+  const submittedAt = new Date();
+  const renderPdf = async (pdfLanguage: DeclarationLanguage): Promise<string | null> => {
+    try {
+      const pdf = await renderDeclarationPdf({
+        reference,
+        submittedAt,
+        declaration: d,
+        attachmentNames: attachments.map((attachment) => attachment.filename),
+        language: pdfLanguage
+      });
+      return pdf.toString('base64');
+    } catch (error) {
+      console.error('[declaration] PDF summary failed:', error instanceof Error ? error.message : 'unknown error');
+      return null;
+    }
+  };
+  const officePdfBase64 = await renderPdf('fr');
+  const pdfBase64 = language === 'fr' ? officePdfBase64 : await renderPdf(language);
+  const pdfAttachment = officePdfBase64
+    ? [{ filename: declarationPdfFilename(reference), contentBase64: officePdfBase64 }]
+    : undefined;
+
+  // Without a provider and a From address the confirmation could not arrive, so
+  // the visitor is not told one is on its way.
+  const canEmailCustomer = isEmailConfigured() && Boolean(process.env.EMAIL_FROM?.trim());
+
+  const [, confirmation] = await Promise.all([
+    sendInquiryNotification({
+      formType: 'declaration',
+      name: `${d.firstName} ${d.lastName}`,
+      email: d.email,
+      phone: d.phoneMobile ?? d.phoneFixed ?? '',
+      message: [
+        `Référence : ${reference}`,
+        d.incidentDate && `Date du sinistre : ${d.incidentDate}`,
+        d.incidentPlace && `Lieu : ${d.incidentPlace}`,
+        d.insurancePolicyNumber && `N° de police : ${d.insurancePolicyNumber}`,
+        match && `Assureur probable : ${insurerName(match.insurer)}`,
+        missing.length > 0 && `À compléter : ${missing.map((item) => item.label).join(', ')}.`,
+        d.incidentCircumstances,
+        attachments.length > 0 && `${attachments.length} pièce(s) jointe(s).`,
+        pdfAttachment && 'Récapitulatif PDF en pièce jointe.',
+        'Dossier complet dans /admin/declarations.'
+      ].filter(Boolean).join('\n'),
+      attachments: pdfAttachment
+    }),
+    canEmailCustomer
+      ? sendEmail(buildDeclarationConfirmation({ reference, declaration: d, attachmentCount: attachments.length, pdfBase64, language }))
+      : Promise.resolve(null)
+  ]);
+
+  if (!canEmailCustomer) {
+    console.warn('[declaration] Confirmation email skipped: no email provider or EMAIL_FROM configured.');
+  }
+
+  return json({ ok: true, reference, confirmationSent: confirmation?.ok === true }, 200);
 };
 
 type AttachmentResult = { attachments: AttachmentInput[] } | { error: string; status: number };
