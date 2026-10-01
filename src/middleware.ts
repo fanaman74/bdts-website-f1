@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { ADMIN_COOKIE, verifySessionToken } from './lib/adminAuth';
+import { ADMIN_COOKIE, isAdminOnlyPath, verifySessionToken } from './lib/adminAuth';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -47,7 +47,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (!pathname.startsWith('/admin')) return next();
 
   const token = context.cookies.get(ADMIN_COOKIE)?.value;
-  const admin = verifySessionToken(token);
+  const admin = await verifySessionToken(token);
 
   if (admin) {
     context.locals.admin = admin;
@@ -60,6 +60,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (!admin) {
     const attempted = `${pathname}${context.url.search}`;
     return context.redirect(`/admin/login?next=${encodeURIComponent(attempted)}`);
+  }
+
+  if (isAdminOnlyPath(pathname) && admin.role !== 'admin') {
+    return new Response('Accès réservé aux administrateurs.', { status: 403 });
   }
 
   return next();

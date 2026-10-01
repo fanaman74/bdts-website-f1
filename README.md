@@ -40,11 +40,11 @@ npm run dev        # http://localhost:4321
 
 ## Administration
 
-L’espace d’administration vit sous `/admin` : un seul compte administrateur local, et le suivi de toutes les soumissions des formulaires.
+L’espace d’administration vit sous `/admin` : un compte principal défini dans Railway, des utilisateurs ajoutés depuis `/admin/users`, et le suivi de toutes les soumissions des formulaires.
 
-### Compte administrateur
+### Compte principal
 
-Il n’y a ni inscription ni table de comptes : l’identifiant et l’empreinte du mot de passe vivent uniquement dans les variables Railway.
+Le compte principal a toujours le rôle administrateur, ne dépend pas de la base et ne peut être ni modifié ni supprimé depuis l’interface : personne ne peut s’en retrouver exclu. Son identifiant et l’empreinte de son mot de passe vivent uniquement dans les variables Railway.
 
 | Variable | Contenu |
 | --- | --- |
@@ -59,6 +59,17 @@ npm run admin:hash
 ```
 
 Coller les valeurs dans Railway → service → *Variables*, puis redéployer. Changer le mot de passe (nouvelle empreinte) ou le secret déconnecte toutes les sessions ouvertes. La page de connexion indique quelle variable manque ou est invalide.
+
+### Utilisateurs et rôles
+
+Un administrateur ajoute des utilisateurs depuis **Utilisateurs** (`/admin/users`) : adresse e-mail (qui sert d’identifiant), nom, mot de passe initial et rôle. Il n’y a pas d’inscription libre.
+
+| Rôle | Accès |
+| --- | --- |
+| Administrateur (`admin`) | Tout, y compris les utilisateurs et le choix du fournisseur/modèle de l’assistant |
+| Collaborateur (`member`) | Messages et déclarations uniquement |
+
+Les comptes sont stockés dans la table `users` (empreinte scrypt). Le rôle est relu à chaque requête, et changer le mot de passe d’un compte ferme ses sessions ouvertes. Les pages réservées aux administrateurs sont listées dans `ADMIN_ONLY_PREFIXES` (`src/lib/adminAuth.ts`). Les comptes hérités de l’ancienne inscription restent **inactifs** tant qu’un administrateur ne leur a pas attribué un rôle et un nouveau mot de passe.
 
 Configurer Resend en une commande. La même clé est écrite dans `.env` (lue par `src/lib/email.ts`) et dans le bloc `env` du serveur MCP `resend` de Cline ; avant toute écriture, elle est vérifiée auprès de l’API et les domaines d’envoi sont listés — la clé n’est jamais affichée en clair.
 

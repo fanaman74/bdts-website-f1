@@ -6,7 +6,7 @@ export const prerender = false;
 
 // The middleware already guards /admin; checked again because these tests
 // spend provider credit and can send email.
-if (!Astro.locals.admin) return new Response('Accès réservé aux administrateurs.', { status: 403 });
+if (Astro.locals.admin?.role !== 'admin') return new Response('Accès réservé aux administrateurs.', { status: 403 });
 
 const defaultRecipient = (process.env.INQUIRY_NOTIFY_TO ?? '').split(',')[0]?.trim() ?? '';
 

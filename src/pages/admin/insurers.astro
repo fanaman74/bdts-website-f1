@@ -5,9 +5,9 @@ import { emailStatus } from '../../lib/email';
 
 export const prerender = false;
 
-// The middleware only lets the signed-in administrator through; this is a
-// second check so the settings form never relies on routing alone.
-const isAdmin = Boolean(Astro.locals.admin);
+// Forwarding settings are for the admin role; collaborators see them read-only.
+// The POST is refused here too, so the form never relies on the UI alone.
+const isAdmin = Astro.locals.admin?.role === 'admin';
 
 let errors: string[] = [];
 let submitted: Record<string, string> | null = null;
