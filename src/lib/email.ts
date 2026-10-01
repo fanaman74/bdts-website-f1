@@ -8,11 +8,18 @@
  * Verification is only enforced when a real provider is configured, because
  * requiring a link we cannot send would dead-end registration.
  */
+export interface EmailAttachment {
+  filename: string;
+  /** File content, base64-encoded. */
+  contentBase64: string;
+}
+
 export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  attachments?: EmailAttachment[];
 }
 
 interface EmailProvider {
@@ -38,7 +45,10 @@ const PROVIDERS: Record<string, EmailProvider> = {
           to: [{ email: message.to }],
           subject: message.subject,
           textContent: message.text,
-          ...(message.html ? { htmlContent: message.html } : {})
+          ...(message.html ? { htmlContent: message.html } : {}),
+          ...(message.attachments?.length
+            ? { attachment: message.attachments.map((file) => ({ name: file.filename, content: file.contentBase64 })) }
+            : {})
         }),
         signal: AbortSignal.timeout(15_000)
       });
@@ -62,7 +72,10 @@ const PROVIDERS: Record<string, EmailProvider> = {
           to: [message.to],
           subject: message.subject,
           text: message.text,
-          html: message.html
+          html: message.html,
+          ...(message.attachments?.length
+            ? { attachments: message.attachments.map((file) => ({ filename: file.filename, content: file.contentBase64 })) }
+            : {})
         }),
         signal: AbortSignal.timeout(15_000)
       });
@@ -83,6 +96,7 @@ const PROVIDERS: Record<string, EmailProvider> = {
       console.info(`[email] to:   ${message.to}`);
       console.info(`[email] subj: ${message.subject}`);
       console.info(message.text);
+      for (const file of message.attachments ?? []) console.info(`[email] attachment: ${file.filename}`);
     }
   }
 };

@@ -269,6 +269,12 @@ export async function listDeclarations(filters: DeclarationFilters = {}): Promis
         or d.insurance_policy_number ilike ${p} or d.city ilike ${p})`
     );
   }
+  // The customer's reference (SIN-1A2B3C4D) is the first block of the id.
+  const reference = /^\s*SIN-?([0-9a-f]{4,8})\s*$/i.exec(filters.search ?? '');
+  if (reference) {
+    params.push(`${reference[1]!.toLowerCase()}%`);
+    where[where.length - 1] = `(${where[where.length - 1]} or d.id::text ilike $${params.length})`;
+  }
 
   const limit = Math.min(Math.max(filters.limit ?? 200, 1), 500);
   params.push(limit);

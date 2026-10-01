@@ -4,6 +4,10 @@ import { getDbClient, type SqlClient } from '../../lib/db';
 import { checkRateLimit, getClientIp, json, rateLimitMessage } from '../../lib/forms';
 import { createDeclaration, type AttachmentInput } from '../../lib/declarations';
 import { sendInquiryNotification } from '../../lib/inquiryNotification';
+import { declarationReference } from '../../lib/declarationSummary';
+import { renderDeclarationPdf } from '../../lib/declarationPdf';
+import { buildDeclarationConfirmation, declarationPdfFilename } from '../../lib/declarationEmail';
+import { isEmailConfigured, sendEmail } from '../../lib/email';
 
 export const prerender = false;
 
@@ -206,32 +210,66 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
   }
 
+  let id: string | null;
   try {
-    const id = await createDeclaration(parsed.data, attachmentResult.attachments);
+    id = await createDeclaration(parsed.data, attachmentResult.attachments);
     if (!id) return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
   } catch (error) {
     console.error('[declaration] Database insert failed:', error instanceof Error ? error.message : 'unknown error');
     return json({ ok: false, error: "Votre déclaration n'a pas pu être enregistrée. Merci de réessayer." }, 502);
   }
 
-  // The declaration is already saved, so a failed email never fails the submission.
+  // The declaration is already saved: from here on nothing fails the submission.
   const d = parsed.data;
-  await sendInquiryNotification({
-    formType: 'declaration',
-    name: `${d.firstName} ${d.lastName}`,
-    email: d.email,
-    phone: d.phoneMobile ?? d.phoneFixed ?? '',
-    message: [
-      d.incidentDate && `Date du sinistre : ${d.incidentDate}`,
-      d.incidentPlace && `Lieu : ${d.incidentPlace}`,
-      d.insurancePolicyNumber && `N° de police : ${d.insurancePolicyNumber}`,
-      d.incidentCircumstances,
-      attachmentResult.attachments.length > 0 && `${attachmentResult.attachments.length} pièce(s) jointe(s).`,
-      'Dossier complet dans /admin/declarations.'
-    ].filter(Boolean).join('\n')
-  });
+  const reference = declarationReference(id);
+  const attachments = attachmentResult.attachments;
 
-  return json({ ok: true }, 200);
+  let pdfBase64: string | null = null;
+  try {
+    const pdf = await renderDeclarationPdf({
+      reference,
+      submittedAt: new Date(),
+      declaration: d,
+      attachmentNames: attachments.map((attachment) => attachment.filename)
+    });
+    pdfBase64 = pdf.toString('base64');
+  } catch (error) {
+    console.error('[declaration] PDF summary failed:', error instanceof Error ? error.message : 'unknown error');
+  }
+  const pdfAttachment = pdfBase64 ? [{ filename: declarationPdfFilename(reference), contentBase64: pdfBase64 }] : undefined;
+
+  // Without a provider and a From address the confirmation could not arrive, so
+  // the visitor is not told one is on its way.
+  const canEmailCustomer = isEmailConfigured() && Boolean(process.env.EMAIL_FROM?.trim());
+
+  const [, confirmation] = await Promise.all([
+    sendInquiryNotification({
+      formType: 'declaration',
+      name: `${d.firstName} ${d.lastName}`,
+      email: d.email,
+      phone: d.phoneMobile ?? d.phoneFixed ?? '',
+      message: [
+        `Référence : ${reference}`,
+        d.incidentDate && `Date du sinistre : ${d.incidentDate}`,
+        d.incidentPlace && `Lieu : ${d.incidentPlace}`,
+        d.insurancePolicyNumber && `N° de police : ${d.insurancePolicyNumber}`,
+        d.incidentCircumstances,
+        attachments.length > 0 && `${attachments.length} pièce(s) jointe(s).`,
+        pdfAttachment && 'Récapitulatif PDF en pièce jointe.',
+        'Dossier complet dans /admin/declarations.'
+      ].filter(Boolean).join('\n'),
+      attachments: pdfAttachment
+    }),
+    canEmailCustomer
+      ? sendEmail(buildDeclarationConfirmation({ reference, declaration: d, attachmentCount: attachments.length, pdfBase64 }))
+      : Promise.resolve(null)
+  ]);
+
+  if (!canEmailCustomer) {
+    console.warn('[declaration] Confirmation email skipped: no email provider or EMAIL_FROM configured.');
+  }
+
+  return json({ ok: true, reference, confirmationSent: confirmation?.ok === true }, 200);
 };
 
 type AttachmentResult = { attachments: AttachmentInput[] } | { error: string; status: number };

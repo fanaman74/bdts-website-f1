@@ -355,9 +355,13 @@ const id = (name: string) => `declaration-${name}`;
     <span data-label>{t.forms.submit}</span>
   </button>
 
-  <p class="hidden rounded-xl bg-mint-100 p-4 text-sm font-medium text-mint-700" data-status="success" role="status">
-    {t.forms.success}
-  </p>
+  <div class="hidden space-y-2 rounded-xl bg-mint-100 p-5 text-sm leading-relaxed text-mint-700" data-status="success" role="status" tabindex="-1">
+    <p class="font-display text-base font-semibold text-ink-900">Merci, votre déclaration de sinistre est bien enregistrée.</p>
+    <p data-reference-line hidden>Référence de votre dossier : <strong class="font-semibold text-ink-900" data-reference></strong></p>
+    <p data-confirmation-sent hidden>Un e-mail de confirmation avec le récapitulatif de votre déclaration en PDF vient de vous être envoyé.</p>
+    <p>Un gestionnaire sinistres examine votre dossier et vous recontacte rapidement. Gardez votre référence pour tout échange avec nous.</p>
+    <p>En cas d'urgence, appelez-nous au <a href="tel:+3224631925" class="font-semibold text-ink-900 underline underline-offset-2">+32 2 463 19 25</a>.</p>
+  </div>
   <p class="hidden rounded-xl bg-coral-50 p-4 text-sm font-medium text-coral-800" data-status="error" role="alert">
     {t.forms.error}
   </p>
@@ -439,10 +443,24 @@ const id = (name: string) => `declaration-${name}`;
           }
           throw new Error(message);
         }
+        const result = (await res.json().catch(() => null)) as { reference?: unknown; confirmationSent?: unknown } | null;
+        const reference = typeof result?.reference === 'string' ? result.reference : '';
+        const referenceLine = success.querySelector<HTMLElement>('[data-reference-line]');
+        const referenceValue = success.querySelector<HTMLElement>('[data-reference]');
+        if (referenceLine && referenceValue) {
+          referenceValue.textContent = reference;
+          referenceLine.hidden = !reference;
+        }
+        const confirmationLine = success.querySelector<HTMLElement>('[data-confirmation-sent]');
+        if (confirmationLine) confirmationLine.hidden = result?.confirmationSent !== true;
+
         form.reset();
         for (const update of toggles) update();
         if (fileHint) fileHint.textContent = defaultHint;
         success.classList.remove('hidden');
+        // The form is long: bring the confirmation into view instead of leaving it below the fold.
+        (success as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (success as HTMLElement).focus({ preventScroll: true });
       } catch (err) {
         if (err instanceof Error && err.message) error.textContent = err.message;
         error.classList.remove('hidden');

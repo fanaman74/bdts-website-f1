@@ -69,7 +69,12 @@ export const translationOverrides = {
     'Clé API absente': 'API key missing',
     'Clé API refusée': 'API key rejected',
     'État de connexion inconnu': 'Connection status unknown',
-    'Modèle': 'Model'
+    'Modèle': 'Model',
+    'Merci, votre déclaration de sinistre est bien enregistrée.': 'Thank you, your claim has been registered.',
+    'Référence de votre dossier :': 'Your claim reference:',
+    'Un e-mail de confirmation avec le récapitulatif de votre déclaration en PDF vient de vous être envoyé.': 'We have just emailed you a confirmation with a PDF summary of your claim.',
+    'Un gestionnaire sinistres examine votre dossier et vous recontacte rapidement. Gardez votre référence pour tout échange avec nous.': 'A claims handler is reviewing your file and will contact you shortly. Please quote your reference whenever you contact us.',
+    "En cas d'urgence, appelez-nous au": 'In an emergency, call us on'
   },
   nl: {
     'Des assurances,': 'Verzekerd met',
@@ -140,6 +145,11 @@ export const translationOverrides = {
     'Clé API absente': 'API-sleutel ontbreekt',
     'Clé API refusée': 'API-sleutel geweigerd',
     'État de connexion inconnu': 'Verbindingsstatus onbekend',
-    'Modèle': 'Model'
+    'Modèle': 'Model',
+    'Merci, votre déclaration de sinistre est bien enregistrée.': 'Bedankt, uw schadeaangifte is goed geregistreerd.',
+    'Référence de votre dossier :': 'Referentie van uw dossier:',
+    'Un e-mail de confirmation avec le récapitulatif de votre déclaration en PDF vient de vous être envoyé.': 'We hebben u zonet een bevestigingsmail gestuurd met een overzicht van uw aangifte in pdf.',
+    'Un gestionnaire sinistres examine votre dossier et vous recontacte rapidement. Gardez votre référence pour tout échange avec nous.': 'Een schadebeheerder bekijkt uw dossier en neemt snel contact met u op. Vermeld uw referentie bij elk contact met ons.',
+    "En cas d'urgence, appelez-nous au": 'Bij dringende gevallen, bel ons op'
   }
 } as const;
