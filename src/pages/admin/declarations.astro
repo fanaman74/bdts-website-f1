@@ -6,11 +6,12 @@ import {
   declarationCounts,
   declarationName,
   declarationTitleLabel,
+  getDeclaration,
   listDeclarations,
-  updateDeclarationStatus,
   type Declaration
 } from '../../lib/declarations';
 import { missingInfo } from '../../lib/claimTriage';
+import { changeDeclarationStatus } from '../../lib/claimTimeline';
 import { INSURERS, insurerName, isInsurerId } from '../../lib/insurers';
 
 export const prerender = false;
@@ -48,7 +49,14 @@ if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   let changed = false;
   if (form.get('action') === 'status') {
-    changed = await updateDeclarationStatus(String(form.get('id') ?? ''), String(form.get('status') ?? ''));
+    const target = await getDeclaration(String(form.get('id') ?? ''));
+    if (target) {
+      const result = await changeDeclarationStatus(target, String(form.get('status') ?? ''), {
+        author: Astro.locals.admin?.username ?? null,
+        notify: form.get('notify') === 'on'
+      });
+      changed = result.changed;
+    }
   }
   return Astro.redirect(withParams(changed ? { updated: '1' } : {}));
 }
@@ -259,6 +267,10 @@ function incidentWhen(declaration: Declaration): string {
             <form method="post" class="flex items-center gap-1.5">
               <input type="hidden" name="action" value="status" />
               <input type="hidden" name="id" value={declaration.id} />
+              <label class="flex items-center gap-1 text-[10px] text-[#8b908b]" title="Prévenir le client par e-mail quand le dossier passe En cours ou Clôturé">
+                <input type="checkbox" name="notify" checked class="accent-[#d4a24c]" />
+                e-mail
+              </label>
               <label class="sr-only" for={`status-${declaration.id}`}>Statut de {declarationName(declaration)}</label>
               <select
                 id={`status-${declaration.id}`}
@@ -273,6 +285,7 @@ function incidentWhen(declaration: Declaration): string {
                 OK
               </button>
             </form>
+            {declaration.assignedTo && <p class="text-[11px] text-[#8b908b]">Suivi par {declaration.assignedTo}</p>}
 
             <a
               href={`/admin/declarations/${declaration.id}`}

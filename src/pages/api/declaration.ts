@@ -215,7 +215,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   let id: string | null;
   try {
-    id = await createDeclaration(parsed.data, attachmentResult.attachments);
+    id = await createDeclaration(parsed.data, attachmentResult.attachments, toDeclarationLanguage(form.get('language')));
     if (!id) return json({ ok: false, error: 'Le service est temporairement indisponible.' }, 503);
   } catch (error) {
     console.error('[declaration] Database insert failed:', error instanceof Error ? error.message : 'unknown error');
