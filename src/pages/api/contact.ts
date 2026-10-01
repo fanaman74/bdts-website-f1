@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { z } from 'astro/zod';
 import { getSupabaseAdminClient } from '../../lib/supabaseServer';
 import { createRateLimiter, getClientIp } from '../../lib/rateLimit';
+import { sendInquiryNotification } from '../../lib/inquiryNotification';
 
 export const prerender = false;
 
@@ -101,6 +102,9 @@ export const POST: APIRoute = async ({ request }) => {
     });
     return json({ ok: false, error: "Votre demande n'a pas pu être enregistrée. Merci de réessayer." }, 502);
   }
+
+  // The inquiry is already saved, so a failed email never fails the submission.
+  await sendInquiryNotification({ formType, name, email, phone, message });
 
   return json({ ok: true }, 200);
 };
