@@ -140,6 +140,8 @@ title,partner,audience,category,productType,documentType,language,fileUrl,extern
 npm run migrate            # applique db/migrations/*.sql (idempotent, suivi dans public.schema_migrations)
 ```
 
+Sur Railway, `railway.toml` lance `npm run migrate` avant chaque déploiement (`preDeployCommand`) : une nouvelle migration est appliquée automatiquement au merge. Si elle échoue, Railway garde la version précédente en ligne.
+
 Le client utilise `@neondatabase/serverless` en mode HTTP : aucune socket n'est maintenue ouverte, ce qui évite les connexions périmées quand Neon met la base en veille. Les requêtes sont paramétrées (`$1`, `$2`, …) et la migration `db/migrations/0001_create_inquiries.sql` crée la table `inquiries` (contraintes `check`, index `status`/`created_at`, trigger `updated_at`), tandis que `0007_create_declarations.sql` crée `declarations` et `declaration_attachments` (déclarations de sinistre et leurs pièces jointes). Sur Neon il n'y a ni rôles `anon`/`authenticated`/`service_role` ni RLS : l'accès est restreint par le fait que seul le serveur Astro détient `DATABASE_URL`.
 
 ## Images
