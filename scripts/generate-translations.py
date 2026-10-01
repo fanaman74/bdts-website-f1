@@ -97,7 +97,7 @@ def collect() -> list[str]:
     html_root = ROOT / "dist" / "client"
     for path in html_root.rglob("*.html"):
         relative = path.relative_to(html_root).as_posix()
-        if relative in SKIP_PATHS:
+        if relative in SKIP_PATHS or relative.startswith(("en/", "nl/")):
             continue
         soup = BeautifulSoup(path.read_text(encoding="utf-8"), "html.parser")
         if relative == "documents/index.html":

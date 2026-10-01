@@ -3,6 +3,7 @@ import { z } from 'astro/zod';
 import { getDbClient, type SqlClient } from '../../lib/db';
 import { checkRateLimit, getClientIp, json, rateLimitMessage } from '../../lib/forms';
 import { createDeclaration, type AttachmentInput } from '../../lib/declarations';
+import { sendInquiryNotification } from '../../lib/inquiryNotification';
 
 export const prerender = false;
 
@@ -212,6 +213,23 @@ export const POST: APIRoute = async ({ request }) => {
     console.error('[declaration] Database insert failed:', error instanceof Error ? error.message : 'unknown error');
     return json({ ok: false, error: "Votre déclaration n'a pas pu être enregistrée. Merci de réessayer." }, 502);
   }
+
+  // The declaration is already saved, so a failed email never fails the submission.
+  const d = parsed.data;
+  await sendInquiryNotification({
+    formType: 'declaration',
+    name: `${d.firstName} ${d.lastName}`,
+    email: d.email,
+    phone: d.phoneMobile ?? d.phoneFixed ?? '',
+    message: [
+      d.incidentDate && `Date du sinistre : ${d.incidentDate}`,
+      d.incidentPlace && `Lieu : ${d.incidentPlace}`,
+      d.insurancePolicyNumber && `N° de police : ${d.insurancePolicyNumber}`,
+      d.incidentCircumstances,
+      attachmentResult.attachments.length > 0 && `${attachmentResult.attachments.length} pièce(s) jointe(s).`,
+      'Dossier complet dans /admin/declarations.'
+    ].filter(Boolean).join('\n')
+  });
 
   return json({ ok: true }, 200);
 };

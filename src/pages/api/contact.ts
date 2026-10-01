@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { z } from 'astro/zod';
 import { getDbClient, type SqlClient } from '../../lib/db';
 import { checkRateLimit, getClientIp, json, rateLimitMessage } from '../../lib/forms';
+import { sendInquiryNotification } from '../../lib/inquiryNotification';
 
 export const prerender = false;
 
@@ -82,6 +83,9 @@ export const POST: APIRoute = async ({ request }) => {
     console.error('[contact] Database insert failed:', error instanceof Error ? error.message : 'unknown error');
     return json({ ok: false, error: "Votre demande n'a pas pu être enregistrée. Merci de réessayer." }, 502);
   }
+
+  // The inquiry is already saved, so a failed email never fails the submission.
+  await sendInquiryNotification({ formType, name, email, phone, message });
 
   return json({ ok: true }, 200);
 };

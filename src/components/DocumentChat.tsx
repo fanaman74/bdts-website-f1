@@ -285,7 +285,7 @@ export default function DocumentChat({ documentId, docTitle, company, onClose }:
               <h3 class="mt-4 font-semibold text-[#2f2b24]">Assistant documents BDTS</h3>
               <p class="mt-2 text-sm leading-6 text-[#766952]">Posez une question précise. L’assistant lit ce document et répond uniquement à partir de son contenu.</p>
               <div class="mt-5 flex flex-wrap justify-center gap-2">
-                {SUGGESTED_QUESTIONS.map((question) => <button type="button" key={question} onClick={() => { setInput(question); inputRef.current?.focus(); }} class="rounded-full border border-[#d8cbb6] bg-white px-3 py-2 text-xs font-medium text-[#554c3c] transition-colors hover:border-[#c08e3a] hover:text-[#8b6126] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c08e3a]">{question}</button>)}
+                {SUGGESTED_QUESTIONS.map((question) => <button type="button" key={question} onClick={(event) => { setInput(event.currentTarget.textContent?.trim() || question); inputRef.current?.focus(); }} class="rounded-full border border-[#d8cbb6] bg-white px-3 py-2 text-xs font-medium text-[#554c3c] transition-colors hover:border-[#c08e3a] hover:text-[#8b6126] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c08e3a]">{question}</button>)}
               </div>
             </div>
           )}

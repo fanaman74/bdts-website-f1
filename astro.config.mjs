@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import preact from '@astrojs/preact';
 import node from '@astrojs/node';
 import sitemap from '@astrojs/sitemap';
+import localizedPages from './src/integrations/localizedPages.ts';
 
 // https://astro.build/config
 export default defineConfig({
@@ -17,7 +18,8 @@ export default defineConfig({
     plugins: [tailwindcss()]
   },
 
-  integrations: [preact(), sitemap()],
+  // localizedPages must follow sitemap so it can add the /en and /nl URLs.
+  integrations: [preact(), sitemap(), localizedPages()],
 
   security: {
     // The Node adapter does not read `x-forwarded-proto`, so behind Railway's

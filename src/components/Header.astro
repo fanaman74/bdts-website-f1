@@ -1,10 +1,12 @@
 ---
 import { mainNav, topNav } from '../data/navigation';
 import { t } from '../i18n/fr';
-import { navigationLanguages, resolveLanguage, type SiteLanguage } from '../i18n/navigation';
+import { navigationLanguages, type SiteLanguage } from '../i18n/navigation';
+import { localizedPath } from '../i18n/dictionaries';
 
 const current = Astro.url.pathname;
-const language = resolveLanguage(Astro.url.searchParams.get('lang'));
+// Pages render in French; the localizedPages integration produces the /en and /nl copies.
+const language: SiteLanguage = 'fr';
 const navText = navigationLanguages[language];
 const languages: Array<{ code: SiteLanguage; label: string }> = [
   { code: 'fr', label: 'FR' },
@@ -14,8 +16,7 @@ const languages: Array<{ code: SiteLanguage; label: string }> = [
 
 function withLanguage(href: string, selectedLanguage = language): string {
   const url = new URL(href, Astro.url);
-  url.searchParams.set('lang', selectedLanguage);
-  return `${url.pathname}${url.search}${url.hash}`;
+  return `${localizedPath(url.pathname, selectedLanguage)}${url.search}${url.hash}`;
 }
 
 function sectionLabel(slug: string, fallback: string): string {
@@ -118,34 +119,6 @@ function localized(getter: (text: typeof navText) => string): Record<string, str
   const menu = document.getElementById('site-menu');
   const desktopToggles = [...document.querySelectorAll<HTMLElement>('[data-nav-toggle]')];
   let lastDesktopToggle: HTMLElement | null = null;
-
-  const supportedLanguages = ['fr', 'nl', 'en'];
-  const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
-  let storedLanguage: string | null = null;
-  try { storedLanguage = window.localStorage.getItem('bdts-language'); } catch { /* Storage may be blocked. */ }
-  const activeLanguage = supportedLanguages.includes(requestedLanguage ?? '')
-    ? requestedLanguage!
-    : supportedLanguages.includes(storedLanguage ?? '') ? storedLanguage! : 'fr';
-
-  document.documentElement.lang = activeLanguage;
-  try { window.localStorage.setItem('bdts-language', activeLanguage); } catch { /* Storage may be blocked. */ }
-  header?.querySelectorAll<HTMLElement>('[data-label-fr]').forEach((element) => {
-    const translatedLabel = element.getAttribute(`data-label-${activeLanguage}`);
-    if (translatedLabel) element.textContent = translatedLabel;
-  });
-  header?.querySelectorAll<HTMLAnchorElement>('a[href^="/"]:not([data-language-code])').forEach((anchor) => {
-    const url = new URL(anchor.href, window.location.origin);
-    url.searchParams.set('lang', activeLanguage);
-    anchor.href = `${url.pathname}${url.search}${url.hash}`;
-  });
-  header?.querySelectorAll<HTMLAnchorElement>('[data-language-code]').forEach((anchor) => {
-    const code = anchor.dataset.languageCode ?? 'fr';
-    const url = new URL(window.location.href);
-    url.searchParams.set('lang', code);
-    anchor.href = `${url.pathname}${url.search}${url.hash}`;
-    if (code === activeLanguage) anchor.setAttribute('aria-current', 'true');
-    else anchor.removeAttribute('aria-current');
-  });
 
   const closeDesktopMenus = (returnFocus = false) => {
     desktopToggles.forEach((button) => {
