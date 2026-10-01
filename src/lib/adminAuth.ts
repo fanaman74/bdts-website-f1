@@ -1,24 +1,45 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { hashPassword, isPasswordHash, verifyPasswordHash } from './password';
+import { findUserWithHash, passwordFingerprint, type UserRole } from './users';
 
 /**
- * Authentication for the admin area: one local administrator whose
- * credentials live only in Railway variables.
+ * Authentication for the admin area.
  *
- *   ADMIN_USERNAME        the login name
- *   ADMIN_PASSWORD_HASH   scrypt hash from `npm run admin:hash` (never the password)
- *   ADMIN_SESSION_SECRET  signs the session cookie
+ * Two kinds of account can sign in:
  *
- * The session is a signed, expiring, HttpOnly cookie. Its signing key mixes the
- * secret with the password hash, so changing the password (or the secret)
- * signs everyone out.
+ *  - the built-in administrator, whose credentials live only in Railway:
+ *      ADMIN_USERNAME        the login name
+ *      ADMIN_PASSWORD_HASH   scrypt hash from `npm run admin:hash` (never the password)
+ *    It always has the admin role, does not depend on the database, and cannot
+ *    be edited or removed from the admin area, so nobody can lock it out;
+ *  - accounts added from /admin/users (src/lib/users.ts), signing in with their
+ *    email address.
+ *
+ * ADMIN_SESSION_SECRET signs the session cookie: signed, expiring, HttpOnly.
+ * The signing key mixes the secret with the built-in password hash, so changing
+ * either signs everyone out. A database account's session also carries a
+ * fingerprint of its own hash, and its role is re-read on every request, so a
+ * password reset, role change or deletion takes effect immediately.
  */
 
 export const ADMIN_COOKIE = 'bdts_admin';
 export const SESSION_TTL_SECONDS = 8 * 60 * 60;
 
 export interface AdminSession {
+  kind: 'builtin' | 'user';
+  /** `builtin` for the Railway account, else the users row id. */
+  id: string;
+  /** Login name or email address. */
   username: string;
+  name: string | null;
+  role: UserRole;
+}
+
+/** Paths only the admin role may open. Everything else under /admin is open to every role. */
+const ADMIN_ONLY_PREFIXES = ['/admin/users'];
+
+export function isAdminOnlyPath(pathname: string): boolean {
+  return ADMIN_ONLY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function env(name: string): string {
@@ -57,20 +78,41 @@ function sameText(a: string, b: string): boolean {
   return timingSafeEqual(left, right);
 }
 
-// Burned when the username is wrong, so a wrong username takes as long as a
-// wrong password and the response time does not reveal which one was wrong.
+// Burned when no account matches, so an unknown login takes as long as a wrong
+// password and the response time does not reveal which one was wrong.
 let decoyHash: string | null = null;
 
-/** Checks submitted credentials against the Railway variables. */
-export function verifyAdminCredentials(username: string, password: string): AdminSession | null {
+function burnDecoy(password: string): void {
+  decoyHash ??= hashPassword('decoy');
+  verifyPasswordHash(password, decoyHash);
+}
+
+function logLookupFailure(error: unknown): null {
+  console.error('[admin] Account lookup failed:', error instanceof Error ? error.message : error);
+  return null;
+}
+
+function builtinSession(): AdminSession {
+  return { kind: 'builtin', id: 'builtin', username: adminUsername(), name: null, role: 'admin' };
+}
+
+/** Checks submitted credentials: the Railway account first, then database accounts by email. */
+export async function verifyAdminCredentials(login: string, password: string): Promise<AdminSession | null> {
   if (!isAdminConfigured()) return null;
 
-  const expectedUser = adminUsername();
-  const userMatches = sameText(username.trim().toLowerCase(), expectedUser.toLowerCase());
-  decoyHash ??= hashPassword('decoy');
-  const passwordMatches = verifyPasswordHash(password, userMatches ? adminPasswordHash() : decoyHash);
+  const submitted = login.trim().toLowerCase();
+  if (sameText(submitted, adminUsername().toLowerCase())) {
+    return verifyPasswordHash(password, adminPasswordHash()) ? builtinSession() : null;
+  }
 
-  return userMatches && passwordMatches ? { username: expectedUser } : null;
+  const found = submitted.includes('@') ? await findUserWithHash({ email: submitted }).catch(logLookupFailure) : null;
+  if (!found || !found.user.canSignIn || !found.user.role) {
+    burnDecoy(password);
+    return null;
+  }
+  if (!verifyPasswordHash(password, found.hash)) return null;
+
+  return { kind: 'user', id: found.user.id, username: found.user.email, name: found.user.name, role: found.user.role };
 }
 
 function signingKey(): string {
@@ -81,33 +123,56 @@ function sign(payload: string): string {
   return createHmac('sha256', signingKey()).update(payload).digest('hex');
 }
 
-/** Token format: `<base64url username>.<expiryEpochSeconds>.<hmac>`. */
-export function createSessionToken(session: AdminSession): string | null {
+/**
+ * Token format: `<base64url subject>.<fingerprint>.<expiryEpochSeconds>.<hmac>`,
+ * where the subject is `builtin:<username>` or `user:<id>`.
+ */
+export async function createSessionToken(session: AdminSession): Promise<string | null> {
   if (!isAdminConfigured()) return null;
 
+  let subject = `builtin:${session.username}`;
+  let fingerprint = '-';
+  if (session.kind === 'user') {
+    const found = await findUserWithHash({ id: session.id });
+    if (!found) return null;
+    subject = `user:${session.id}`;
+    fingerprint = passwordFingerprint(found.hash);
+  }
+
   const expiry = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
-  const payload = `${Buffer.from(session.username).toString('base64url')}.${expiry}`;
+  const payload = `${Buffer.from(subject).toString('base64url')}.${fingerprint}.${expiry}`;
   return `${payload}.${sign(payload)}`;
 }
 
-/** Returns the session for a valid, unexpired token, else null. */
-export function verifySessionToken(token: string | undefined): AdminSession | null {
+/** Returns the session for a valid, unexpired token whose account still has access, else null. */
+export async function verifySessionToken(token: string | undefined): Promise<AdminSession | null> {
   if (!token || !isAdminConfigured()) return null;
 
   const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [userPart, expiryPart, signature] = parts as [string, string, string];
-  if (!userPart || !expiryPart || !/^[0-9a-f]{64}$/.test(signature)) return null;
+  if (parts.length !== 4) return null;
+  const [subjectPart, fingerprint, expiryPart, signature] = parts as [string, string, string, string];
+  if (!subjectPart || !fingerprint || !expiryPart || !/^[0-9a-f]{64}$/.test(signature)) return null;
 
   const expiry = Number(expiryPart);
   if (!Number.isFinite(expiry) || expiry * 1000 < Date.now()) return null;
 
-  const expected = Buffer.from(sign(`${userPart}.${expiryPart}`), 'hex');
+  const expected = Buffer.from(sign(`${subjectPart}.${fingerprint}.${expiryPart}`), 'hex');
   if (!timingSafeEqual(Buffer.from(signature, 'hex'), expected)) return null;
 
+  const subject = Buffer.from(subjectPart, 'base64url').toString();
+
   // A token for a previous username stops working once ADMIN_USERNAME changes.
-  const username = Buffer.from(userPart, 'base64url').toString();
-  return username === adminUsername() ? { username } : null;
+  if (subject.startsWith('builtin:')) {
+    return subject === `builtin:${adminUsername()}` ? builtinSession() : null;
+  }
+
+  if (!subject.startsWith('user:')) return null;
+  // A database outage signs database accounts out; the built-in account above keeps working.
+  const found = await findUserWithHash({ id: subject.slice('user:'.length) }).catch(logLookupFailure);
+  if (!found || !found.user.canSignIn || !found.user.role) return null;
+  if (passwordFingerprint(found.hash) !== fingerprint) return null;
+
+  return { kind: 'user', id: found.user.id, username: found.user.email, name: found.user.name, role: found.user.role };
 }
 
 /**

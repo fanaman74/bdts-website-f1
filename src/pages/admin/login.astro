@@ -14,6 +14,7 @@ import {
   safeNextPath,
   verifyAdminCredentials
 } from '../../lib/adminAuth';
+import { recordLogin } from '../../lib/users';
 
 export const prerender = false;
 
@@ -32,8 +33,8 @@ if (Astro.request.method === 'POST') {
   } else if (!allowLoginAttempt(ip)) {
     error = 'Trop de tentatives. Merci de réessayer dans quelques minutes.';
   } else {
-    const session = verifyAdminCredentials(username, password);
-    const token = session ? createSessionToken(session) : null;
+    const session = await verifyAdminCredentials(username, password);
+    const token = session ? await createSessionToken(session) : null;
 
     if (!token) {
       recordLoginFailure();
@@ -42,6 +43,7 @@ if (Astro.request.method === 'POST') {
       error = 'Identifiants invalides.';
     } else {
       clearLoginAttempts(ip);
+      if (session?.kind === 'user') await recordLogin(session.id).catch(() => undefined);
       Astro.cookies.set(ADMIN_COOKIE, token, {
         path: '/',
         httpOnly: true,
@@ -104,7 +106,7 @@ const justLoggedOut = Astro.url.searchParams.get('loggedout') === '1';
         <form method="post" class="mt-6 space-y-3">
           <input type="hidden" name="next" value={next} />
           <label class="block">
-            <span class="text-xs text-[#8b908b]">Identifiant</span>
+            <span class="text-xs text-[#8b908b]">Identifiant ou adresse e-mail</span>
             <input
               type="text"
               name="username"
