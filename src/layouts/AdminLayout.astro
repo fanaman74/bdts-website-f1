@@ -10,7 +10,7 @@ import AdminIcon from '../components/AdminIcon.astro';
 
 interface Props {
   title: string;
-  active: 'dashboard' | 'messages' | 'declarations' | 'insurers' | 'assistant';
+  active: 'dashboard' | 'messages' | 'declarations' | 'insurers' | 'assistant' | 'api' | 'users';
   search?: string;
   /** Where the header search box submits; each list page keeps its own filters. */
   searchAction?: string;
@@ -19,16 +19,23 @@ interface Props {
 const { title, active, search = '', searchAction = '/admin/messages' } = Astro.props;
 
 // Set by src/middleware.ts for every authenticated /admin request.
-const operator = Astro.locals.admin?.username || 'Admin';
+const admin = Astro.locals.admin;
+const operator = admin?.name?.trim() || admin?.username || 'Admin';
 const initials = operator.slice(0, 2).toUpperCase();
 
 const tabs: Array<{ id: Props['active']; label: string; href: string }> = [
   { id: 'dashboard', label: 'Dashboard', href: '/admin' },
   { id: 'messages', label: 'Messages', href: '/admin/messages' },
   { id: 'declarations', label: 'Déclarations', href: '/admin/declarations' },
-  { id: 'insurers', label: 'Assureurs', href: '/admin/insurers' },
-  { id: 'assistant', label: 'Assistant', href: '/admin/assistant' }
+  { id: 'insurers', label: 'Assureurs', href: '/admin/insurers' }
 ];
+// Assistant settings, service tests and account management are for the admin role only, so these
+// tabs stay hidden from collaborators.
+if (admin?.role === 'admin') {
+  tabs.push({ id: 'assistant', label: 'Assistant', href: '/admin/assistant' });
+  tabs.push({ id: 'api', label: 'API', href: '/admin/api' });
+  tabs.push({ id: 'users', label: 'Utilisateurs', href: '/admin/users' });
+}
 ---
 
 <!doctype html>

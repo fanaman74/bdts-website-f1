@@ -5,9 +5,9 @@ import { getSettings, SETTING_KEYS, setSetting } from '../../lib/settings';
 
 export const prerender = false;
 
-// The middleware only lets the signed-in administrator through; this is a
-// second check so the settings form never relies on routing alone.
-const isAdmin = Boolean(Astro.locals.admin);
+// The middleware keeps this page to the admin role (ADMIN_ONLY_PREFIXES); this
+// is a second check so the settings form never relies on routing alone.
+const isAdmin = Astro.locals.admin?.role === 'admin';
 
 if (Astro.request.method === 'POST') {
   if (!isAdmin) return new Response('Accès réservé aux administrateurs.', { status: 403 });
