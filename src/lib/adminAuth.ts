@@ -36,7 +36,7 @@ export interface AdminSession {
 }
 
 /** Paths only the admin role may open. Everything else under /admin is open to every role. */
-const ADMIN_ONLY_PREFIXES = ['/admin/users', '/admin/api'];
+const ADMIN_ONLY_PREFIXES = ['/admin/users', '/admin/api', '/admin/assistant'];
 
 export function isAdminOnlyPath(pathname: string): boolean {
   return ADMIN_ONLY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));

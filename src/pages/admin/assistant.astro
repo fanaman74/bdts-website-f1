@@ -1,0 +1,110 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { PROVIDERS, resolveAssistant } from '../../lib/assistantProvider';
+import { getSettings, SETTING_KEYS, setSetting } from '../../lib/settings';
+
+export const prerender = false;
+
+// The middleware keeps this page to the admin role (ADMIN_ONLY_PREFIXES); this
+// is a second check so the settings form never relies on routing alone.
+const isAdmin = Astro.locals.admin?.role === 'admin';
+
+if (Astro.request.method === 'POST') {
+  if (!isAdmin) return new Response('Accès réservé aux administrateurs.', { status: 403 });
+
+  const form = await Astro.request.formData();
+  if (form.get('action') === 'assistant') {
+    const provider = String(form.get('provider') ?? '').trim();
+    const model = String(form.get('model') ?? '').trim();
+    if (provider in PROVIDERS) {
+      await setSetting(SETTING_KEYS.provider, provider);
+      // An empty model falls back to that provider's default.
+      await setSetting(SETTING_KEYS.model, model || PROVIDERS[provider]!.defaultModel);
+    }
+  }
+  // Redirect after POST so refreshing cannot resubmit the form.
+  return Astro.redirect('/admin/assistant?saved=1');
+}
+
+const saved = Astro.url.searchParams.get('saved') === '1';
+const [assistant, settings] = await Promise.all([resolveAssistant(), getSettings()]);
+const keyConfigured = assistant.apiKey !== null;
+const suggestions = [assistant.provider.defaultModel, ...assistant.provider.fallbackModels];
+---
+
+<AdminLayout title="Assistant documents" active="assistant">
+  <h1 class="text-5xl leading-none font-semibold tracking-tight uppercase">
+    <span class="mr-1 text-[#d4a24c]">/</span>Assistant
+  </h1>
+  <p class="mt-3 max-w-2xl text-sm leading-6 text-[#8b908b]">
+    Le fournisseur et le modèle d’IA utilisés par l’assistant qui répond aux questions sur les documents du site.
+  </p>
+
+  {saved && (
+    <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Configuration de l’assistant enregistrée.</p>
+  )}
+
+  <div class="mt-8">
+    <section class="max-w-2xl">
+
+      <div class:list={[
+        'mt-4 rounded-xl border px-5 py-4',
+        keyConfigured ? 'border-[#2b5c40] bg-[#12241a]' : 'border-[#5a4620] bg-[#241a0d]'
+      ]}>
+        <p class="flex items-center gap-2 text-sm text-[#e8e6e1]">
+          <span class:list={['h-2 w-2 rounded-full', keyConfigured ? 'bg-[#4ea678]' : 'bg-[#d4a24c]']} aria-hidden="true" />
+          {keyConfigured ? 'Clé API présente' : 'Clé API absente'}
+        </p>
+        <p class="mt-2 text-xs leading-5 text-[#8b908b]">
+          {keyConfigured
+            ? `Fournisseur actif : ${assistant.provider.name}. Le modèle réellement utilisé est affiché dans le tiroir de discussion.`
+            : `Ajoutez ${assistant.provider.keyEnvVar} dans les variables Railway pour activer l’assistant.`}
+        </p>
+        <a href="/api/assistant-status" class="mt-3 inline-block text-xs text-[#d4a24c] underline-offset-2 hover:underline">Vérifier l’état en direct →</a>
+      </div>
+
+      {isAdmin && (
+      <form method="post" class="mt-4 space-y-4 rounded-xl border border-[#262a28] bg-[#111312] px-5 py-5">
+        <input type="hidden" name="action" value="assistant" />
+
+        <label class="block">
+          <span class="text-xs tracking-[.12em] text-[#7f857f] uppercase">Fournisseur</span>
+          <select name="provider" class="mt-1.5 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none">
+            {Object.values(PROVIDERS).map((entry) => (
+              <option value={entry.id} selected={entry.id === settings.assistant_provider}>{entry.name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label class="block">
+          <span class="text-xs tracking-[.12em] text-[#7f857f] uppercase">Modèle</span>
+          <input
+            name="model"
+            value={settings.assistant_model}
+            list="model-suggestions"
+            class="mt-1.5 w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none"
+          />
+          <datalist id="model-suggestions">
+            {suggestions.map((model) => <option value={model} />)}
+          </datalist>
+          <span class="mt-1.5 block text-[11px] leading-5 text-[#6d726d]">
+            Défaut : {assistant.provider.defaultModel} · repli : {assistant.provider.fallbackModels.join(', ')}
+          </span>
+        </label>
+
+        <button type="submit" class="rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">Enregistrer</button>
+
+        <p class="border-t border-[#212524] pt-3 text-[11px] leading-5 text-[#6d726d]">
+          Les clés d’API restent dans les variables d’environnement, jamais en base : une fuite de la base ne donne aucun accès aux fournisseurs.
+        </p>
+      </form>
+      )}
+
+      {!isAdmin && (
+        <p class="mt-4 rounded-xl border border-[#262a28] bg-[#111312] px-5 py-4 text-xs leading-5 text-[#8b908b]">
+          Le choix du fournisseur et du modèle est réservé aux administrateurs.
+        </p>
+      )}
+    </section>
+  </div>
+</AdminLayout>
