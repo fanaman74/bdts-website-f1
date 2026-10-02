@@ -1,4 +1,5 @@
-import { CUSTOM_PREFIX, customApiKey, getCustomApi, listCustomApis, statusEndpointFor, type CustomApi } from './customApis';
+import { CUSTOM_PREFIX, customApiKey, getCustomApi, listCustomApis, listProviderCredentials, statusEndpointFor, type CustomApi, type ProviderCredential } from './customApis';
+import { decryptSecret } from './secretBox';
 import { getSettings } from './settings';
 
 /**
@@ -90,16 +91,58 @@ export function customProvider(api: CustomApi): AssistantProvider {
   };
 }
 
+export interface BuiltInProvider {
+  provider: AssistantProvider;
+  apiKey: string | null;
+  /** Where the key in use comes from. */
+  keySource: 'saved' | 'env' | null;
+  credential: ProviderCredential | null;
+  envKeyPresent: boolean;
+}
+
+/**
+ * A built-in provider with what was entered for it in /admin/api: a saved
+ * key wins over the Railway variable, and a saved model replaces the default.
+ */
+function applyCredential(builtIn: AssistantProvider, credential: ProviderCredential | undefined): BuiltInProvider {
+  const savedKey = credential?.apiKeyEncrypted ? decryptSecret(credential.apiKeyEncrypted) : null;
+  const envKey = process.env[builtIn.keyEnvVar]?.trim() || null;
+  const defaultModel = credential?.model || builtIn.defaultModel;
+  const provider: AssistantProvider = {
+    ...builtIn,
+    keyHint: `la clé ${builtIn.name} dans Administration → API (ou ${builtIn.keyEnvVar} dans Railway)`,
+    defaultModel,
+    fallbackModels: [builtIn.defaultModel, ...builtIn.fallbackModels].filter((model) => model !== defaultModel)
+  };
+  return {
+    provider,
+    apiKey: savedKey ?? envKey,
+    keySource: savedKey ? 'saved' : envKey ? 'env' : null,
+    credential: credential ?? null,
+    envKeyPresent: envKey !== null
+  };
+}
+
+/** The built-in providers with their saved key and model applied. */
+export async function listBuiltInProviders(): Promise<BuiltInProvider[]> {
+  const credentials = await listProviderCredentials();
+  return Object.values(PROVIDERS).map((builtIn) => applyCredential(builtIn, credentials.get(builtIn.id)));
+}
+
 /** Built-in providers followed by the APIs added from the admin area. */
 export async function listProviders(): Promise<AssistantProvider[]> {
-  const custom = await listCustomApis();
-  return [...Object.values(PROVIDERS), ...custom.map(customProvider)];
+  const [builtIns, custom] = await Promise.all([listBuiltInProviders(), listCustomApis()]);
+  return [...builtIns.map((entry) => entry.provider), ...custom.map(customProvider)];
 }
 
 /** A provider by id with its key, built-in or added; null when unknown. */
 export async function findProvider(id: string): Promise<{ provider: AssistantProvider; apiKey: string | null } | null> {
   const builtIn = PROVIDERS[id];
-  if (builtIn) return { provider: builtIn, apiKey: process.env[builtIn.keyEnvVar]?.trim() || null };
+  if (builtIn) {
+    const credentials = await listProviderCredentials();
+    const { provider, apiKey } = applyCredential(builtIn, credentials.get(id));
+    return { provider, apiKey };
+  }
   if (!id.startsWith(CUSTOM_PREFIX)) return null;
   const api = await getCustomApi(id.slice(CUSTOM_PREFIX.length));
   return api ? { provider: customProvider(api), apiKey: customApiKey(api) } : null;
@@ -112,12 +155,8 @@ export async function resolveAssistant(): Promise<ResolvedAssistant> {
   if (!found) {
     // A provider that no longer exists: its saved model means nothing to the
     // default provider, so use that provider's own models.
-    const fallback = PROVIDERS[DEFAULT_PROVIDER_ID]!;
-    return {
-      provider: fallback,
-      apiKey: process.env[fallback.keyEnvVar]?.trim() || null,
-      chain: [fallback.defaultModel, ...fallback.fallbackModels]
-    };
+    const { provider: fallback, apiKey } = (await findProvider(DEFAULT_PROVIDER_ID))!;
+    return { provider: fallback, apiKey, chain: [fallback.defaultModel, ...fallback.fallbackModels] };
   }
 
   const { provider, apiKey } = found;

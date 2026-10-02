@@ -165,3 +165,63 @@ export function statusEndpointFor(chatEndpoint: string): string {
   if (url.hostname === 'api.deepseek.com') return 'https://api.deepseek.com/user/balance';
   return chatEndpoint.replace(/\/chat\/completions$/, '/models');
 }
+
+/** Key and model entered in /admin/api for a built-in provider. */
+export interface ProviderCredential {
+  providerId: string;
+  apiKeyEncrypted: string | null;
+  keyLast4: string;
+  model: string | null;
+}
+
+/** Saved credentials of the built-in providers, by provider id. */
+export async function listProviderCredentials(): Promise<Map<string, ProviderCredential>> {
+  const db = getDbClient();
+  const credentials = new Map<string, ProviderCredential>();
+  if (!db) return credentials;
+  try {
+    const rows = await db.query('select * from public.provider_credentials');
+    for (const row of rows) {
+      credentials.set(String(row.provider_id), {
+        providerId: String(row.provider_id),
+        apiKeyEncrypted: row.api_key_encrypted ? String(row.api_key_encrypted) : null,
+        keyLast4: String(row.key_last4 ?? ''),
+        model: row.model ? String(row.model) : null
+      });
+    }
+  } catch (error) {
+    console.error('[provider-credentials] Read failed:', error instanceof Error ? error.message : error);
+  }
+  return credentials;
+}
+
+/** Saves the model and, when given, a new key. An empty key keeps the saved one. */
+export async function saveProviderCredential(providerId: string, model: string, apiKey: string): Promise<void> {
+  const db = getDbClient();
+  if (!db) throw new Error('La base de données n’est pas configurée.');
+  if (apiKey) {
+    await db.query(
+      `insert into public.provider_credentials (provider_id, api_key_encrypted, key_last4, model, updated_at)
+       values ($1, $2, $3, $4, now())
+       on conflict (provider_id) do update
+       set api_key_encrypted = excluded.api_key_encrypted, key_last4 = excluded.key_last4, model = excluded.model, updated_at = now()`,
+      [providerId, encryptSecret(apiKey), apiKey.slice(-4), model || null]
+    );
+  } else {
+    await db.query(
+      `insert into public.provider_credentials (provider_id, model, updated_at) values ($1, $2, now())
+       on conflict (provider_id) do update set model = excluded.model, updated_at = now()`,
+      [providerId, model || null]
+    );
+  }
+}
+
+/** Forgets the saved key, so the provider's Railway variable applies again. */
+export async function clearProviderKey(providerId: string): Promise<void> {
+  const db = getDbClient();
+  if (!db) return;
+  await db.query(
+    `update public.provider_credentials set api_key_encrypted = null, key_last4 = '', updated_at = now() where provider_id = $1`,
+    [providerId]
+  );
+}
