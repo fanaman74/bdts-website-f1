@@ -23,6 +23,8 @@ export interface AssistantProvider {
   keyHint: string;
   /** Added from /admin/api rather than built in. */
   custom?: boolean;
+  /** Every key of this provider starts with this, to catch a wrong paste or a browser autofill. */
+  keyPrefix?: string;
   /** Used when the admin has not pinned a model. */
   defaultModel: string;
   /** Tried in order when the configured model is refused. */
@@ -49,6 +51,7 @@ export const PROVIDERS: Record<string, AssistantProvider> = {
     defaultModel: 'deepseek-flash',
     fallbackModels: ['deepseek-v4-pro'],
     statusEndpoint: 'https://api.deepseek.com/user/balance',
+    keyPrefix: 'sk-',
     extraBody: DEEPSEEK_EXTRA_BODY
   },
   openrouter: {
@@ -60,7 +63,8 @@ export const PROVIDERS: Record<string, AssistantProvider> = {
     defaultModel: 'google/gemini-2.5-flash',
     fallbackModels: ['openai/gpt-4o-mini', 'deepseek/deepseek-chat'],
     // Describes the key (usage, remaining limit) without spending tokens.
-    statusEndpoint: 'https://openrouter.ai/api/v1/key'
+    statusEndpoint: 'https://openrouter.ai/api/v1/key',
+    keyPrefix: 'sk-or-'
   }
 };
 

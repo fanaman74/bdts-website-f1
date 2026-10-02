@@ -195,25 +195,28 @@ export async function listProviderCredentials(): Promise<Map<string, ProviderCre
   return credentials;
 }
 
-/** Saves the model and, when given, a new key. An empty key keeps the saved one. */
-export async function saveProviderCredential(providerId: string, model: string, apiKey: string): Promise<void> {
+/** Saves a new key for a built-in provider, keeping its model. */
+export async function saveProviderKey(providerId: string, apiKey: string): Promise<void> {
   const db = getDbClient();
   if (!db) throw new Error('La base de données n’est pas configurée.');
-  if (apiKey) {
-    await db.query(
-      `insert into public.provider_credentials (provider_id, api_key_encrypted, key_last4, model, updated_at)
-       values ($1, $2, $3, $4, now())
-       on conflict (provider_id) do update
-       set api_key_encrypted = excluded.api_key_encrypted, key_last4 = excluded.key_last4, model = excluded.model, updated_at = now()`,
-      [providerId, encryptSecret(apiKey), apiKey.slice(-4), model || null]
-    );
-  } else {
-    await db.query(
-      `insert into public.provider_credentials (provider_id, model, updated_at) values ($1, $2, now())
-       on conflict (provider_id) do update set model = excluded.model, updated_at = now()`,
-      [providerId, model || null]
-    );
-  }
+  await db.query(
+    `insert into public.provider_credentials (provider_id, api_key_encrypted, key_last4, updated_at)
+     values ($1, $2, $3, now())
+     on conflict (provider_id) do update
+     set api_key_encrypted = excluded.api_key_encrypted, key_last4 = excluded.key_last4, updated_at = now()`,
+    [providerId, encryptSecret(apiKey), apiKey.slice(-4)]
+  );
+}
+
+/** Saves the model of a built-in provider, keeping its key. */
+export async function saveProviderModel(providerId: string, model: string): Promise<void> {
+  const db = getDbClient();
+  if (!db) throw new Error('La base de données n’est pas configurée.');
+  await db.query(
+    `insert into public.provider_credentials (provider_id, model, updated_at) values ($1, $2, now())
+     on conflict (provider_id) do update set model = excluded.model, updated_at = now()`,
+    [providerId, model || null]
+  );
 }
 
 /** Forgets the saved key, so the provider's Railway variable applies again. */

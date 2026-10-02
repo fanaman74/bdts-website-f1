@@ -1,10 +1,11 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { checkApiPageLimit, checkLevel, clearProbeCache, getApiChecks, probeAll, SLOW_MS, type CheckLevel, type CheckResult } from '../../lib/apiChecks';
-import { CUSTOM_PREFIX, API_PRESETS, clearProviderKey, createCustomApi, deleteCustomApi, getCustomApi, normaliseEndpoint, saveProviderCredential, updateCustomApi, validateCustomApi } from '../../lib/customApis';
+import { CUSTOM_PREFIX, API_PRESETS, clearProviderKey, createCustomApi, deleteCustomApi, getCustomApi, normaliseEndpoint, saveProviderKey, saveProviderModel, updateCustomApi, validateCustomApi } from '../../lib/customApis';
 import { getDbClient } from '../../lib/db';
+import { listModels } from '../../lib/modelList';
 import { canEncrypt } from '../../lib/secretBox';
-import { DEFAULT_PROVIDER_ID, PROVIDERS } from '../../lib/assistantProvider';
+import { DEFAULT_PROVIDER_ID, PROVIDERS, resolveAssistant } from '../../lib/assistantProvider';
 import { getSettings, SETTING_KEYS, setSetting } from '../../lib/settings';
 
 export const prerender = false;
@@ -21,6 +22,7 @@ let recipient = defaultRecipient;
 const results = new Map<string, CheckResult>();
 let ranAll = false;
 let formError: string | null = null;
+let keySaved = false;
 let showAddForm = Astro.url.searchParams.get('add') === '1';
 let addValues = { name: '', chatEndpoint: '', model: '' };
 const notice = ({ added: 'API ajoutée. Cliquez sur « Tester » pour vérifier la clé et le modèle.', updated: 'Modifications enregistrées.', deleted: 'API supprimée.', 'key-cleared': 'Clé enregistrée retirée : la variable Railway s’applique à nouveau, si elle existe.' } as Record<string, string>)[Astro.url.searchParams.get('done') ?? ''];
@@ -66,24 +68,45 @@ if (Astro.request.method === 'POST') {
     } else if (existing) {
       selectedId = `assistant-custom-${existing.id}`;
     }
-  } else if (action === 'save-builtin' && field('provider') in PROVIDERS) {
-    // Key and model for DeepSeek or OpenRouter, entered here instead of in Railway.
-    const providerId = field('provider');
-    const model = field('model');
+  } else if (action === 'save-key' && field('provider') in PROVIDERS) {
+    // Step 1: the key for DeepSeek or OpenRouter, entered here instead of in Railway.
+    const provider = PROVIDERS[field('provider')]!;
     const apiKey = field('apiKey');
-    selectedId = `assistant-${providerId}`;
+    selectedId = `assistant-${provider.id}`;
     formError =
       !getDbClient() ? 'La base de données n’est pas configurée.'
-      : model.length > 200 ? 'Le nom du modèle est trop long.'
+      : !apiKey ? 'Collez la clé API avant d’enregistrer.'
       : apiKey.length > 500 || /\s/.test(apiKey) ? 'La clé API est invalide.'
-      : apiKey && !canEncrypt() ? 'Le chiffrement des clés demande ADMIN_SESSION_SECRET (ou APP_ENCRYPTION_KEY) d’au moins 32 caractères dans Railway.'
+      : provider.keyPrefix && !apiKey.startsWith(provider.keyPrefix)
+        ? `Ce n’est pas une clé ${provider.name} : elle doit commencer par « ${provider.keyPrefix} ». Si le champ s’est rempli tout seul, c’est sans doute votre navigateur qui y a mis un mot de passe enregistré.`
+      : !canEncrypt() ? 'Le chiffrement des clés demande ADMIN_SESSION_SECRET (ou APP_ENCRYPTION_KEY) d’au moins 32 caractères dans Railway.'
       : null;
     if (!formError) {
       try {
-        await saveProviderCredential(providerId, model, apiKey);
+        await saveProviderKey(provider.id, apiKey);
+        // Prove the key without spending tokens; the model test comes in step 2.
+        clearProbeCache(selectedId);
+        checks = await getApiChecks();
+        const check = checks.find((entry) => entry.id === selectedId);
+        if (check?.probe) results.set(selectedId, await check.probe());
+        keySaved = true;
+      } catch (caught) {
+        console.error('[admin-api] Save failed:', caught instanceof Error ? caught.message : caught);
+        formError = 'Enregistrement impossible. Vérifiez que la migration 0012 a été appliquée.';
+      }
+    }
+  } else if (action === 'save-model' && field('provider') in PROVIDERS) {
+    // Step 2: the model, then a real test with it.
+    const providerId = field('provider');
+    const model = field('model');
+    selectedId = `assistant-${providerId}`;
+    formError = !getDbClient() ? 'La base de données n’est pas configurée.' : !model || model.length > 200 ? 'Choisissez un modèle.' : null;
+    if (!formError) {
+      try {
+        await saveProviderModel(providerId, model);
         // For the active provider, the model chosen here is the one the assistant uses.
         const settings = await getSettings();
-        if (model && settings.assistant_provider === providerId) await setSetting(SETTING_KEYS.model, model);
+        if (settings.assistant_provider === providerId) await setSetting(SETTING_KEYS.model, model);
         await reloadAndTest(selectedId);
       } catch (caught) {
         console.error('[admin-api] Save failed:', caught instanceof Error ? caught.message : caught);
@@ -142,6 +165,20 @@ const selectedLevel = selectedResult ? checkLevel(selectedResult) : null;
 const selectedApi = selected.customApi;
 const selectedBuiltIn = selected.builtIn;
 const editable = Boolean(selectedApi || selectedBuiltIn);
+
+// The model picker: the provider's own list when it can be fetched.
+let currentModel = '';
+let modelOptions: Awaited<ReturnType<typeof listModels>> = null;
+if (selectedBuiltIn) {
+  const assistant = await resolveAssistant();
+  currentModel = assistant.provider.id === selectedBuiltIn.provider.id ? assistant.chain[0]! : selectedBuiltIn.provider.defaultModel;
+  modelOptions = await listModels(selectedBuiltIn.provider, selectedBuiltIn.apiKey);
+  if (modelOptions && !modelOptions.some((option) => option.id === currentModel)) {
+    modelOptions = [{ id: currentModel, label: `${currentModel} (actuel, absent de la liste)` }, ...modelOptions];
+  }
+}
+// Text the browser's password manager does not recognise as a password field.
+const KEY_INPUT_ATTRS: Record<string, string> = { type: 'text', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', 'data-1p-ignore': '', 'data-lpignore': 'true', 'data-bwignore': '', style: '-webkit-text-security: disc' };
 const INPUT = 'w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] placeholder:text-[#6d726d] focus:border-[#d4a24c] focus:outline-none';
 const PANEL: Record<CheckLevel, string> = {
   ok: 'border-[#2b5c40] bg-[#12241a]',
@@ -254,7 +291,7 @@ function statusLine(result: CheckResult): string {
         </label>
         <label class="block">
           <span class="mb-1 block text-xs text-[#8b908b]">Clé API</span>
-          <input name="apiKey" type="password" required autocomplete="off" placeholder="sk-…" class={INPUT} />
+          <input name="apiKey" required {...KEY_INPUT_ATTRS} placeholder="sk-…" class={INPUT} />
           <span class="mt-1 block text-[11px] text-[#6d726d]">Chiffrée avant d’être enregistrée, et jamais réaffichée : seuls ses 4 derniers caractères restent visibles.</span>
         </label>
         <label class="block">
@@ -292,31 +329,65 @@ function statusLine(result: CheckResult): string {
       </p>
       )}
       {selectedBuiltIn && (
-        <form method="post" action={`/admin/api?check=${selected.id}`} class="mt-6 max-w-xl space-y-4 rounded-lg border border-[#262a28] bg-[#141716] px-4 py-4">
-          <input type="hidden" name="action" value="save-builtin" />
-          <input type="hidden" name="provider" value={selectedBuiltIn.provider.id} />
-          <label class="block">
-            <span class="mb-1 block text-xs text-[#8b908b]">Clé API {selectedBuiltIn.provider.name}</span>
-            <input
-              name="apiKey"
-              type="password"
-              autocomplete="off"
-              placeholder={selectedBuiltIn.keySource === 'saved'
-                ? `•••• ${selectedBuiltIn.credential!.keyLast4} (laisser vide pour conserver)`
-                : selectedBuiltIn.envKeyPresent ? 'Clé Railway utilisée (collez une clé pour la remplacer)' : 'Collez votre clé API ici'}
-              class={INPUT}
-            />
-            <span class="mt-1 block text-[11px] text-[#6d726d]">Chiffrée avant d’être enregistrée et jamais réaffichée. Elle remplace la variable {selectedBuiltIn.provider.keyEnvVar} de Railway.</span>
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-xs text-[#8b908b]">Modèle</span>
-            <input name="model" maxlength="200" list={`models-${selectedBuiltIn.provider.id}`} value={selectedBuiltIn.provider.defaultModel} class={INPUT} />
-            <datalist id={`models-${selectedBuiltIn.provider.id}`}>
-              {[selectedBuiltIn.provider.defaultModel, ...selectedBuiltIn.provider.fallbackModels].map((model) => <option value={model} />)}
-            </datalist>
-          </label>
-          <button type="submit" class="rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">Enregistrer et tester</button>
-        </form>
+        <div class="mt-6 max-w-xl space-y-4">
+          <form method="post" action={`/admin/api?check=${selected.id}`} class="rounded-lg border border-[#262a28] bg-[#141716] px-4 py-4">
+            <input type="hidden" name="action" value="save-key" />
+            <input type="hidden" name="provider" value={selectedBuiltIn.provider.id} />
+            <p class="text-xs font-medium tracking-wide text-[#c8c6c0] uppercase">1. Clé API {selectedBuiltIn.provider.name}</p>
+            <p class:list={['mt-1 text-xs', selectedBuiltIn.keySource ? 'text-[#8fd0a8]' : 'text-[#f0b46a]']}>
+              {selectedBuiltIn.keySource === 'saved' ? `Clé enregistrée : •••• ${selectedBuiltIn.credential!.keyLast4}${keySaved ? ' (enregistrée à l’instant)' : ''}`
+                : selectedBuiltIn.keySource === 'env' ? `Clé Railway utilisée (${selectedBuiltIn.provider.keyEnvVar})`
+                : 'Aucune clé pour l’instant.'}
+            </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <input
+                name="apiKey"
+                {...KEY_INPUT_ATTRS}
+                placeholder={`Collez la clé (${selectedBuiltIn.provider.keyPrefix ?? ''}…)`}
+                class={`${INPUT} min-w-0 flex-1`}
+              />
+              <button type="submit" class="rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">Enregistrer la clé</button>
+            </div>
+            <p class="mt-2 text-[11px] text-[#6d726d]">Chiffrée avant d’être enregistrée et jamais réaffichée. Elle remplace la variable {selectedBuiltIn.provider.keyEnvVar} de Railway. L’enregistrement vérifie la clé sans consommer de jetons.</p>
+          </form>
+
+          <form method="post" action={`/admin/api?check=${selected.id}`} class="rounded-lg border border-[#262a28] bg-[#141716] px-4 py-4">
+            <input type="hidden" name="action" value="save-model" />
+            <input type="hidden" name="provider" value={selectedBuiltIn.provider.id} />
+            <p class="text-xs font-medium tracking-wide text-[#c8c6c0] uppercase">2. Modèle</p>
+            {modelOptions ? (
+              <>
+                <input
+                  type="search"
+                  id="model-filter"
+                  placeholder={`Filtrer les ${modelOptions.length} modèles (ex. gemini, free, gpt)…`}
+                  autocomplete="off"
+                  class={`${INPUT} mt-3`}
+                />
+                <select name="model" id="model-select" size="8" required class={`${INPUT} mt-2`}>
+                  {modelOptions.map((option) => <option value={option.id} selected={option.id === currentModel}>{option.label}</option>)}
+                </select>
+                <script is:inline>
+                  const filter = document.getElementById('model-filter');
+                  const select = document.getElementById('model-select');
+                  filter?.addEventListener('input', () => {
+                    const words = filter.value.toLowerCase().split(/\s+/).filter(Boolean);
+                    for (const option of select.options) {
+                      const text = option.text.toLowerCase();
+                      option.hidden = !words.every((word) => text.includes(word)) && !option.selected;
+                    }
+                  });
+                </script>
+              </>
+            ) : (
+              <>
+                <input name="model" required maxlength="200" value={currentModel} class={`${INPUT} mt-3`} />
+                <p class="mt-1 text-[11px] text-[#6d726d]">La liste des modèles n’a pas pu être chargée : saisissez l’identifiant du modèle.</p>
+              </>
+            )}
+            <button type="submit" class="mt-3 rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">Enregistrer et tester</button>
+          </form>
+        </div>
       )}
       {selectedBuiltIn?.keySource === 'saved' && (
         <form method="post" action="/admin/api" class="mt-3">
@@ -344,7 +415,7 @@ function statusLine(result: CheckResult): string {
             </label>
             <label class="block">
               <span class="mb-1 block text-xs text-[#8b908b]">Clé API</span>
-              <input name="apiKey" type="password" autocomplete="off" placeholder={`•••• ${selectedApi.keyLast4} (laisser vide pour conserver)`} class={INPUT} />
+              <input name="apiKey" {...KEY_INPUT_ATTRS} placeholder={`•••• ${selectedApi.keyLast4} (laisser vide pour conserver)`} class={INPUT} />
             </label>
             <button type="submit" class="rounded-lg bg-[#d4a24c] px-4 py-2 text-sm font-medium text-[#1a1408] transition-colors hover:bg-[#e0b162]">Enregistrer et tester</button>
           </form>
