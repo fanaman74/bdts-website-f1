@@ -1,6 +1,6 @@
 import { getDbClient } from './db';
 import { emailProvider, emailStatus, sendEmail } from './email';
-import { customProvider, PROVIDERS as ASSISTANT_PROVIDERS, resolveAssistant, type AssistantProvider } from './assistantProvider';
+import { customProvider, listBuiltInProviders, resolveAssistant, type AssistantProvider, type BuiltInProvider } from './assistantProvider';
 import { createRateLimiter } from './rateLimit';
 import { customApiKey, listCustomApis, type CustomApi } from './customApis';
 
@@ -49,6 +49,8 @@ export interface ApiCheck {
   needsRecipient?: boolean;
   /** The API added from this page that the check tests, when it is one. */
   customApi?: CustomApi;
+  /** The built-in provider the check tests, with its saved key and model. */
+  builtIn?: BuiltInProvider;
   run(input: { recipient?: string }): Promise<CheckResult>;
   /**
    * Cheap variant run automatically when the page loads: never sends email
@@ -239,10 +241,11 @@ const inquiryAlertCheck: ApiCheck = {
  * One check per assistant provider, built-in or added from this page, so a
  * backup can be tested before switching.
  */
-function assistantCheck(provider: AssistantProvider, readKey: () => string | null, customApi?: CustomApi): ApiCheck {
-  const missingKey = provider.custom
+function assistantCheck(provider: AssistantProvider, readKey: () => string | null, source: { customApi?: CustomApi; builtIn?: BuiltInProvider } = {}): ApiCheck {
+  const { customApi, builtIn } = source;
+  const missingKey = provider.custom || builtIn?.credential?.apiKeyEncrypted
     ? 'La clé enregistrée ne peut plus être déchiffrée (secret de chiffrement modifié) : saisissez-la à nouveau.'
-    : `${provider.keyEnvVar} n’est pas défini.`;
+    : `Aucune clé : saisissez-la ci-dessous, ou définissez ${provider.keyEnvVar} dans Railway.`;
   return {
     id: `assistant-${provider.id.replace(':', '-')}`,
     name: `Assistant documents — ${provider.name}`,
@@ -251,6 +254,7 @@ function assistantCheck(provider: AssistantProvider, readKey: () => string | nul
       : 'Demande une très courte réponse au modèle configuré (quelques jetons facturés).',
     envVars: provider.custom ? [] : [provider.keyEnvVar],
     customApi,
+    builtIn,
     // The provider's balance, key or model-list endpoint is authenticated but spends no tokens.
     async probe() {
       const apiKey = readKey();
@@ -286,6 +290,8 @@ function assistantCheck(provider: AssistantProvider, readKey: () => string | nul
       const model = active ? assistant.chain[0]! : provider.defaultModel;
       const details = [active ? 'Fournisseur actif' : 'Fournisseur de secours (non actif)', `Modèle : ${model}`];
       if (customApi?.keyLast4) details.push(`Clé enregistrée : •••• ${customApi.keyLast4}`);
+      if (builtIn?.keySource === 'saved') details.push(`Clé enregistrée ici : •••• ${builtIn.credential!.keyLast4}`);
+      if (builtIn?.keySource === 'env') details.push(`Clé : variable Railway ${provider.keyEnvVar}`);
 
       const apiKey = readKey();
       if (!apiKey) return notConfigured('Non configuré', missingKey, details);
@@ -322,19 +328,16 @@ function assistantCheck(provider: AssistantProvider, readKey: () => string | nul
   };
 }
 
-/** Checks that need no database: services and the built-in providers. */
-const STATIC_CHECKS: ApiCheck[] = [
-  databaseCheck,
-  emailKeyCheck,
-  emailSendCheck,
-  inquiryAlertCheck,
-  ...Object.values(ASSISTANT_PROVIDERS).map((provider) => assistantCheck(provider, () => process.env[provider.keyEnvVar]?.trim() || null))
-];
+const SERVICE_CHECKS: ApiCheck[] = [databaseCheck, emailKeyCheck, emailSendCheck, inquiryAlertCheck];
 
-/** Every check, including one per API added from the admin area. */
+/** Every check: services, built-in providers, then the APIs added from the admin area. */
 export async function getApiChecks(): Promise<ApiCheck[]> {
-  const custom = await listCustomApis();
-  return [...STATIC_CHECKS, ...custom.map((api) => assistantCheck(customProvider(api), () => customApiKey(api), api))];
+  const [builtIns, custom] = await Promise.all([listBuiltInProviders(), listCustomApis()]);
+  return [
+    ...SERVICE_CHECKS,
+    ...builtIns.map((entry) => assistantCheck(entry.provider, () => entry.apiKey, { builtIn: entry })),
+    ...custom.map((api) => assistantCheck(customProvider(api), () => customApiKey(api), { customApi: api }))
+  ];
 }
 
 const probeCache = new Map<string, { at: number; result: CheckResult }>();
