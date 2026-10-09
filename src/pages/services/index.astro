@@ -1,0 +1,50 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ContactCTA from '../../components/ContactCTA.astro';
+import { serviceJourneys, type LocalizedText } from '../../data/serviceJourneys';
+
+const labels = (text: LocalizedText) => ({
+  'data-label-fr': text.fr,
+  'data-label-nl': text.nl,
+  'data-label-en': text.en
+});
+---
+
+<BaseLayout
+  title="Guides par situation"
+  description="Des repères concrets pour préparer vos assurances à chaque étape de votre vie et de votre activité."
+>
+  <div class="page-shell service-journeys-page">
+    <section class="journeys-intro" data-reveal>
+      <div>
+        <h1 {...labels({ fr: 'Des repères pour vos moments importants.', nl: 'Houvast voor belangrijke momenten.', en: 'Guidance for important moments.' })}>Des repères pour vos moments importants.</h1>
+        <p {...labels({ fr: 'Quand une situation change, les bonnes questions arrivent rarement dans le bon ordre. Ces guides vous aident à préparer un premier échange avec votre courtier.', nl: 'Wanneer uw situatie verandert, komen de juiste vragen zelden in de juiste volgorde. Deze gidsen helpen u een eerste gesprek met uw makelaar voor te bereiden.', en: 'When your situation changes, the right questions rarely arrive in the right order. These guides help you prepare for a first conversation with your broker.' })}>
+          Quand une situation change, les bonnes questions arrivent rarement dans le bon ordre. Ces guides vous aident à préparer un premier échange avec votre courtier.
+        </p>
+      </div>
+      <a href="/contact" class="organic-button organic-button--moss" {...labels({ fr: 'Parler à un conseiller', nl: 'Met een adviseur praten', en: 'Talk to an adviser' })}>Parler à un conseiller</a>
+    </section>
+
+    <section class="journey-list" aria-labelledby="journey-list-title" data-reveal>
+      <div class="organic-section-heading">
+        <div>
+          <h2 id="journey-list-title" {...labels({ fr: 'Choisir un point de départ', nl: 'Kies een vertrekpunt', en: 'Choose a starting point' })}>Choisir un point de départ</h2>
+        </div>
+        <p {...labels({ fr: 'Chaque guide propose les informations utiles à rassembler et la prochaine étape la plus simple.', nl: 'Elke gids geeft aan welke informatie nuttig is en wat een eenvoudige volgende stap kan zijn.', en: 'Each guide lists useful information to gather and the simplest next step.' })}>Chaque guide propose les informations utiles à rassembler et la prochaine étape la plus simple.</p>
+      </div>
+      <div class="journey-grid">
+        {serviceJourneys.map((journey) => (
+          <a class="journey-card" href={`/services/${journey.slug}`}>
+            <div class="journey-card__image"><img src={journey.image} alt="" width="900" height="600" loading="lazy" /></div>
+            <div class="journey-card__body">
+              <h2 {...labels(journey.title)}>{journey.title.fr}</h2>
+              <p {...labels(journey.summary)}>{journey.summary.fr}</p>
+              <span class="organic-text-link" {...labels({ fr: 'Lire le guide', nl: 'De gids lezen', en: 'Read the guide' })}>Lire le guide <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  </div>
+  <ContactCTA />
+</BaseLayout>

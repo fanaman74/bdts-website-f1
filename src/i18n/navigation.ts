@@ -49,7 +49,7 @@ export const navigationLanguages: Record<SiteLanguage, NavigationLanguage> = {
       '/professionnel/revenu/placements': 'Investments', '/autres/partenaires-credits': 'Credit partners',
       '/autres/numeros-utiles': 'Useful numbers', '/contact': 'A solution for your projects'
     },
-    top: { '/documents': 'Documents', '/actualites': 'News', '/jobs': 'Jobs', '/documents#portails': 'Client portal' }
+    top: { '/services': 'Guides by situation', '/documents': 'Documents', '/actualites': 'News', '/jobs': 'Jobs', '/documents#portails': 'Client portal' }
   },
   nl: {
     brandSubtitle: 'Verzekeringsmakelaars',
@@ -78,6 +78,6 @@ export const navigationLanguages: Record<SiteLanguage, NavigationLanguage> = {
       '/professionnel/revenu/placements': 'Beleggingen', '/autres/partenaires-credits': 'Kredietpartners',
       '/autres/numeros-utiles': 'Nuttige nummers', '/contact': 'Een oplossing voor uw projecten'
     },
-    top: { '/documents': 'Documenten', '/actualites': 'Nieuws', '/jobs': 'Vacatures', '/documents#portails': 'Klantenzone' }
+    top: { '/services': 'Gidsen per situatie', '/documents': 'Documenten', '/actualites': 'Nieuws', '/jobs': 'Vacatures', '/documents#portails': 'Klantenzone' }
   }
 };

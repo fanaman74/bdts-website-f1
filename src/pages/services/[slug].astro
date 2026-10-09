@@ -1,0 +1,64 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ContactCTA from '../../components/ContactCTA.astro';
+import { serviceJourneys, type LocalizedText } from '../../data/serviceJourneys';
+
+export function getStaticPaths() {
+  return serviceJourneys.map((journey) => ({ params: { slug: journey.slug }, props: { journey } }));
+}
+
+const { journey } = Astro.props;
+const labels = (text: LocalizedText) => ({
+  'data-label-fr': text.fr,
+  'data-label-nl': text.nl,
+  'data-label-en': text.en
+});
+const contactHref = `/contact?service=${journey.slug}`;
+---
+
+<BaseLayout title={journey.title.fr} description={journey.summary.fr}>
+  <div class="page-shell service-journey-page">
+    <nav aria-label="Fil d’Ariane" class="organic-breadcrumb">
+      <a href="/" {...labels({ fr: 'Accueil', nl: 'Home', en: 'Home' })}>Accueil</a><span>/</span><a href="/services" {...labels({ fr: 'Guides', nl: 'Gidsen', en: 'Guides' })}>Guides</a><span>/</span><span aria-current="page" {...labels(journey.title)}>{journey.title.fr}</span>
+    </nav>
+
+    <section class="journey-hero" data-reveal>
+      <div class="journey-hero__copy">
+        <h1 {...labels(journey.title)}>{journey.title.fr}</h1>
+        <p {...labels(journey.intro)}>{journey.intro.fr}</p>
+        <div class="organic-actions">
+          <a href={contactHref} class="organic-button organic-button--clay" {...labels(journey.next)}>{journey.next.fr}</a>
+          {journey.slug === 'accompagnement-sinistre' && <a href="/declaration" class="organic-button organic-button--sand" {...labels({ fr: 'Ouvrir la déclaration', nl: 'Aangifte openen', en: 'Open the claim form' })}>Ouvrir la déclaration</a>}
+        </div>
+      </div>
+      <div class="journey-hero__image"><img src={journey.image} alt="" width="1200" height="900" /></div>
+    </section>
+
+    <section class="journey-details" data-reveal>
+      <article>
+        <h2 {...labels({ fr: 'À préparer avant notre échange', nl: 'Voor te bereiden voor ons gesprek', en: 'Prepare before we talk' })}>À préparer avant notre échange</h2>
+        <ul>{journey.prepare.map((item) => <li {...labels(item)}>{item.fr}</li>)}</ul>
+      </article>
+      <article>
+        <h2 {...labels({ fr: 'Comment nous vous aidons', nl: 'Hoe we u helpen', en: 'How we can help' })}>Comment nous vous aidons</h2>
+        <ul>{journey.approach.map((item) => <li {...labels(item)}>{item.fr}</li>)}</ul>
+      </article>
+    </section>
+
+    <section class="journey-related" aria-labelledby="journey-related-title" data-reveal>
+      <h2 id="journey-related-title" {...labels({ fr: 'À explorer aussi', nl: 'Ook te ontdekken', en: 'Explore these too' })}>À explorer aussi</h2>
+      <div class="journey-related__links">
+        {journey.related.map((item) => <a href={item.href} {...labels(item.label)}>{item.label.fr}<span aria-hidden="true">→</span></a>)}
+      </div>
+    </section>
+
+    <section class="journey-next" data-reveal>
+      <div>
+        <h2 {...labels({ fr: 'Décrivez-nous votre situation.', nl: 'Beschrijf uw situatie.', en: 'Tell us about your situation.' })}>Décrivez-nous votre situation.</h2>
+        <p {...labels({ fr: 'Parlez-nous de votre projet ou de vos questions. Nous préparerons avec vous les informations utiles pour avancer.', nl: 'Vertel ons over uw project of vragen. Samen bereiden we de nuttige informatie voor om vooruit te gaan.', en: 'Tell us about your project or questions. We will help you prepare the useful information to move forward.' })}>Parlez-nous de votre projet ou de vos questions. Nous préparerons avec vous les informations utiles pour avancer.</p>
+      </div>
+      <a href={contactHref} class="organic-button organic-button--sand" {...labels(journey.next)}>{journey.next.fr}</a>
+    </section>
+  </div>
+  <ContactCTA />
+</BaseLayout>
