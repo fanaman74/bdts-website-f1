@@ -48,7 +48,7 @@ const contactHref = `/contact?service=${journey.slug}`;
     <section class="journey-related" aria-labelledby="journey-related-title" data-reveal>
       <h2 id="journey-related-title" {...labels({ fr: 'À explorer aussi', nl: 'Ook te ontdekken', en: 'Explore these too' })}>À explorer aussi</h2>
       <div class="journey-related__links">
-        {journey.related.map((item) => <a href={item.href} {...labels(item.label)}>{item.label.fr}<span aria-hidden="true">→</span></a>)}
+        {journey.related.map((item) => <a href={item.href}><span {...labels(item.label)}>{item.label.fr}</span><span aria-hidden="true">→</span></a>)}
       </div>
     </section>
 

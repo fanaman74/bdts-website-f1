@@ -39,7 +39,7 @@ const labels = (text: LocalizedText) => ({
             <div class="journey-card__body">
               <h2 {...labels(journey.title)}>{journey.title.fr}</h2>
               <p {...labels(journey.summary)}>{journey.summary.fr}</p>
-              <span class="organic-text-link" {...labels({ fr: 'Lire le guide', nl: 'De gids lezen', en: 'Read the guide' })}>Lire le guide <span aria-hidden="true">→</span></span>
+              <span class="organic-text-link"><span {...labels({ fr: 'Lire le guide', nl: 'De gids lezen', en: 'Read the guide' })}>Lire le guide</span><span aria-hidden="true">→</span></span>
             </div>
           </a>
         ))}

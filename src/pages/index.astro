@@ -49,7 +49,7 @@ const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() 
         </div>
         <div>
           <p {...labels({ fr: 'Des guides courts pour préparer votre situation avant de nous écrire.', nl: 'Korte gidsen om uw situatie voor te bereiden voor u ons schrijft.', en: 'Short guides to prepare your situation before you contact us.' })}>Des guides courts pour préparer votre situation avant de nous écrire.</p>
-          <a href="/services" class="organic-text-link" {...labels({ fr: 'Voir tous les guides', nl: 'Alle gidsen bekijken', en: 'View all guides' })}>Voir tous les guides <span aria-hidden="true">→</span></a>
+          <a href="/services" class="organic-text-link"><span {...labels({ fr: 'Voir tous les guides', nl: 'Alle gidsen bekijken', en: 'View all guides' })}>Voir tous les guides</span><span aria-hidden="true">→</span></a>
         </div>
       </header>
       <div class="home-journeys__grid">
