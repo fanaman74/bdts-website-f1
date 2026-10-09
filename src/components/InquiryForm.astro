@@ -77,6 +77,61 @@ const inputClass =
 </form>
 
 <script>
+  const serviceReasons = {
+    'bilan-assurances': {
+      fr: 'Je souhaite faire le bilan de mes assurances.',
+      nl: 'Ik wil mijn verzekeringen laten herbekijken.',
+      en: 'I would like to review my insurance cover.'
+    },
+    'accompagnement-sinistre': {
+      fr: 'Je souhaite être accompagné après un sinistre.',
+      nl: 'Ik wil begeleiding na schade.',
+      en: 'I would like support after a claim.'
+    },
+    'projet-immobilier': {
+      fr: 'Je souhaite parler de mon projet immobilier.',
+      nl: 'Ik wil mijn vastgoedproject bespreken.',
+      en: 'I would like to discuss my property project.'
+    },
+    'je-lance-mon-activite': {
+      fr: 'Je lance mon activité et souhaite faire le point sur mes assurances.',
+      nl: 'Ik start mijn activiteit en wil mijn verzekeringen bekijken.',
+      en: 'I am starting a business and would like to review my insurance.'
+    },
+    'preparer-ma-pension': {
+      fr: 'Je souhaite préparer ma pension.',
+      nl: 'Ik wil mijn pensioen voorbereiden.',
+      en: 'I would like to prepare for retirement.'
+    },
+    's-installer-en-belgique': {
+      fr: 'Je souhaite parler de mon installation en Belgique.',
+      nl: 'Ik wil mijn vestiging in België bespreken.',
+      en: 'I would like to discuss settling in Belgium.'
+    }
+  };
+
+  document.querySelectorAll<HTMLFormElement>('.inquiry-form').forEach((form) => {
+    if (form.dataset.formType !== 'contact' || !/^\/(?:en\/|nl\/)?contact\/?$/.test(window.location.pathname)) return;
+    const requestedService = new URL(window.location.href).searchParams.get('service');
+    const reason = requestedService && Object.hasOwn(serviceReasons, requestedService)
+      ? serviceReasons[requestedService as keyof typeof serviceReasons]
+      : undefined;
+    const message = form.querySelector<HTMLTextAreaElement>('textarea[name="message"]');
+    const language = document.documentElement.lang === 'en' || document.documentElement.lang === 'nl' ? document.documentElement.lang : 'fr';
+    if (reason && message && !message.value.trim()) {
+      message.value = `${reason[language]}\n\n`;
+    }
+    if (!reason) return;
+    document.querySelectorAll<HTMLAnchorElement>('a[data-language-code]').forEach((anchor) => {
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+      const target = new URL(href, window.location.origin);
+      if (!/^\/(?:en\/|nl\/)?contact\/?$/.test(target.pathname)) return;
+      target.searchParams.set('service', requestedService!);
+      anchor.setAttribute('href', `${target.pathname}${target.search}${target.hash}`);
+    });
+  });
+
   document.querySelectorAll<HTMLFormElement>('.inquiry-form').forEach((form) => {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

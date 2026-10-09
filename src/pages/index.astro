@@ -8,7 +8,14 @@ import NewsCard from '../components/NewsCard.astro';
 import ContactCTA from '../components/ContactCTA.astro';
 import { portals } from '../data/portals';
 import { homeCategories } from '../data/homeCategories';
+import { prioritizedJourneys, type LocalizedText } from '../data/serviceJourneys';
 import { t } from '../i18n/fr';
+
+const labels = (text: LocalizedText) => ({
+  'data-label-fr': text.fr,
+  'data-label-nl': text.nl,
+  'data-label-en': text.en
+});
 
 const services = await getCollection('services');
 const particulier = services.filter((service) => service.data.audience === 'particulier').sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99));
@@ -32,6 +39,29 @@ const news = (await getCollection('news')).sort((a, b) => b.data.date.valueOf() 
           <li>Un suivi direct avec les compagnies</li>
         </ul>
         <a href="/contact" class="organic-button organic-button--moss">Découvrir le bureau</a>
+      </div>
+    </section>
+
+    <section class="home-journeys" aria-labelledby="home-journeys-title" data-reveal>
+      <header class="organic-section-heading">
+        <div>
+          <h2 id="home-journeys-title" {...labels({ fr: 'Une question concrète ? Commencez ici.', nl: 'Een concrete vraag? Begin hier.', en: 'A practical question? Start here.' })}>Une question concrète ? Commencez ici.</h2>
+        </div>
+        <div>
+          <p {...labels({ fr: 'Des guides courts pour préparer votre situation avant de nous écrire.', nl: 'Korte gidsen om uw situatie voor te bereiden voor u ons schrijft.', en: 'Short guides to prepare your situation before you contact us.' })}>Des guides courts pour préparer votre situation avant de nous écrire.</p>
+          <a href="/services" class="organic-text-link"><span {...labels({ fr: 'Voir tous les guides', nl: 'Alle gidsen bekijken', en: 'View all guides' })}>Voir tous les guides</span><span aria-hidden="true">→</span></a>
+        </div>
+      </header>
+      <div class="home-journeys__grid">
+        {prioritizedJourneys.map((journey) => (
+          <a href={`/services/${journey.slug}`} class="home-journey-card">
+            <div class="home-journey-card__image"><img src={journey.image} alt="" width="900" height="600" loading="lazy" /></div>
+            <div>
+              <h3 {...labels(journey.title)}>{journey.title.fr}</h3>
+              <p {...labels(journey.summary)}>{journey.summary.fr}</p>
+            </div>
+          </a>
+        ))}
       </div>
     </section>
 

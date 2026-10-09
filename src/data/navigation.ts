@@ -128,6 +128,7 @@ export const mainNav: NavSection[] = [
 ];
 
 export const topNav: NavLeaf[] = [
+  { label: 'Guides par situation', href: '/services' },
   { label: 'Documents', href: '/documents' },
   { label: 'Actualités', href: '/actualites' },
   { label: 'Jobs', href: '/jobs' },
