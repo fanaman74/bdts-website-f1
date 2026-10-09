@@ -1,0 +1,79 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ContactCTA from '../components/ContactCTA.astro';
+import PageHero from '../components/PageHero.astro';
+
+const steps = [
+  {
+    title: 'Voiture',
+    items: [
+      'La responsabilité civile automobile est obligatoire dès que le véhicule roule en Belgique.',
+      'Apportez votre relevé de bonus-malus et votre historique de sinistres de l’étranger : ils déterminent votre prime.',
+      'Pour un véhicule immatriculé à l’étranger, vérifiez avec nous les délais avant immatriculation belge.'
+    ]
+  },
+  {
+    title: 'Logement',
+    items: [
+      'Un bail de location exige souvent une assurance incendie et une responsabilité locative.',
+      'Gardez le contrat de votre pays d’origine jusqu’à la résiliation effective, pour éviter un double paiement.'
+    ]
+  },
+  {
+    title: 'Santé',
+    items: [
+      'Votre mutuelle belge couvre la base. Une assurance hospitalisation complète les frais que la mutuelle ne rembourse pas.',
+      'Si votre employeur vous couvre déjà, demandez l’attestation de l’assurance de groupe avant de souscrire ailleurs.'
+    ]
+  },
+  {
+    title: 'Vie privée et famille',
+    items: [
+      'La responsabilité civile vie privée protège toute la famille contre les dommages causés à des tiers.',
+      'Une protection juridique est utile en cas de litige avec un bailleur, un employeur ou un particulier.'
+    ]
+  }
+];
+---
+
+<BaseLayout
+  title="Arrivée en Belgique"
+  description="Vous venez de vous installer en Belgique ? Voici les assurances à prévoir : voiture, logement, santé, responsabilité civile et famille."
+>
+  <div class="page-shell">
+    <PageHero eyebrow="Nouveau en Belgique" title="Les assurances à prévoir en arrivant." description="Voiture, logement, santé, famille : ce qui est obligatoire, ce qui est conseillé, et les documents à réunir avant de nous appeler." image="/images/photos/particulier-mobilite-auto.jpg" compact />
+
+  <section class="container-site mx-auto max-w-4xl py-12">
+    <div class="grid gap-6 sm:grid-cols-2">
+      {steps.map((step) => (
+        <article class="card p-6">
+          <h2 class="font-display text-xl text-ink-900">{step.title}</h2>
+          <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-ink-700">
+            {step.items.map((item) => <li>{item}</li>)}
+          </ul>
+        </article>
+      ))}
+    </div>
+
+    <div class="card mt-6 p-6">
+      <p class="eyebrow text-pulse-600">Documents à réunir</p>
+      <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-ink-700">
+        <li>Votre adresse en Belgique et votre numéro de registre national ou de dossier d’inscription.</li>
+        <li>Les contrats en cours dans votre pays d’origine, avec leurs dates de renouvellement.</li>
+        <li>Votre relevé de bonus-malus ou d’historique de sinistres, et le certificat d’immatriculation du véhicule.</li>
+        <li>Le bail ou l’acte d’achat du logement, et la fiche de salaire ou le contrat de travail si une assurance de groupe existe.</li>
+      </ul>
+      <p class="mt-4 text-xs leading-relaxed text-ink-500">
+        Ces informations sont générales. Elles dépendent de votre situation personnelle : demandez-nous un examen de vos besoins avant toute souscription.
+      </p>
+    </div>
+
+    <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+      <a href="/devis" class="btn-primary">Demander un devis</a>
+      <a href="/contact" class="btn-ghost">Poser une question</a>
+    </div>
+  </section>
+
+  <ContactCTA />
+  </div>
+</BaseLayout>

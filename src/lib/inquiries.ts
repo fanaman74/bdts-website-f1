@@ -3,7 +3,7 @@ import { getDbClient } from './db';
 export const INQUIRY_STATUSES = ['new', 'in_progress', 'closed', 'spam'] as const;
 export type InquiryStatus = (typeof INQUIRY_STATUSES)[number];
 
-export const FORM_TYPES = ['contact', 'devis', 'declaration'] as const;
+export const FORM_TYPES = ['contact', 'devis', 'declaration', 'attestation'] as const;
 
 export interface Inquiry {
   id: string;

@@ -11,9 +11,9 @@ const STATUS_PILL: Record<string, { label: string; dot: string; text: string; bg
   spam: { label: 'Indésirable', dot: 'bg-[#d1695a]', text: 'text-[#e08b7c]', bg: 'bg-[#2a1614]', border: 'border-[#5e2f28]' }
 };
 
-const FORM_LABEL: Record<string, string> = { contact: 'Contact', devis: 'Devis', declaration: 'Sinistre' };
-const FORM_PAGE: Record<string, string> = { contact: '/contact', devis: '/devis', declaration: '/declaration' };
-const FORM_OPTIONS = ['contact', 'devis', 'declaration'];
+const FORM_LABEL: Record<string, string> = { contact: 'Contact', devis: 'Devis', declaration: 'Sinistre', attestation: 'Attestation' };
+const FORM_PAGE: Record<string, string> = { contact: '/contact', devis: '/devis', declaration: '/declaration', attestation: '/attestation' };
+const FORM_OPTIONS = ['contact', 'devis', 'declaration', 'attestation'];
 
 const params = Astro.url.searchParams;
 let status = params.get('status') ?? '';

@@ -4,7 +4,7 @@
 // The sender defaults to EMAIL_FROM, the address account emails already use.
 
 export interface InquiryNotification {
-  formType: 'contact' | 'devis' | 'declaration';
+  formType: 'contact' | 'devis' | 'declaration' | 'attestation';
   name: string;
   email: string;
   phone: string;
@@ -16,7 +16,8 @@ export interface InquiryNotification {
 const FORM_LABELS: Record<InquiryNotification['formType'], string> = {
   contact: 'Demande de contact',
   devis: 'Demande de devis',
-  declaration: 'Déclaration de sinistre'
+  declaration: 'Déclaration de sinistre',
+  attestation: 'Demande d’attestation'
 };
 
 export async function sendInquiryNotification(inquiry: InquiryNotification): Promise<void> {

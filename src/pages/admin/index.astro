@@ -20,7 +20,8 @@ const STATUS_LABEL: Record<string, string> = {
 const FORM_LABEL: Record<string, string> = {
   contact: 'Contact',
   devis: 'Devis',
-  declaration: 'Sinistre'
+  declaration: 'Sinistre',
+  attestation: 'Attestation'
 };
 
 const [counts, cached] = await Promise.all([inquiryCounts(), cachedDocumentCount()]);

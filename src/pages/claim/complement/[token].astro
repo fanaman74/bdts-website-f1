@@ -1,0 +1,90 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { findOpenInfoRequest } from '../../../lib/claimTimeline';
+import { infoRequestCopy, itemLabel, type FillableItem } from '../../../lib/infoRequest';
+
+export const prerender = false;
+
+const token = Astro.params.token ?? '';
+const request = await findOpenInfoRequest(token);
+const state = Astro.url.searchParams.get('sent') === '1' ? 'sent' : Astro.url.searchParams.get('expired') === '1' ? 'expired' : Astro.url.searchParams.get('error') === '1' ? 'error' : null;
+
+// The page follows the language the claim was declared in; French when the link is unknown.
+const language = request?.language ?? 'fr';
+const c = infoRequestCopy(language);
+const wants = (item: FillableItem) => request?.items.includes(item) ?? false;
+
+const inputClass =
+  'w-full rounded-xl border-0 bg-white px-4 py-3 text-sm text-ink-900 ring-1 ring-ink-200 placeholder:text-ink-400 focus:ring-2 focus:ring-pulse-500';
+const labelClass = 'mb-1.5 block text-sm font-semibold text-ink-800';
+
+const copy = {
+  fr: { title: 'Compléter mon dossier', expired: 'Ce lien n’est plus valable. Contactez-nous au +32 2 463 19 25 ou à bdts@bdts.be pour recevoir un nouveau lien.', thanks: 'Merci, nous avons bien reçu vos informations. Nous reprenons le dossier.', policy: 'Numéro de police', date: 'Date du sinistre', place: 'Lieu du sinistre', circumstances: 'Circonstances', details: 'Autres informations (témoin, partie adverse, téléphone, adresse…)', error: 'Certains champs ne sont pas valides. Vérifiez le formulaire et réessayez.', send: 'Envoyer', attach: 'Pour les photos et documents, répondez simplement à l’e-mail que nous vous avons envoyé.' },
+  en: { title: 'Complete my claim', expired: 'This link is no longer valid. Call us on +32 2 463 19 25 or write to bdts@bdts.be to receive a new one.', thanks: 'Thank you, we have received your information. We are picking up your claim.', policy: 'Policy number', date: 'Date of the incident', place: 'Place of the incident', circumstances: 'What happened', details: 'Other information (witness, other party, phone, address…)', error: 'Some fields are not valid. Please check the form and try again.', send: 'Send', attach: 'For photos and documents, simply reply to the email we sent you.' },
+  nl: { title: 'Mijn dossier aanvullen', expired: 'Deze link is niet meer geldig. Bel ons op +32 2 463 19 25 of schrijf naar bdts@bdts.be om een nieuwe link te krijgen.', thanks: 'Bedankt, we hebben uw gegevens ontvangen. We nemen het dossier verder op.', policy: 'Polisnummer', date: 'Datum van het schadegeval', place: 'Plaats van het schadegeval', circumstances: 'Wat is er gebeurd', details: 'Andere informatie (getuige, andere partij, telefoon, adres…)', error: 'Sommige velden zijn niet geldig. Controleer het formulier en probeer opnieuw.', send: 'Verzenden', attach: 'Voor foto’s en documenten antwoordt u gewoon op de e-mail die we u stuurden.' }
+}[language];
+---
+
+<BaseLayout title={copy.title} description={c.heading}>
+  <div class="page-shell">
+    <section class="container-site mx-auto max-w-2xl py-12">
+      <p class="eyebrow text-pulse-600">BDTS</p>
+      <h1 class="mt-2 font-display text-3xl text-ink-900">{request ? c.heading : copy.title}</h1>
+
+      {state === 'sent' && <p class="mt-6 rounded-xl bg-mint-100 p-4 text-sm font-medium text-mint-700" role="status">{copy.thanks}</p>}
+      {state === 'expired' && <p class="mt-6 rounded-xl bg-coral-50 p-4 text-sm font-medium text-coral-800" role="alert">{copy.expired}</p>}
+      {state === 'error' && <p class="mt-6 rounded-xl bg-coral-50 p-4 text-sm font-medium text-coral-800" role="alert">{copy.error}</p>}
+
+      {!request && state === null && <p class="mt-6 rounded-xl bg-coral-50 p-4 text-sm font-medium text-coral-800" role="alert">{copy.expired}</p>}
+
+      {request && state !== 'sent' && (
+        <div class="card mt-6 p-6 sm:p-8">
+          <p class="text-sm leading-relaxed text-ink-700">{c.intro}</p>
+          <p class="mt-4 text-sm font-semibold text-ink-800">{c.listLabel}</p>
+          <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-700">
+            {request.items.map((item) => <li>{itemLabel(item, language)}</li>)}
+          </ul>
+
+          <form method="POST" action="/api/claim-complement" class="mt-6 space-y-5">
+            <input type="hidden" name="token" value={token} />
+            <div class="absolute -left-[9999px]" aria-hidden="true">
+              <label>Ne pas remplir<input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+            </div>
+
+            {wants('policy') && (
+              <div>
+                <label for="policy" class={labelClass}>{copy.policy}</label>
+                <input id="policy" name="policy" type="text" maxlength="120" class={inputClass} />
+              </div>
+            )}
+            {wants('date') && (
+              <div>
+                <label for="date" class={labelClass}>{copy.date}</label>
+                <input id="date" name="date" type="date" class={inputClass} />
+              </div>
+            )}
+            {wants('place') && (
+              <div>
+                <label for="place" class={labelClass}>{copy.place}</label>
+                <input id="place" name="place" type="text" maxlength="500" class={inputClass} />
+              </div>
+            )}
+            {wants('circumstances') && (
+              <div>
+                <label for="circumstances" class={labelClass}>{copy.circumstances}</label>
+                <textarea id="circumstances" name="circumstances" rows={5} maxlength="8000" class={inputClass}></textarea>
+              </div>
+            )}
+            <div>
+              <label for="details" class={labelClass}>{copy.details}</label>
+              <textarea id="details" name="details" rows={4} maxlength="4000" class={inputClass}></textarea>
+            </div>
+
+            <p class="text-sm text-ink-600">{copy.attach}</p>
+            <button type="submit" class="btn-primary w-full sm:w-auto">{copy.send}</button>
+          </form>
+        </div>
+      )}
+    </section>
+  </div>
+</BaseLayout>
