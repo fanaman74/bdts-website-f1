@@ -1,5 +1,5 @@
 -- Missing-information requests on claims, and the two new public forms
--- (attestation requests). The token stored on a claim is a SHA-256 hash of the
+-- (attestation requests and the guided arrival form). The token stored on a claim is a SHA-256 hash of the
 -- link sent to the customer, so a leaked database row cannot be used as a link.
 
 alter table public.declarations
@@ -15,4 +15,4 @@ alter table public.declaration_events
 alter table public.inquiries drop constraint inquiries_form_type_check;
 alter table public.inquiries
   add constraint inquiries_form_type_check
-  check (form_type in ('contact', 'devis', 'declaration', 'attestation'));
+  check (form_type in ('contact', 'devis', 'declaration', 'attestation', 'arrivee'));
