@@ -9,13 +9,31 @@ const quickActions = [
 ];
 ---
 
-<section class="home-hero" aria-labelledby="home-title">
-  <img class="home-hero__image" src="/images/photos/professionnel-entreprise-responsabilite.jpg" alt="" width="1600" height="1067" fetchpriority="high" />
-  <div class="home-hero__veil" aria-hidden="true"></div>
-  <div class="home-hero__copy">
-    <p class="organic-kicker">Courtier indépendant · Bruxelles</p>
-    <h1 id="home-title">Des assurances,<br />en toute sérénité.</h1>
-    <p>{t.hero.subheadline}</p>
+<section class="home-hero home-hero--services" aria-labelledby="home-title">
+  <video
+    class="services-hero__video"
+    data-services-hero-video
+    width="1920"
+    height="1080"
+    poster="/images/hero-services-poster.webp"
+    preload="metadata"
+    muted
+    loop
+    playsinline
+    controls
+    aria-label="Nos services en 30 secondes — vidéo en français"
+    aria-describedby="hero-services-summary"
+  >
+    <source src="/videos/hero-services.mp4" type="video/mp4" />
+    <a href="/videos/hero-services.mp4">Voir la vidéo de nos services</a>
+  </video>
+  <div class="services-hero__intro">
+    <div>
+      <p class="organic-kicker">Courtier indépendant · Bruxelles</p>
+      <h1 id="home-title">Des assurances,<br />en toute sérénité.</h1>
+      <p>{t.hero.subheadline}</p>
+      <p id="hero-services-summary" class="sr-only">Mobilité, habitation, protection, entreprise, épargne et pension. Des garanties comparées et un accompagnement personnalisé, jusque dans le suivi de vos sinistres.</p>
+    </div>
     <a href="/contact" class="organic-button organic-button--clay">Parler à un conseiller</a>
   </div>
   <nav class="home-hero__paths" aria-label="Vos démarches">
@@ -28,3 +46,89 @@ const quickActions = [
   <a href="tel:+3224631925"><strong>+32 2 463 19 25</strong><span>Du lundi au vendredi</span></a>
   <a href="mailto:bdts@bdts.be"><strong>bdts@bdts.be</strong><span>Écrivez-nous</span></a>
 </div>
+
+<style>
+  .home-hero.home-hero--services {
+    height: auto;
+    min-height: 0;
+    padding-top: 112px;
+    background: #102e25;
+  }
+
+  .services-hero__video {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+    background: #f4eee1;
+  }
+
+  .services-hero__video:focus-visible {
+    outline: 3px solid #c4a76b;
+    outline-offset: -3px;
+  }
+
+  .services-hero__intro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    padding: 32px 4% 24px;
+    color: var(--earth);
+    background: var(--cream);
+  }
+
+  .services-hero__intro .organic-kicker { margin-top: 0; }
+  .services-hero__intro h1 { max-width: none; font-size: clamp(2rem, 3vw, 3rem); line-height: 1.05; }
+  .services-hero__intro p:not(.organic-kicker):not(.sr-only) { max-width: 760px; margin: 16px 0 0; line-height: 1.6; }
+  .services-hero__intro > a { flex: none; }
+
+  .home-hero--services .home-hero__paths {
+    position: static;
+    width: 100%;
+    max-width: none;
+    padding: 0 4% 28px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    background: var(--cream);
+  }
+
+  .home-hero--services .home-hero__paths a { opacity: 1; animation: none; }
+
+  @media (max-width: 1050px) {
+    .home-hero--services .home-hero__paths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 767px) {
+    .home-hero.home-hero--services { padding-top: 96px; }
+    .services-hero__intro { align-items: flex-start; flex-direction: column; gap: 22px; padding: 26px 24px; }
+    .home-hero--services .home-hero__paths { padding: 0 24px 24px; }
+  }
+
+  @media (max-width: 540px) {
+    .home-hero--services .home-hero__paths { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  const video = document.querySelector<HTMLVideoElement>('[data-services-hero-video]');
+  if (video) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+
+    // Without JavaScript or when motion/data saving is requested, the poster and
+    // native controls remain available. Playback only starts automatically here.
+    if (!reducedMotion.matches && !connection?.saveData) {
+      video.play().catch(() => { /* The visitor can still use the native play control. */ });
+    }
+    reducedMotion.addEventListener('change', (event) => {
+      if (event.matches) video.pause();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) video.pause();
+    });
+    new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) video.pause();
+    }).observe(video);
+  }
+</script>

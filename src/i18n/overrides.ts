@@ -1,6 +1,9 @@
 /** Human-reviewed translations for prominent and frequently reused copy. */
 export const translationOverrides = {
   en: {
+    'Nos services en 30 secondes — vidéo en français': 'Our services in 30 seconds — video in French',
+    'Voir la vidéo de nos services': 'Watch our services video',
+    'Mobilité, habitation, protection, entreprise, épargne et pension. Des garanties comparées et un accompagnement personnalisé, jusque dans le suivi de vos sinistres.': 'Mobility, home, protection, business, savings and pensions. We compare cover and provide personal support, including help with your claims.',
     'Des assurances,': 'Insurance with',
     'en toute sérénité.': 'complete peace of mind.',
     'Courtier indépendant · Bruxelles': 'Independent broker · Brussels',
@@ -72,6 +75,9 @@ export const translationOverrides = {
     'Modèle': 'Model'
   },
   nl: {
+    'Nos services en 30 secondes — vidéo en français': 'Onze diensten in 30 seconden — video in het Frans',
+    'Voir la vidéo de nos services': 'Bekijk de video over onze diensten',
+    'Mobilité, habitation, protection, entreprise, épargne et pension. Des garanties comparées et un accompagnement personnalisé, jusque dans le suivi de vos sinistres.': 'Mobiliteit, wonen, bescherming, onderneming, sparen en pensioen. We vergelijken waarborgen en bieden persoonlijke begeleiding, ook bij de opvolging van uw schadegevallen.',
     'Des assurances,': 'Verzekerd met',
     'en toute sérénité.': 'een gerust gevoel.',
     'Courtier indépendant · Bruxelles': 'Onafhankelijke makelaar · Brussel',

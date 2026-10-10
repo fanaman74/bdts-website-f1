@@ -142,7 +142,9 @@ Le client utilise `@neondatabase/serverless` en mode HTTP : aucune socket n'est 
 Les photos des cartes (`public/images/photos/`) proviennent d'Unsplash (licence Unsplash, usage commercial autorisé).
 Le détail photo par photo — auteur, lien, requête — est consigné dans `src/data/photo-credits.json`.
 Les illustrations abstraites (`public/images/cards/`) servent de repli par catégorie.
-La vidéo du hero (`public/videos/hero-office.mp4`) provient de Mixkit (licence Mixkit gratuite, usage commercial autorisé).
+Le hero utilise `public/videos/hero-services.mp4` : la composition originale **BDT-Services-30s** (Remotion), en français, 1920 × 1080, 30 secondes. Les animations et la musique sont originales, sans voix off. Le MP4 H.264/AAC est optimisé pour le chargement progressif (`faststart`) ; son affiche est `public/images/hero-services-poster.webp`.
+La lecture démarre en mode muet, avec les commandes natives disponibles. Elle reste manuelle sans JavaScript, avec la réduction des animations ou l’économie de données activée. La vidéo conserve tout son cadre 16:9 sur mobile ; les liens de devis, sinistre, documents et contact restent accessibles sous le film. Un résumé textuel et des libellés traduits accompagnent le film français sur les pages FR/NL/EN.
+L’ancienne vidéo `public/videos/hero-office.mp4` (Mixkit, licence gratuite avec usage commercial autorisé) est conservée mais n’est plus utilisée dans le hero.
 
 ## Notes de conformité
 
