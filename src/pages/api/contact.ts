@@ -9,7 +9,7 @@ export const prerender = false;
 const MAX_CONTENT_LENGTH = 25_000;
 
 const submissionSchema = z.object({
-  formType: z.enum(['contact', 'devis', 'declaration']),
+  formType: z.enum(['contact', 'devis', 'declaration', 'attestation', 'arrivee']),
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(200),
   phone: z.string().trim().min(6).max(30),

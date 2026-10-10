@@ -47,7 +47,8 @@ export const navigationLanguages: Record<SiteLanguage, NavigationLanguage> = {
       '/professionnel/personnel/hospitalisation': 'Hospital insurance', '/professionnel/revenu/revenu-garanti': 'Guaranteed income',
       '/professionnel/revenu/constitution-de-pension': 'Pension planning', '/professionnel/revenu/assurance-deces': 'Death insurance',
       '/professionnel/revenu/placements': 'Investments', '/autres/partenaires-credits': 'Credit partners',
-      '/autres/numeros-utiles': 'Useful numbers', '/contact': 'A solution for your projects'
+      '/autres/numeros-utiles': 'Useful numbers', '/contact': 'A solution for your projects',
+      '/attestation': 'Request a certificate', '/arrivee-en-belgique': 'Moving to Belgium',
     },
     top: { '/documents': 'Documents', '/actualites': 'News', '/jobs': 'Jobs', '/documents#portails': 'Client portal' }
   },
@@ -76,7 +77,8 @@ export const navigationLanguages: Record<SiteLanguage, NavigationLanguage> = {
       '/professionnel/personnel/hospitalisation': 'Hospitalisatieverzekering', '/professionnel/revenu/revenu-garanti': 'Gewaarborgd inkomen',
       '/professionnel/revenu/constitution-de-pension': 'Pensioenopbouw', '/professionnel/revenu/assurance-deces': 'Overlijdensverzekering',
       '/professionnel/revenu/placements': 'Beleggingen', '/autres/partenaires-credits': 'Kredietpartners',
-      '/autres/numeros-utiles': 'Nuttige nummers', '/contact': 'Een oplossing voor uw projecten'
+      '/autres/numeros-utiles': 'Nuttige nummers', '/contact': 'Een oplossing voor uw projecten',
+      '/attestation': 'Een attest aanvragen', '/arrivee-en-belgique': 'Verhuizen naar België',
     },
     top: { '/documents': 'Documenten', '/actualites': 'Nieuws', '/jobs': 'Vacatures', '/documents#portails': 'Klantenzone' }
   }

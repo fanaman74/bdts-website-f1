@@ -1,0 +1,268 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ContactCTA from '../components/ContactCTA.astro';
+import PageHero from '../components/PageHero.astro';
+
+const steps = [
+  {
+    title: 'Voiture',
+    items: [
+      'La responsabilité civile automobile est obligatoire dès que le véhicule roule en Belgique.',
+      'Apportez votre relevé de bonus-malus et votre historique de sinistres de l’étranger : ils déterminent votre prime.',
+      'Pour un véhicule immatriculé à l’étranger, vérifiez avec nous les délais avant immatriculation belge.'
+    ]
+  },
+  {
+    title: 'Logement',
+    items: [
+      'Un bail de location exige souvent une assurance incendie et une responsabilité locative.',
+      'Gardez le contrat de votre pays d’origine jusqu’à la résiliation effective, pour éviter un double paiement.'
+    ]
+  },
+  {
+    title: 'Santé',
+    items: [
+      'Votre mutuelle belge couvre la base. Une assurance hospitalisation complète les frais que la mutuelle ne rembourse pas.',
+      'Si votre employeur vous couvre déjà, demandez l’attestation de l’assurance de groupe avant de souscrire ailleurs.'
+    ]
+  },
+  {
+    title: 'Vie privée et famille',
+    items: [
+      'La responsabilité civile vie privée protège toute la famille contre les dommages causés à des tiers.',
+      'Une protection juridique est utile en cas de litige avec un bailleur, un employeur ou un particulier.'
+    ]
+  }
+];
+
+const documents = [
+  'Votre adresse en Belgique et votre numéro de registre national ou de dossier d’inscription.',
+  'Les contrats en cours dans votre pays d’origine, avec leurs dates de renouvellement.',
+  'Votre relevé de bonus-malus ou d’historique de sinistres, et le certificat d’immatriculation du véhicule.',
+  'Le bail ou l’acte d’achat du logement, et la fiche de salaire ou le contrat de travail si une assurance de groupe existe.'
+];
+
+const household = ['Seul', 'En couple', 'Famille avec enfants'];
+const housing = ['Locataire', 'Propriétaire', 'Pas encore trouvé'];
+const vehicle = ['Pas de voiture pour le moment', 'Immatriculée à l’étranger', 'Immatriculée en Belgique', 'Pas encore achetée'];
+const interests = [
+  'Responsabilité civile auto',
+  'Assurance habitation et responsabilité locative',
+  'Hospitalisation',
+  'Responsabilité civile vie privée',
+  'Protection juridique',
+  'Revoir l’assurance de groupe de mon employeur'
+];
+
+const inputClass =
+  'w-full rounded-xl border-0 bg-white px-4 py-3 text-sm text-ink-900 ring-1 ring-ink-200 placeholder:text-ink-400 focus:ring-2 focus:ring-pulse-500';
+const labelClass = 'mb-1.5 block text-sm font-semibold text-ink-800';
+---
+
+<BaseLayout
+  title="Arrivée en Belgique"
+  description="Vous venez de vous installer en Belgique ? Voici les assurances à prévoir : voiture, logement, santé, responsabilité civile et famille."
+>
+  <div class="page-shell">
+    <PageHero eyebrow="Nouveau en Belgique" title="Les assurances à prévoir en arrivant." description="Voiture, logement, santé, famille : ce qui est obligatoire, ce qui est conseillé, et les documents à réunir avant de nous appeler." image="/images/photos/particulier-mobilite-auto.jpg" compact />
+
+  <section class="container-site mx-auto max-w-4xl py-12">
+    <div class="grid gap-6 sm:grid-cols-2">
+      {steps.map((step) => (
+        <article class="card p-6">
+          <h2 class="font-display text-xl text-ink-900">{step.title}</h2>
+          <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-ink-700">
+            {step.items.map((item) => <li>{item}</li>)}
+          </ul>
+        </article>
+      ))}
+    </div>
+
+    <div class="card mt-6 p-6">
+      <p class="eyebrow text-pulse-600">Documents à réunir</p>
+      <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-ink-700">
+        {documents.map((item) => <li>{item}</li>)}
+      </ul>
+      <p class="mt-4 text-xs leading-relaxed text-ink-500">
+        Ces informations sont générales. Elles dépendent de votre situation personnelle : demandez-nous un examen de vos besoins avant toute souscription.
+      </p>
+    </div>
+
+    <section aria-labelledby="pack-title" class="card mt-6 p-6 sm:p-8">
+      <p class="eyebrow text-pulse-600">Formulaire guidé</p>
+      <h2 id="pack-title" class="mt-2 font-display text-2xl text-ink-900">Préparez votre dossier en quelques minutes.</h2>
+      <p class="mt-2 text-sm leading-relaxed text-ink-600">
+        Répondez à ces questions une seule fois. Nous recevons votre demande et revenons vers vous avec une proposition adaptée à votre situation.
+      </p>
+
+      <form class="arrival-form mt-6 space-y-5" method="POST" action="/api/contact" novalidate>
+        <div class="absolute -left-[9999px]" aria-hidden="true">
+          <label>
+            Ne pas remplir ce champ
+            <input type="text" name="website" tabindex="-1" autocomplete="off" />
+          </label>
+        </div>
+
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label for="arrival-name" class={labelClass}>Prénom et nom *</label>
+            <input id="arrival-name" name="name" type="text" required autocomplete="name" class={inputClass} />
+          </div>
+          <div>
+            <label for="arrival-email" class={labelClass}>Adresse e-mail *</label>
+            <input id="arrival-email" name="email" type="email" required autocomplete="email" class={inputClass} />
+          </div>
+        </div>
+
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label for="arrival-phone" class={labelClass}>Téléphone *</label>
+            <input id="arrival-phone" name="phone" type="tel" required autocomplete="tel" class={inputClass} />
+          </div>
+          <div>
+            <label for="arrival-date" class={labelClass}>Date d’arrivée en Belgique</label>
+            <input id="arrival-date" name="arrival" type="date" class={inputClass} />
+          </div>
+        </div>
+
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label for="arrival-origin" class={labelClass}>Pays de provenance</label>
+            <input id="arrival-origin" name="origin" type="text" maxlength="120" class={inputClass} />
+          </div>
+          <div>
+            <label for="arrival-household" class={labelClass}>Composition du foyer</label>
+            <select id="arrival-household" name="household" class={inputClass}>
+              {household.map((option) => <option value={option}>{option}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label for="arrival-housing" class={labelClass}>Votre logement</label>
+            <select id="arrival-housing" name="housing" class={inputClass}>
+              {housing.map((option) => <option value={option}>{option}</option>)}
+            </select>
+          </div>
+          <div>
+            <label for="arrival-vehicle" class={labelClass}>Votre voiture</label>
+            <select id="arrival-vehicle" name="vehicle" class={inputClass}>
+              {vehicle.map((option) => <option value={option}>{option}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend class={labelClass}>Ce qui vous intéresse</legend>
+          <div class="mt-2 grid gap-2.5 sm:grid-cols-2">
+            {interests.map((interest, index) => (
+              <label class="flex items-start gap-3 text-sm leading-relaxed text-ink-700">
+                <input id={`arrival-interest-${index}`} name="interest" type="checkbox" value={interest} class="mt-0.5 h-5 w-5 rounded border-ink-300 text-pulse-600 focus:ring-pulse-500" />
+                <span>{interest}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <label class="flex items-start gap-3 text-sm leading-relaxed text-ink-700">
+          <input id="arrival-foreign-history" name="foreignHistory" type="checkbox" class="mt-0.5 h-5 w-5 rounded border-ink-300 text-pulse-600 focus:ring-pulse-500" />
+          <span>J’ai mon relevé de bonus-malus ou mon historique de sinistres de l’étranger</span>
+        </label>
+
+        <div>
+          <label for="arrival-details" class={labelClass}>Autre chose à nous dire</label>
+          <textarea id="arrival-details" name="details" rows={4} maxlength="2000" class={inputClass}></textarea>
+        </div>
+
+        <p class="text-xs leading-relaxed text-ink-500">
+          Les documents (carte verte, relevé de bonus-malus, bail) se transmettent ensuite par e-mail, en réponse à notre message.
+        </p>
+
+        <div class="flex items-start gap-3">
+          <input id="arrival-consent" name="consent" type="checkbox" required class="mt-0.5 h-5 w-5 rounded border-ink-300 text-pulse-600 focus:ring-pulse-500" />
+          <label for="arrival-consent" class="text-sm leading-relaxed text-ink-600">
+            J’accepte que BDTS utilise ces informations pour me répondre, conformément à la
+            <a href="/vie-privee" class="font-medium text-pulse-600 underline underline-offset-2">Politique de confidentialité</a>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary w-full sm:w-auto" data-submit>
+          <span data-label>Envoyer ma demande</span>
+        </button>
+
+        <p class="hidden rounded-xl bg-mint-100 p-4 text-sm font-medium text-mint-700" data-status="success" role="status">
+          Merci. Nous avons bien reçu votre demande et revenons vers vous rapidement.
+        </p>
+        <p class="hidden rounded-xl bg-coral-50 p-4 text-sm font-medium text-coral-800" data-status="error" role="alert">
+          Votre demande n’a pas pu être envoyée. Réessayez ou appelez-nous au +32 2 463 19 25.
+        </p>
+      </form>
+    </section>
+
+    <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+      <a href="/devis" class="btn-primary">Demander un devis</a>
+      <a href="/contact" class="btn-ghost">Poser une question</a>
+    </div>
+  </section>
+
+  <ContactCTA />
+  </div>
+
+  <script>
+    const form = document.querySelector<HTMLFormElement>('form.arrival-form');
+
+    const answer = (label: string, value: string) => (value ? `${label} : ${value}` : null);
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = form.querySelector<HTMLButtonElement>('[data-submit]');
+      const success = form.querySelector<HTMLElement>('[data-status="success"]');
+      const failure = form.querySelector<HTMLElement>('[data-status="error"]');
+      if (!form.reportValidity()) return;
+
+      const data = new FormData(form);
+      const text = (name: string) => String(data.get(name) ?? '').trim();
+      const interests = data.getAll('interest').map(String);
+      const lines = [
+        'Demande guidée : arrivée en Belgique',
+        answer('Date d’arrivée', text('arrival')),
+        answer('Pays de provenance', text('origin')),
+        answer('Foyer', text('household')),
+        answer('Logement', text('housing')),
+        answer('Voiture', text('vehicle')),
+        `Historique de l’étranger fourni : ${data.get('foreignHistory') ? 'oui' : 'non'}`,
+        answer('Intérêts', interests.join(', ')),
+        answer('Autres informations', text('details'))
+      ].filter((line): line is string => Boolean(line));
+
+      const payload = {
+        formType: 'arrivee',
+        name: text('name'),
+        email: text('email'),
+        phone: text('phone'),
+        message: lines.join('\n'),
+        consent: true,
+        website: text('website')
+      };
+
+      button?.setAttribute('disabled', 'true');
+      success?.classList.add('hidden');
+      failure?.classList.add('hidden');
+      try {
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        form.reset();
+        success?.classList.remove('hidden');
+      } catch {
+        failure?.classList.remove('hidden');
+      } finally {
+        button?.removeAttribute('disabled');
+      }
+    });
+  </script>
+</BaseLayout>

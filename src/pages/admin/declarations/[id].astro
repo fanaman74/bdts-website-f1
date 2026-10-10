@@ -9,12 +9,21 @@ import {
   listDeclarationForwards,
   setDeclarationInsurer
 } from '../../../lib/declarations';
-import { addNote, assignDeclaration, changeDeclarationStatus, knownAssignees, listTimeline } from '../../../lib/claimTimeline';
+import {
+  addNote,
+  assignDeclaration,
+  changeDeclarationStatus,
+  knownAssignees,
+  listTimeline,
+  requestCustomerInfo
+} from '../../../lib/claimTimeline';
+import { fillableItems, INFO_REQUEST_TTL_DAYS } from '../../../lib/infoRequest';
+import { externalOrigin } from '../../../lib/adminAuth';
 import { declarationReference, declarationSections } from '../../../lib/declarationSummary';
 import { declarationPdfFilename } from '../../../lib/declarationEmail';
 import { matchInsurer, missingInfo } from '../../../lib/claimTriage';
 import { buildForwardDraft, forwardDeclaration, type ForwardDraft } from '../../../lib/claimForward';
-import { INSURERS, getForwardSettings, insurerName, isInsurerId } from '../../../lib/insurers';
+import { INSURERS, getForwardSettings, insurerName, isInsurerId, parseEmailList } from '../../../lib/insurers';
 import { emailStatus } from '../../../lib/email';
 
 export const prerender = false;
@@ -48,6 +57,16 @@ if (Astro.request.method === 'POST') {
   if (action === 'assign') {
     await assignDeclaration(declaration, String(form.get('assignee') ?? ''), author);
     return Astro.redirect(`/admin/declarations/${declaration.id}?assigned=1#suivi`);
+  }
+  if (action === 'info_request') {
+    const outstanding = fillableItems(missingInfo({ ...declaration, insurer: declaration.insurer ?? suggestion?.insurer ?? null }).map((item) => item.id));
+    const result = await requestCustomerInfo(declaration, outstanding, {
+      author,
+      origin: externalOrigin(Astro.request),
+      replyTo: settings.replyTo ? parseEmailList(settings.replyTo, 1)?.[0] : null
+    });
+    const outcome = result.ok ? 'sent' : outstanding.length === 0 ? 'nothing' : 'failed';
+    return Astro.redirect(`/admin/declarations/${declaration.id}?infoRequest=${outcome}#suivi`);
   }
   if (action === 'note') {
     await addNote(declaration.id, String(form.get('note') ?? '').slice(0, 4000), author);
@@ -88,9 +107,11 @@ const notifiedParam = Astro.url.searchParams.get('notified');
 const assigned = Astro.url.searchParams.get('assigned') === '1';
 const insurerSaved = Astro.url.searchParams.get('insurer') === '1';
 const forwarded = Astro.url.searchParams.get('forwarded') === '1';
+const infoRequest = Astro.url.searchParams.get('infoRequest');
 
 const currentInsurer = declaration.insurer ?? suggestion?.insurer ?? null;
 const missing = missingInfo({ ...declaration, insurer: currentInsurer });
+const requestable = fillableItems(missing.map((item) => item.id));
 const forwards = await listDeclarationForwards(declaration.id);
 const lastSent = forwards.find((entry) => entry.ok);
 const draft = submittedDraft ?? (currentInsurer ? buildForwardDraft(declaration, currentInsurer, settings) : null);
@@ -138,6 +159,21 @@ function fileSize(bytes: number): string {
     </div>
   </div>
 
+  {infoRequest === 'sent' && (
+    <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">
+      Le client a reçu la liste de ce qui manque. Le lien est valable {INFO_REQUEST_TTL_DAYS} jours.
+    </p>
+  )}
+  {infoRequest === 'failed' && (
+    <p class="mt-6 rounded-lg border border-[#5e2f28] bg-[#2a1614] px-4 py-2 text-sm text-[#e08b7c]">
+      La demande n’a pas pu être envoyée. Le détail est dans le suivi du dossier.
+    </p>
+  )}
+  {infoRequest === 'nothing' && (
+    <p class="mt-6 rounded-lg border border-[#2a2f2d] px-4 py-2 text-sm text-[#8b908b]">
+      Rien à demander au client : les informations manquantes doivent être complétées par le bureau.
+    </p>
+  )}
   {updated && (
     <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">
       Statut mis à jour.{notifiedParam === '1' && ' Le client a été prévenu par e-mail.'}
@@ -285,6 +321,16 @@ function fileSize(bytes: number): string {
         <p class="text-[11px] text-[#6d726d]">Laissez vide pour retirer l’attribution.</p>
       </form>
 
+      {requestable.length > 0 && (
+        <form method="post" class="space-y-2">
+          <input type="hidden" name="action" value="info_request" />
+          <p class="text-xs text-[#7f857f]">Manque au dossier : {requestable.length} élément{requestable.length > 1 ? 's' : ''}, à demander au client par e-mail.</p>
+          <button type="submit" class="rounded-lg border border-[#2a2f2d] px-3 py-1.5 text-sm text-[#c8c6c0] transition-colors hover:border-[#d4a24c] hover:text-[#e0b568]">
+            Demander au client les informations manquantes
+          </button>
+        </form>
+      )}
+
       <form method="post" class="space-y-2.5">
         <input type="hidden" name="action" value="note" />
         <label class="block text-xs text-[#7f857f]" for="declaration-note">Note interne</label>
@@ -310,7 +356,7 @@ function fileSize(bytes: number): string {
           <span
             class:list={[
               'absolute top-1.5 -left-[5px] h-2.5 w-2.5 rounded-full',
-              entry.kind === 'note' ? 'bg-[#7fb7d6]' : entry.kind === 'forward' ? 'bg-[#d4a24c]' : entry.kind === 'status' ? 'bg-[#4ea678]' : 'bg-[#6d726d]'
+              entry.kind === 'note' ? 'bg-[#7fb7d6]' : entry.kind === 'forward' ? 'bg-[#d4a24c]' : entry.kind === 'status' ? 'bg-[#4ea678]' : entry.kind === 'info_request' || entry.kind === 'customer_info' ? 'bg-[#c59bd6]' : 'bg-[#6d726d]'
             ]}
             aria-hidden="true"
           />
@@ -319,6 +365,20 @@ function fileSize(bytes: number): string {
           </p>
           {entry.kind === 'created' && <p class="text-sm text-[#c8c6c0]">Déclaration reçue du client.</p>}
           {entry.kind === 'note' && <p class="text-sm whitespace-pre-line text-[#e8e6e1]">{entry.body}</p>}
+          {entry.kind === 'info_request' && (
+            <>
+              <p class="text-sm text-[#c8c6c0]">Informations demandées au client :</p>
+              <p class="mt-1 text-xs whitespace-pre-line text-[#8b908b]">{entry.body}</p>
+              {entry.customerNotified === true && <p class="text-[11px] text-[#8fd0a8]">E-mail envoyé au client.</p>}
+              {entry.customerNotified === false && <p class="text-[11px] text-[#e08b7c]">E-mail non envoyé : {entry.customerEmailError}</p>}
+            </>
+          )}
+          {entry.kind === 'customer_info' && (
+            <>
+              <p class="text-sm text-[#c8c6c0]">Le client a complété son dossier :</p>
+              <p class="mt-1 text-sm whitespace-pre-line text-[#e8e6e1]">{entry.body}</p>
+            </>
+          )}
           {entry.kind === 'assignment' && (
             <p class="text-sm text-[#c8c6c0]">{entry.assignedTo ? `Dossier attribué à ${entry.assignedTo}.` : 'Attribution retirée.'}</p>
           )}

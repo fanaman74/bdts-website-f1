@@ -11,6 +11,17 @@ import { declarationReference } from './declarationSummary';
 import { buildStatusEmail, CUSTOMER_NOTIFIED_STATUSES } from './declarationStatusEmail';
 import { isEmailConfigured, sendEmail } from './email';
 import { getForwardSettings, parseEmailList } from './insurers';
+import {
+  buildInfoRequestEmail,
+  fillableItems,
+  hashInfoRequestToken,
+  infoRequestPath,
+  INFO_REQUEST_TTL_DAYS,
+  itemLabel,
+  newInfoRequestToken,
+  type FillableItem
+} from './infoRequest';
+import { toDeclarationLanguage, type DeclarationLanguage } from './declarationI18n';
 
 /**
  * The follow-up of a claim in /admin: who handles it, the notes staff leave on
@@ -19,7 +30,7 @@ import { getForwardSettings, parseEmailList } from './insurers';
 
 export interface TimelineEntry {
   id: string;
-  kind: 'created' | 'note' | 'status' | 'assignment' | 'forward';
+  kind: 'created' | 'note' | 'status' | 'assignment' | 'forward' | 'info_request' | 'customer_info';
   at: string;
   author: string | null;
   body: string | null;
@@ -38,7 +49,7 @@ const asStatus = (value: unknown): DeclarationStatus | null =>
 
 async function logEvent(event: {
   declarationId: string;
-  kind: 'note' | 'status' | 'assignment';
+  kind: 'note' | 'status' | 'assignment' | 'info_request' | 'customer_info';
   body?: string | null;
   fromStatus?: string | null;
   toStatus?: string | null;
@@ -229,4 +240,141 @@ export async function knownAssignees(current: string | null): Promise<string[]> 
     }
   }
   return [...names].sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
+export type InfoRequestResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Emails the customer one link listing what the claim is missing. The link
+ * carries a random token; only its hash is stored, and it expires after
+ * INFO_REQUEST_TTL_DAYS.
+ */
+export async function requestCustomerInfo(
+  declaration: Pick<Declaration, 'id' | 'email' | 'firstName' | 'language'>,
+  items: string[],
+  options: { author: string | null; origin: string; replyTo?: string | null }
+): Promise<InfoRequestResult> {
+  const wanted = fillableItems(items);
+  const db = getDbClient();
+  if (!db || wanted.length === 0) return { ok: false, error: 'Aucune information à demander au client.' };
+  if (!isEmailConfigured() || !process.env.EMAIL_FROM?.trim()) {
+    return { ok: false, error: 'Aucun fournisseur d’e-mail ou EMAIL_FROM configuré.' };
+  }
+
+  const { token, hash } = newInfoRequestToken();
+  await db.query(
+    `update public.declarations
+        set info_request_token = $1,
+            info_request_expires_at = now() + make_interval(days => $2),
+            info_request_items = $3
+      where id = $4`,
+    [hash, INFO_REQUEST_TTL_DAYS, wanted.join(','), declaration.id]
+  );
+
+  const language: DeclarationLanguage = toDeclarationLanguage(declaration.language);
+  const result = await sendEmail(
+    buildInfoRequestEmail({
+      to: declaration.email,
+      firstName: declaration.firstName,
+      reference: declarationReference(declaration.id),
+      language,
+      items: wanted,
+      url: `${options.origin}${infoRequestPath(token)}`,
+      replyTo: options.replyTo ?? undefined
+    })
+  );
+
+  try {
+    await logEvent({
+      declarationId: declaration.id,
+      kind: 'info_request',
+      body: wanted.map((item) => itemLabel(item, 'fr')).join('\n'),
+      author: options.author,
+      customerNotified: result.ok,
+      customerEmailError: result.ok ? null : result.error
+    });
+  } catch (error) {
+    console.error('[timeline] Event write failed:', error instanceof Error ? error.message : error);
+  }
+
+  return result.ok ? { ok: true } : { ok: false, error: result.error };
+}
+
+export interface OpenInfoRequest {
+  id: string;
+  firstName: string;
+  language: DeclarationLanguage;
+  items: FillableItem[];
+}
+
+/** The claim behind a customer's link, or null when the link is unknown or expired. */
+export async function findOpenInfoRequest(token: string): Promise<OpenInfoRequest | null> {
+  const db = getDbClient();
+  if (!db || !token || token.length > 100) return null;
+
+  const rows = await db.query(
+    `select id, first_name, language, info_request_items
+       from public.declarations
+      where info_request_token = $1 and info_request_expires_at > now()`,
+    [hashInfoRequestToken(token)]
+  );
+  const row = rows[0];
+  if (!row) return null;
+
+  return {
+    id: String(row.id),
+    firstName: String(row.first_name),
+    language: toDeclarationLanguage(row.language),
+    items: fillableItems(String(row.info_request_items ?? '').split(','))
+  };
+}
+
+export interface CustomerInfoInput {
+  policy: string;
+  date: string;
+  place: string;
+  circumstances: string;
+  details: string;
+}
+
+/**
+ * Stores what the customer sent back. Blank claim fields are filled in; fields
+ * staff already completed are never overwritten. Everything sent is kept in the
+ * timeline, so nothing the customer wrote is lost.
+ */
+export async function saveCustomerInfo(token: string, input: CustomerInfoInput): Promise<boolean> {
+  const db = getDbClient();
+  const request = db ? await findOpenInfoRequest(token) : null;
+  if (!db || !request) return false;
+
+  await db.query(
+    `update public.declarations set
+       insurance_policy_number = case when coalesce(btrim(insurance_policy_number), '') = '' then nullif($2, '') else insurance_policy_number end,
+       incident_date = coalesce(incident_date, $3::date),
+       incident_place = case when coalesce(btrim(incident_place), '') = '' then nullif($4, '') else incident_place end,
+       incident_circumstances = case when coalesce(btrim(incident_circumstances), '') = '' then nullif($5, '') else incident_circumstances end
+     where id = $1`,
+    [request.id, input.policy, input.date || null, input.place, input.circumstances]
+  );
+
+  const lines = [
+    input.policy && `N° de police : ${input.policy}`,
+    input.date && `Date du sinistre : ${input.date}`,
+    input.place && `Lieu : ${input.place}`,
+    input.circumstances && `Circonstances : ${input.circumstances}`,
+    input.details && `Autres informations : ${input.details}`
+  ].filter(Boolean);
+
+  try {
+    await logEvent({
+      declarationId: request.id,
+      kind: 'customer_info',
+      body: lines.length > 0 ? lines.join('\n') : 'Le client a validé sans rien ajouter.',
+      author: 'Client'
+    });
+  } catch (error) {
+    console.error('[timeline] Event write failed:', error instanceof Error ? error.message : error);
+  }
+
+  return true;
 }

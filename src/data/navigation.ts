@@ -118,6 +118,8 @@ export const mainNav: NavSection[] = [
         label: 'Autres services',
         slug: 'autres-services',
         items: [
+          { label: 'Demander une attestation', href: '/attestation' },
+          { label: 'Arrivée en Belgique', href: '/arrivee-en-belgique' },
           { label: 'Nos partenaires en crédits', href: '/autres/partenaires-credits' },
           { label: 'Numéros utiles', href: '/autres/numeros-utiles' },
           { label: 'Une solution à vos projets', href: '/contact' }
