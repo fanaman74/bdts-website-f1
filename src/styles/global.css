@@ -1659,10 +1659,11 @@ body::before {
 .home-organic .utility-rail { display: none; }
 
 @media (max-width: 900px) {
-  .home-organic .home-hero { height: 690px; min-height: 690px; }
-  .home-organic .home-hero__copy { padding: 122px 24px 238px; }
+  .home-organic .home-hero { display: flex; flex-direction: column; height: auto; min-height: 690px; }
+  .home-organic .home-hero__copy { padding: 122px 24px 32px; }
+  .home-organic .home-hero__copy .organic-button { top: auto; margin-bottom: 0; }
   .home-organic .home-hero__copy h1 { max-width: 12ch; font-size: clamp(2.7rem, 12vw, 4.5rem); }
-  .home-organic .home-hero__paths { grid-template-columns: 1fr; bottom: 16px; }
+  .home-organic .home-hero__paths { position: relative; left: auto; right: auto; bottom: auto; margin: auto 14px 16px; grid-template-columns: 1fr; }
   .home-organic .home-hero__paths a { min-height: 46px; padding: 10px 14px; border-radius: 999px; font-size: .78rem; }
   .home-organic .home-action__icon { width: 26px; height: 26px; margin-right: 8px; }
   .home-organic .home-action__icon svg { width: 14px; height: 14px; }
