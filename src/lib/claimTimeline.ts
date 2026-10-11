@@ -9,7 +9,7 @@ import {
 } from './declarations';
 import { declarationReference } from './declarationSummary';
 import { buildStatusEmail, CUSTOMER_NOTIFIED_STATUSES } from './declarationStatusEmail';
-import { isEmailConfigured, sendEmail } from './email';
+import { emailProvider, isEmailConfigured, sendEmail } from './email';
 import { getForwardSettings, parseEmailList } from './insurers';
 import {
   buildInfoRequestEmail,
@@ -117,9 +117,13 @@ export async function changeDeclarationStatus(
   const message = options.message?.trim().slice(0, 2000) || null;
 
   if (options.notify && CUSTOMER_NOTIFIED_STATUSES.has(next)) {
-    if (!isEmailConfigured() || !process.env.EMAIL_FROM?.trim()) {
+    const provider = emailProvider();
+    if (provider.id === 'console' || !isEmailConfigured() || !process.env.EMAIL_FROM?.trim()) {
       customerNotified = false;
-      customerEmailError = 'Aucun fournisseur d’e-mail ou EMAIL_FROM configuré.';
+      customerEmailError =
+        provider.id === 'console'
+          ? 'Le fournisseur console n’envoie pas réellement d’e-mail.'
+          : 'Aucun fournisseur d’e-mail ou EMAIL_FROM configuré.';
     } else {
       const { replyTo } = await getForwardSettings();
       const result = await sendEmail(

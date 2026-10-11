@@ -24,7 +24,7 @@ import { declarationPdfFilename } from '../../../lib/declarationEmail';
 import { matchInsurer, missingInfo } from '../../../lib/claimTriage';
 import { buildForwardDraft, forwardDeclaration, type ForwardDraft } from '../../../lib/claimForward';
 import { INSURERS, getForwardSettings, insurerName, isInsurerId, parseEmailList } from '../../../lib/insurers';
-import { emailStatus } from '../../../lib/email';
+import { emailProvider, emailStatus } from '../../../lib/email';
 
 export const prerender = false;
 
@@ -121,7 +121,7 @@ const [timeline, assignees] = await Promise.all([
   knownAssignees(Astro.locals.admin?.username ?? null)
 ]);
 const LANGUAGE_LABELS = { fr: 'français', en: 'anglais', nl: 'néerlandais' } as const;
-const canSend = mail.configured && Boolean(mail.from);
+const canSend = mail.configured && Boolean(mail.from) && emailProvider().id !== 'console';
 const reference = declarationReference(declaration.id);
 const fieldClass =
   'w-full rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-sm text-[#e8e6e1] focus:border-[#d4a24c] focus:outline-none';

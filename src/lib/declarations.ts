@@ -131,6 +131,8 @@ export interface DeclarationFilters {
   search?: string;
   /** An insurer id, or 'none' for claims not yet matched to one. */
   insurer?: string;
+  /** Claims missing at least one blocking item from claim triage. */
+  incomplete?: boolean;
   order?: 'newest' | 'oldest';
   limit?: number;
 }
@@ -320,6 +322,14 @@ export async function listDeclarations(filters: DeclarationFilters = {}): Promis
   } else if (filters.insurer) {
     params.push(filters.insurer);
     where.push(`d.insurer = $${params.length}`);
+  }
+  if (filters.incomplete) {
+    where.push(
+      `(d.insurance_policy_number is null or regexp_replace(d.insurance_policy_number, '[[:space:]]', '', 'g') = ''
+        or d.insurer is null
+        or d.incident_date is null
+        or d.incident_circumstances is null or regexp_replace(d.incident_circumstances, '[[:space:]]', '', 'g') = '')`
+    );
   }
   if (filters.search) {
     params.push(`%${filters.search}%`);

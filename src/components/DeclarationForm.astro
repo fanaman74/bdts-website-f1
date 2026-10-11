@@ -383,7 +383,8 @@ const id = (name: string) => `declaration-${name}`;
 
   document.querySelectorAll<HTMLFormElement>('.declaration-form').forEach((form) => {
     const languageInput = form.querySelector<HTMLInputElement>('[data-language]');
-    if (languageInput) languageInput.value = document.documentElement.lang || 'fr';
+    const pageLanguage = document.documentElement.lang || 'fr';
+    if (languageInput) languageInput.value = pageLanguage;
 
     // The witness and third-party blocks only appear once the visitor answers
     // "yes", and their inputs are enabled at the same moment, so a hidden block
@@ -461,6 +462,9 @@ const id = (name: string) => `declaration-${name}`;
         if (confirmationLine) confirmationLine.hidden = result?.confirmationSent !== true;
 
         form.reset();
+        // reset() restores the markup default (French), so retain the
+        // language of the localized page for a subsequent submission.
+        if (languageInput) languageInput.value = pageLanguage;
         for (const update of toggles) update();
         if (fileHint) fileHint.textContent = defaultHint;
         success.classList.remove('hidden');

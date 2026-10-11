@@ -63,12 +63,12 @@ if (Astro.request.method === 'POST') {
 
 const [counts, listed] = await Promise.all([
   declarationCounts(),
-  listDeclarations({ status, search, insurer, order, limit: 200 })
+  listDeclarations({ status, search, insurer, incomplete: Boolean(incomplete), order, limit: 200 })
 ]);
 
 const triaged = listed.map((declaration) => ({ declaration, missing: missingInfo(declaration) }));
 // "À compléter" keeps the claims an insurer would bounce: a blocking item is missing.
-const rows = incomplete ? triaged.filter(({ missing }) => missing.some((item) => item.blocking)) : triaged;
+const rows = triaged;
 
 const segments = [
   { id: '', label: 'Toutes', count: counts.total },

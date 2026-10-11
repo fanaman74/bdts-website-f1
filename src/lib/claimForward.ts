@@ -10,7 +10,7 @@ import {
 import { declarationReference, formatDeclarationDate } from './declarationSummary';
 import { renderDeclarationPdf } from './declarationPdf';
 import { declarationPdfFilename } from './declarationEmail';
-import { sendEmail } from './email';
+import { emailProvider, sendEmail } from './email';
 import { changeDeclarationStatus } from './claimTimeline';
 import { insurerName, parseEmailList, type ForwardSettings } from './insurers';
 
@@ -124,6 +124,7 @@ export async function forwardDeclaration(
     ...files.map((file) => ({ filename: file.filename, contentBase64: file.contentBase64 }))
   ];
 
+  const provider = emailProvider();
   const result = await sendEmail({
     to,
     cc,
@@ -133,6 +134,13 @@ export async function forwardDeclaration(
     html: textToHtml(draft.body),
     attachments
   });
+  // The console provider records the message in the server log but cannot
+  // deliver it. Keep that useful local logging while making the forwarding
+  // outcome safe for the claim workflow.
+  const delivery =
+    provider.id === 'console'
+      ? { ok: false as const, error: 'Le fournisseur console n’envoie pas réellement d’e-mail.' }
+      : result;
 
   try {
     await logDeclarationForward({
@@ -144,15 +152,15 @@ export async function forwardDeclaration(
       body: draft.body,
       attachmentNames: attachments.map((attachment) => attachment.filename),
       sentBy: options.sentBy,
-      ok: result.ok,
-      error: result.ok ? null : result.error
+      ok: delivery.ok,
+      error: delivery.ok ? null : delivery.error
     });
   } catch (error) {
     // The mail has gone (or not) either way; a missing log line must not hide that.
     console.error('[forward] Log write failed:', error instanceof Error ? error.message : 'unknown error');
   }
 
-  if (!result.ok) return { ok: false, error: `L’envoi a échoué : ${result.error}` };
+  if (!delivery.ok) return { ok: false, error: `L’envoi a échoué : ${delivery.error}` };
 
   if (declaration.insurer !== draft.insurer) {
     await setDeclarationInsurer(declaration.id, draft.insurer, options.insurerSource);
