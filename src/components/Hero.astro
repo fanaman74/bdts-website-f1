@@ -9,18 +9,34 @@ const quickActions = [
 ];
 ---
 
-<section class="home-hero" aria-labelledby="home-title">
-  <img class="home-hero__image" src="/images/photos/professionnel-entreprise-responsabilite.jpg" alt="" width="1600" height="1067" fetchpriority="high" />
-  <div class="home-hero__veil" aria-hidden="true"></div>
-  <div class="home-hero__copy">
-    <p class="organic-kicker">Courtier indépendant · Bruxelles</p>
-    <h1 id="home-title">Des assurances,<br />en toute sérénité.</h1>
-    <p>{t.hero.subheadline}</p>
-    <a href="/contact" class="organic-button organic-button--clay">Parler à un conseiller</a>
+<section class="home-hero home-hero--video" aria-labelledby="home-title">
+  <video
+    class="home-hero__video"
+    data-hero-video
+    width="1920"
+    height="1080"
+    poster="/videos/bdt-sironval-services-poster.jpg"
+    preload="metadata"
+    controls
+    muted
+    loop
+    playsinline
+    aria-label="Présentation des services de BDT Sironval"
+  >
+    <source src="/videos/bdt-sironval-services-30s.mp4" type="video/mp4" />
+    <a href="/videos/bdt-sironval-services-30s.mp4">Voir la vidéo de présentation de BDT Sironval</a>
+  </video>
+  <div class="home-hero__footer">
+    <div class="home-hero__copy">
+      <p class="organic-kicker">Courtier indépendant · Bruxelles</p>
+      <h1 id="home-title">Des assurances,<br />en toute sérénité.</h1>
+      <p>{t.hero.subheadline}</p>
+      <a href="/contact" class="organic-button organic-button--clay">Parler à un conseiller</a>
+    </div>
+    <nav class="home-hero__paths" aria-label="Vos démarches">
+      {quickActions.map((action, index) => <a href={action.href} class={`home-action home-action--${action.tone}`}><span class="home-action__icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d={action.icon} /></svg></span><span class="home-action__label"><small>0{index + 1}</small>{action.label}</span><svg class="home-action__arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg></a>)}
+    </nav>
   </div>
-  <nav class="home-hero__paths" aria-label="Vos démarches">
-    {quickActions.map((action, index) => <a href={action.href} class={`home-action home-action--${action.tone}`}><span class="home-action__icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d={action.icon} /></svg></span><span class="home-action__label"><small>0{index + 1}</small>{action.label}</span><svg class="home-action__arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg></a>)}
-  </nav>
 </section>
 
 <div class="home-contact-strip">
@@ -28,3 +44,99 @@ const quickActions = [
   <a href="tel:+3224631925"><strong>+32 2 463 19 25</strong><span>Du lundi au vendredi</span></a>
   <a href="mailto:bdts@bdts.be"><strong>bdts@bdts.be</strong><span>Écrivez-nous</span></a>
 </div>
+
+<style>
+  :global(.home-organic) .home-hero--video {
+    height: auto;
+    min-height: 0;
+    padding-top: 100px;
+    background: #102f26;
+  }
+
+  .home-hero__video {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+    background: #102f26;
+  }
+
+  .home-hero__footer {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    align-items: center;
+    gap: 40px;
+    padding: 40px 5%;
+    background: var(--earth);
+  }
+
+  .home-hero--video .home-hero__copy {
+    max-width: none;
+    padding: 0;
+  }
+
+  .home-hero--video .home-hero__copy h1 {
+    font-size: clamp(2rem, 3.2vw, 3.2rem);
+    letter-spacing: -.035em;
+  }
+
+  .home-hero--video .home-hero__copy .organic-button {
+    top: auto;
+    margin: 24px 0 0;
+  }
+
+  .home-hero--video .home-hero__paths {
+    position: static;
+    width: 100%;
+    max-width: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-hero--video .home-hero__copy > *,
+  .home-hero--video .home-hero__paths a {
+    animation: none;
+    opacity: 1;
+  }
+
+  @media (max-width: 900px) {
+    :global(.home-organic) .home-hero--video { padding-top: 90px; }
+    .home-hero__footer { grid-template-columns: 1fr; gap: 28px; padding: 28px 24px; }
+  }
+
+  @media (max-width: 600px) {
+    .home-hero--video .home-hero__paths { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  const video = document.querySelector<HTMLVideoElement>('[data-hero-video]');
+
+  if (video) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let visible = false;
+    let userPaused = false;
+
+    const syncPlayback = () => {
+      if (!visible || document.hidden || reducedMotion.matches) {
+        video.pause();
+      } else if (!userPaused) {
+        // Autoplay can be refused by the browser; native controls remain usable.
+        void video.play().catch(() => {});
+      }
+    };
+
+    video.addEventListener('pause', () => {
+      if (visible && !document.hidden && !reducedMotion.matches) userPaused = true;
+    });
+    video.addEventListener('play', () => { userPaused = false; });
+    document.addEventListener('visibilitychange', syncPlayback);
+    reducedMotion.addEventListener('change', syncPlayback);
+
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      syncPlayback();
+    });
+    observer.observe(video);
+  }
+</script>
