@@ -1,6 +1,6 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { INQUIRY_STATUSES, inquiryCounts, listInquiries, updateInquiryStatus } from '../../lib/inquiries';
+import { INQUIRY_STATUSES, inquiryCounts, listInquiries, updateInquiryStatus, deleteInquiry } from '../../lib/inquiries';
 
 export const prerender = false;
 
@@ -41,6 +41,11 @@ if (Astro.request.method === 'POST') {
   let changed = false;
   if (form.get('action') === 'status') {
     changed = await updateInquiryStatus(String(form.get('id') ?? ''), String(form.get('status') ?? ''));
+  }
+  if (form.get('action') === 'delete') {
+    if (Astro.locals.admin?.role !== 'admin') return new Response('Accès réservé aux administrateurs.', { status: 403 });
+    changed = await deleteInquiry(String(form.get('id') ?? ''));
+    return Astro.redirect(withParams(changed ? { deleted: '1' } : {}));
   }
   return Astro.redirect(withParams(changed ? { updated: '1' } : {}));
 }
@@ -95,6 +100,7 @@ const csvHref = `/admin/messages.csv${listHref.includes('?') ? listHref.slice(li
   {params.get('updated') === '1' && (
     <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Statut mis à jour.</p>
   )}
+  {params.get('deleted') === '1' && <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Message supprimé.</p>}
 
   <div class="mt-8 flex flex-wrap items-center gap-3 rounded-xl border border-[#262a28] bg-[#111312] px-3 py-3">
     <div class="flex flex-wrap items-center gap-1">
@@ -178,7 +184,7 @@ const csvHref = `/admin/messages.csv${listHref.includes('?') ? listHref.slice(li
               {inquiry.name.trim().slice(0, 2).toUpperCase()}
             </span>
             <div class="min-w-0">
-              <p class="truncate text-sm font-medium text-[#f2efe8]">{inquiry.name}</p>
+              <a href={`/admin/messages/${inquiry.id}`} class="truncate text-sm font-medium text-[#f2efe8] hover:text-[#e0b568]">{inquiry.name}</a>
               <p class="truncate text-xs text-[#8b908b]">{inquiry.email}</p>
               <p class="truncate text-xs text-[#6d726d]">{inquiry.phone}</p>
             </div>
@@ -223,6 +229,8 @@ const csvHref = `/admin/messages.csv${listHref.includes('?') ? listHref.slice(li
                 OK
               </button>
             </form>
+            <a href={`/admin/messages/${inquiry.id}`} class="text-[11px] text-[#d4a24c] hover:underline">Ouvrir la demande →</a>
+            {Astro.locals.admin?.role === 'admin' && <form method="post" onsubmit="return confirm('Supprimer définitivement ce message et son brouillon ?')" class="inline"><input type="hidden" name="action" value="delete" /><input type="hidden" name="id" value={inquiry.id} /><button type="submit" class="ml-2 text-[11px] text-[#e08b7c] hover:underline">Supprimer</button></form>}
           </div>
         </div>
       );

@@ -8,6 +8,7 @@ import {
   declarationTitleLabel,
   getDeclaration,
   listDeclarations,
+  deleteDeclaration,
   type Declaration
 } from '../../lib/declarations';
 import { missingInfo } from '../../lib/claimTriage';
@@ -57,6 +58,11 @@ if (Astro.request.method === 'POST') {
       });
       changed = result.changed;
     }
+  }
+  if (form.get('action') === 'delete') {
+    if (Astro.locals.admin?.role !== 'admin') return new Response('Accès réservé aux administrateurs.', { status: 403 });
+    const deleted = await deleteDeclaration(String(form.get('id') ?? ''));
+    return Astro.redirect(withParams(deleted ? { deleted: '1' } : {}));
   }
   return Astro.redirect(withParams(changed ? { updated: '1' } : {}));
 }
@@ -130,6 +136,7 @@ function incidentWhen(declaration: Declaration): string {
   {updated && (
     <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Statut mis à jour.</p>
   )}
+  {params.get('deleted') === '1' && <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Dossier supprimé.</p>}
 
   <nav class="mt-8 flex flex-wrap items-center gap-2" aria-label="Filtrer par statut">
     {segments.map((segment) => (
@@ -293,6 +300,7 @@ function incidentWhen(declaration: Declaration): string {
             >
               Ouvrir le dossier →
             </a>
+            {Astro.locals.admin?.role === 'admin' && <form method="post" onsubmit="return confirm('Supprimer définitivement ce dossier et ses pièces ?')" class="inline"><input type="hidden" name="action" value="delete" /><input type="hidden" name="id" value={declaration.id} /><button type="submit" class="ml-2 text-xs text-[#e08b7c] hover:underline">Supprimer</button></form>}
           </div>
         </div>
       );

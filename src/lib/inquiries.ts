@@ -105,6 +105,31 @@ export async function updateInquiryStatus(id: string, status: string): Promise<b
   return true;
 }
 
+export async function getInquiry(id: string): Promise<Inquiry | null> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return null;
+  const db = getDbClient();
+  if (!db) return null;
+  const rows = await db.query(
+    'select id, form_type, name, email, phone, message, status, created_at, updated_at from public.inquiries where id = $1',
+    [id]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: String(row.id), formType: String(row.form_type), name: String(row.name), email: String(row.email),
+    phone: String(row.phone), message: String(row.message), status: String(row.status) as InquiryStatus,
+    createdAt: new Date(String(row.created_at)).toISOString(), updatedAt: new Date(String(row.updated_at)).toISOString()
+  };
+}
+
+export async function deleteInquiry(id: string): Promise<boolean> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return false;
+  const db = getDbClient();
+  if (!db) return false;
+  const rows = await db.query('delete from public.inquiries where id = $1 returning id', [id]);
+  return rows.length > 0;
+}
+
 /** How many PDFs have had their text extracted and cached. */
 export async function cachedDocumentCount(): Promise<number> {
   const db = getDbClient();

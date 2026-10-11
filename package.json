@@ -16,6 +16,7 @@
     "migrate": "tsx scripts/migrate.ts",
     "ingest:documents": "tsx scripts/ingest-document-texts.ts",
     "admin:hash": "tsx scripts/hash-admin-password.ts",
+    "test:response-drafts": "tsx scripts/test-response-drafts.ts",
     "resend:key": "tsx scripts/configure-resend.ts",
     "resend:test": "tsx scripts/test-email.ts",
     "discover": "tsx scripts/discover-bdts-documents.ts",

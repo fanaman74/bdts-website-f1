@@ -438,6 +438,15 @@ export async function updateDeclarationStatus(id: string, status: string): Promi
   return true;
 }
 
+/** Deletes a claim and its attachments/timeline through the database cascades. */
+export async function deleteDeclaration(id: string): Promise<boolean> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return false;
+  const db = getDbClient();
+  if (!db) return false;
+  const rows = await db.query('delete from public.declarations where id = $1 returning id', [id]);
+  return rows.length > 0;
+}
+
 /** The raw bytes of one attachment, for the admin download route. */
 export async function getDeclarationAttachmentBytes(
   id: string

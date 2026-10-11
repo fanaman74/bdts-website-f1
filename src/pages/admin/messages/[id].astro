@@ -1,0 +1,88 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminResponseDraft from '../../../components/AdminResponseDraft.astro';
+import { INQUIRY_STATUSES, getInquiry, updateInquiryStatus, deleteInquiry } from '../../../lib/inquiries';
+import { getResponseDraft, saveResponseDraft, generateResponseDraft, templateDraft, type ResponseDraft } from '../../../lib/responseDrafts';
+import { sectorCatalogDocuments } from '../../../data/sectorCatalog';
+
+export const prerender = false;
+const id = Astro.params.id ?? '';
+const inquiry = await getInquiry(id);
+if (!inquiry) return Astro.redirect('/admin/messages?missing=1');
+
+const existing = await getResponseDraft('inquiry', inquiry.id);
+let draft: ResponseDraft = existing ?? { ...templateDraft({ kind: inquiry.formType, customerName: inquiry.name, question: inquiry.message }), inquiryId: inquiry.id, declarationId: null };
+let notice = Astro.url.searchParams.get('saved') === '1' ? 'Brouillon enregistré.' : '';
+let generationError = '';
+let selectedIds = draft.sourceDocumentIds;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action') ?? '');
+  if (action === 'status') {
+    const changed = await updateInquiryStatus(inquiry.id, String(form.get('status') ?? ''));
+    return Astro.redirect(`/admin/messages/${inquiry.id}?updated=${changed ? '1' : '0'}`);
+  }
+  if (action === 'delete') {
+    if (Astro.locals.admin?.role !== 'admin') return new Response('Accès réservé aux administrateurs.', { status: 403 });
+    const deleted = await deleteInquiry(inquiry.id);
+    return Astro.redirect(deleted ? '/admin/messages?deleted=1' : '/admin/messages?missing=1');
+  }
+  if (action === 'save-draft' || action === 'generate') {
+    const selected = form.getAll('sourceDocumentIds').map(String);
+    if (selected.length > 3) { generationError = 'Sélectionnez au maximum 3 documents.'; selectedIds = selected; }
+    else selectedIds = selected;
+    const usedIds = String(form.get('sourceUsedIds') ?? '').split(',').filter(Boolean).slice(0, 3);
+    const submitted: ResponseDraft = { inquiryId: inquiry.id, declarationId: null, subject: String(form.get('subject') ?? '').slice(0, 300), body: String(form.get('body') ?? '').slice(0, 20000), sourceDocumentIds: usedIds };
+    if (selected.length > 3) { draft = submitted; }
+    else if (action === 'save-draft') {
+      try {
+        const saved = await saveResponseDraft(submitted, Astro.locals.admin?.username ?? null);
+        if (saved) return Astro.redirect(`/admin/messages/${inquiry.id}?saved=1`);
+        draft = submitted;
+        generationError = 'Le brouillon n’a pas pu être enregistré. Vérifiez la connexion à la base de données.';
+      } catch (error) {
+        draft = submitted;
+        generationError = 'Le brouillon n’a pas pu être enregistré. Vérifiez la migration de la base de données.';
+        console.error('[admin/messages] draft save failed:', error instanceof Error ? error.message : error);
+      }
+    }
+    if (action === 'generate') {
+      const result = selected.length > 3 ? { ok: false as const, error: 'Sélectionnez au maximum 3 documents.' } : await generateResponseDraft({ kind: inquiry.formType, customerName: inquiry.name, customerEmail: inquiry.email, question: inquiry.message, language: 'fr' }, selectedIds);
+      if (result.ok) draft = { ...result.draft, inquiryId: inquiry.id, declarationId: null };
+      else { generationError = result.error; draft = submitted; }
+    }
+  }
+}
+
+const sourceLabels = new Map(sectorCatalogDocuments.map((document) => [document.id, document.title]));
+const statusLabels: Record<string, string> = { new: 'Nouveau', in_progress: 'En cours', closed: 'Clôturé', spam: 'Indésirable' };
+---
+
+<AdminLayout title="Message" active="messages">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <a href="/admin/messages" class="text-xs text-[#d4a24c] hover:underline">← Tous les messages</a>
+      <h1 class="mt-4 text-4xl font-semibold tracking-tight text-[#f2efe8]">{inquiry.name}</h1>
+      <p class="mt-2 text-sm text-[#8b908b]">{inquiry.email} · {inquiry.phone || 'Téléphone non communiqué'} · {inquiry.formType}</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <form method="post" class="flex items-center gap-2">
+        <input type="hidden" name="action" value="status" />
+        <select name="status" class="rounded-lg border border-[#2a2f2d] bg-[#141716] px-3 py-2 text-xs text-[#c8c6c0]">
+          {INQUIRY_STATUSES.map((status) => <option value={status} selected={status === inquiry.status}>{statusLabels[status]}</option>)}
+        </select>
+        <button class="rounded-lg border border-[#2a2f2d] px-3 py-2 text-xs text-[#c8c6c0] hover:border-[#d4a24c]">Mettre à jour</button>
+      </form>
+      {Astro.locals.admin?.role === 'admin' && <form method="post" onsubmit="return confirm('Supprimer définitivement ce message et son brouillon ?')"><input type="hidden" name="action" value="delete" /><button class="rounded-lg border border-[#5e2f28] px-3 py-2 text-xs text-[#e08b7c] hover:bg-[#2a1614]">Supprimer</button></form>}
+    </div>
+  </div>
+  {Astro.url.searchParams.get('updated') === '1' && <p class="mt-6 rounded-lg border border-[#2b5c40] bg-[#12241a] px-4 py-2 text-sm text-[#8fd0a8]">Statut mis à jour.</p>}
+  <div class="mt-8 rounded-2xl border border-[#262a28] bg-[#111312] p-6">
+    <p class="text-[10px] uppercase tracking-[.18em] text-[#6d726d]">Demande reçue</p>
+    <p class="mt-4 whitespace-pre-wrap text-sm leading-7 text-[#d8d5cd]">{inquiry.message}</p>
+    <p class="mt-5 text-xs text-[#6d726d]">Reçue le {new Date(inquiry.createdAt).toLocaleString('fr-BE')}</p>
+  </div>
+  <AdminResponseDraft draft={draft} documents={sectorCatalogDocuments.map(({ id, title, externalUrl, fileUrl }) => ({ id, title, href: externalUrl || fileUrl }))} selectedIds={selectedIds.length > 3 ? [] : selectedIds} usedIds={draft.sourceDocumentIds} generationError={generationError} notice={notice} recordType="inquiry" customerEmail={inquiry.email} workflowKind={inquiry.formType} />
+  {draft.sourceDocumentIds.length > 0 && <div class="mt-4 text-xs text-[#8b908b]">Sources enregistrées : {[...new Set(draft.sourceDocumentIds)].map((sourceId) => sourceLabels.get(sourceId) ?? sourceId).join(' · ')}</div>}
+</AdminLayout>

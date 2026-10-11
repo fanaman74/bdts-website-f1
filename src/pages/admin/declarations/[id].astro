@@ -25,10 +25,15 @@ import { matchInsurer, missingInfo } from '../../../lib/claimTriage';
 import { buildForwardDraft, forwardDeclaration, type ForwardDraft } from '../../../lib/claimForward';
 import { INSURERS, getForwardSettings, insurerName, isInsurerId, parseEmailList } from '../../../lib/insurers';
 import { emailProvider, emailStatus } from '../../../lib/email';
+import AdminResponseDraft from '../../../components/AdminResponseDraft.astro';
+import { sectorCatalogDocuments } from '../../../data/sectorCatalog';
+import { deleteDeclaration } from '../../../lib/declarations';
+import { generateResponseDraft, getResponseDraft, saveResponseDraft, templateDraft, type ResponseDraft } from '../../../lib/responseDrafts';
 
 export const prerender = false;
 
 const id = Astro.params.id ?? '';
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return Astro.redirect('/admin/declarations');
 const declaration = id ? await getDeclaration(id) : null;
 
 // An unknown id (stale bookmark, deleted row) falls back to the list.
@@ -40,11 +45,65 @@ const suggestion = declaration.insurer ? null : await matchInsurer(declaration).
 
 let forwardError = '';
 let submittedDraft: ForwardDraft | null = null;
+const existing = await getResponseDraft('declaration', declaration.id);
+let responseDraft: ResponseDraft = existing ?? {
+  ...templateDraft({ kind: 'declaration', customerName: declarationName(declaration), summary: declaration.incidentCircumstances }),
+  inquiryId: null,
+  declarationId: declaration.id
+};
+let draftGenerationError = '';
+let draftSelectedIds = responseDraft.sourceDocumentIds;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const action = form.get('action');
   const author = Astro.locals.admin?.username ?? null;
+  if (action === 'delete') {
+    if (Astro.locals.admin?.role !== 'admin') return new Response('Accès réservé aux administrateurs.', { status: 403 });
+    const deleted = await deleteDeclaration(declaration.id);
+    return Astro.redirect(deleted ? '/admin/declarations?deleted=1' : '/admin/declarations?missing=1');
+  }
+  if (action === 'save-draft' || action === 'generate') {
+    const selected = form.getAll('sourceDocumentIds').map(String);
+    draftSelectedIds = selected;
+    const usedIds = String(form.get('sourceUsedIds') ?? '').split(',').filter(Boolean).slice(0, 3);
+    const submitted: ResponseDraft = {
+      inquiryId: null,
+      declarationId: declaration.id,
+      subject: String(form.get('subject') ?? '').slice(0, 300),
+      body: String(form.get('body') ?? '').slice(0, 20000),
+      sourceDocumentIds: usedIds
+    };
+    if (selected.length > 3) {
+      responseDraft = submitted;
+      draftGenerationError = 'Sélectionnez au maximum 3 documents.';
+    } else if (action === 'save-draft') {
+      try {
+        const saved = await saveResponseDraft(submitted, author);
+        if (saved) return Astro.redirect(`/admin/declarations/${declaration.id}?draftSaved=1#reponse`);
+        responseDraft = submitted;
+        draftGenerationError = 'Le brouillon n’a pas pu être enregistré. Vérifiez la connexion à la base de données.';
+      } catch (error) {
+        responseDraft = submitted;
+        draftGenerationError = 'Le brouillon n’a pas pu être enregistré. Vérifiez la migration de la base de données.';
+        console.error('[admin/declarations] draft save failed:', error instanceof Error ? error.message : error);
+      }
+    }
+    if (action === 'generate') {
+    const timelineForDraft = await listTimeline(declaration);
+    const hasComplement = timelineForDraft.some((entry) => entry.kind === 'customer_info');
+    const result = selected.length > 3 ? { ok: false as const, error: 'Sélectionnez au maximum 3 documents.' } : await generateResponseDraft({
+      kind: hasComplement ? 'declaration_complement' : 'declaration',
+      customerName: declarationName(declaration),
+      customerEmail: declaration.email,
+      language: declaration.language,
+      summary: [declaration.insuredPersonOrItem, declaration.incidentPlace, declaration.incidentCircumstances].filter(Boolean).join(' · '),
+      timeline: timelineForDraft.slice(0, 12).map((entry) => `${entry.at} ${entry.kind}: ${entry.body ?? ''}`).join('\n')
+    }, draftSelectedIds);
+    if (result.ok) responseDraft = { ...result.draft, inquiryId: null, declarationId: declaration.id };
+    else { draftGenerationError = result.error; responseDraft = submitted; }
+    }
+  }
   if (action === 'status') {
     const result = await changeDeclarationStatus(declaration, String(form.get('status') ?? ''), {
       author,
@@ -120,6 +179,13 @@ const [timeline, assignees] = await Promise.all([
   listTimeline(declaration),
   knownAssignees(Astro.locals.admin?.username ?? null)
 ]);
+if (!existing && Astro.request.method !== 'POST' && timeline.some((entry) => entry.kind === 'customer_info')) {
+  responseDraft = {
+    ...templateDraft({ kind: 'declaration_complement', customerName: declarationName(declaration), summary: declaration.incidentCircumstances }),
+    inquiryId: null,
+    declarationId: declaration.id
+  };
+}
 const LANGUAGE_LABELS = { fr: 'français', en: 'anglais', nl: 'néerlandais' } as const;
 const canSend = mail.configured && Boolean(mail.from) && emailProvider().id !== 'console';
 const reference = declarationReference(declaration.id);
@@ -156,6 +222,7 @@ function fileSize(bytes: number): string {
       <span class="rounded-full border border-[#2f3432] bg-[#181b1a] px-3 py-1 text-[#e8e6e1]">{DECLARATION_STATUS_LABELS[declaration.status]}</span>
       <span class="text-[#8b908b]">{declaration.assignedTo ? `Suivi par ${declaration.assignedTo}` : 'Non assigné'}</span>
       <a href="#suivi" class="text-xs text-[#d4a24c] underline-offset-2 hover:underline">Modifier ↓</a>
+      {Astro.locals.admin?.role === 'admin' && <form method="post" onsubmit="return confirm('Supprimer définitivement ce dossier et ses pièces ?')"><input type="hidden" name="action" value="delete" /><button class="text-xs text-[#e08b7c] hover:underline">Supprimer</button></form>}
     </div>
   </div>
 
@@ -405,6 +472,20 @@ function fileSize(bytes: number): string {
         </li>
       ))}
     </ol>
+  </section>
+
+  <section id="reponse">
+    <AdminResponseDraft
+      draft={responseDraft}
+      documents={sectorCatalogDocuments.map(({ id, title, externalUrl, fileUrl }) => ({ id, title, href: externalUrl || fileUrl }))}
+      selectedIds={draftSelectedIds.length > 3 ? [] : draftSelectedIds}
+      usedIds={responseDraft.sourceDocumentIds}
+      generationError={draftGenerationError}
+      notice={Astro.url.searchParams.get('draftSaved') === '1' ? 'Brouillon enregistré.' : ''}
+      recordType="declaration"
+      customerEmail={declaration.email}
+      workflowKind={timeline.some((entry) => entry.kind === 'customer_info') ? 'declaration_complement' : 'declaration'}
+    />
   </section>
 
   <div class="mt-8 grid gap-6 lg:grid-cols-2">
