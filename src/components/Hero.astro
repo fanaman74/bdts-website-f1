@@ -2,29 +2,40 @@
 import { t } from '../i18n/fr';
 
 const quickActions = [
-  { label: 'Demander un devis', href: '/devis', tone: 'terracotta', icon: 'M4 5.5h12M4 9.5h8M4 13.5h6' },
-  { label: 'Déclarer un sinistre', href: '/declaration', tone: 'ochre', icon: 'M10 3.5 17 16H3L10 3.5Zm0 4v4m0 2.2v.1' },
-  { label: 'Trouver un document', href: '/documents', tone: 'moss', icon: 'M6 3.5h6l3 3v10H6v-13Zm6 0v3h3' },
-  { label: 'Prendre contact', href: '/contact', tone: 'clay', icon: 'M4 5.5 10 10l6-4.5M4 5.5v9h12v-9' }
+  { label: 'Demander un devis', href: '/devis' },
+  { label: 'Déclarer un sinistre', href: '/declaration' },
+  { label: 'Trouver un document', href: '/documents' },
+  { label: 'Prendre contact', href: '/contact' }
 ];
 ---
 
 <section class="home-hero" aria-labelledby="home-title">
-  <img class="home-hero__image" src="/images/photos/professionnel-entreprise-responsabilite.jpg" alt="" width="1600" height="1067" fetchpriority="high" />
-  <div class="home-hero__veil" aria-hidden="true"></div>
   <div class="home-hero__copy">
     <p class="organic-kicker">Courtier indépendant · Bruxelles</p>
-    <h1 id="home-title">Des assurances,<br />en toute sérénité.</h1>
-    <p>{t.hero.subheadline}</p>
-    <a href="/contact" class="organic-button organic-button--clay">Parler à un conseiller</a>
+    <h1 id="home-title">Des assurances,<br /><em>en toute sérénité.</em></h1>
+    <p class="home-hero__lede">{t.hero.subheadline}</p>
+    <div class="organic-actions">
+      <a href="/contact" class="organic-button organic-button--clay">Parler à un conseiller</a>
+      <a href="tel:+3224631925" class="organic-button organic-button--sand">+32 2 463 19 25</a>
+    </div>
   </div>
-  <nav class="home-hero__paths" aria-label="Vos démarches">
-    {quickActions.map((action, index) => <a href={action.href} class={`home-action home-action--${action.tone}`}><span class="home-action__icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d={action.icon} /></svg></span><span class="home-action__label"><small>0{index + 1}</small>{action.label}</span><svg class="home-action__arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg></a>)}
-  </nav>
+
+  <figure class="home-hero__media">
+    <img src="/images/photos/professionnel-entreprise-responsabilite.jpg" alt="" width="1600" height="1067" fetchpriority="high" />
+    <figcaption class="home-hero__office">
+      <div><strong>Rue de Wand 29</strong><span>1020 Bruxelles</span></div>
+      <a href="tel:+3224631925"><strong>+32 2 463 19 25</strong><span>Du lundi au vendredi</span></a>
+      <a href="mailto:bdts@bdts.be"><strong>bdts@bdts.be</strong><span>Écrivez-nous</span></a>
+    </figcaption>
+  </figure>
 </section>
 
-<div class="home-contact-strip">
-  <div><strong>Rue de Wand 29</strong><span>1020 Bruxelles</span></div>
-  <a href="tel:+3224631925"><strong>+32 2 463 19 25</strong><span>Du lundi au vendredi</span></a>
-  <a href="mailto:bdts@bdts.be"><strong>bdts@bdts.be</strong><span>Écrivez-nous</span></a>
-</div>
+<nav class="home-tasks" aria-label="Vos démarches">
+  {quickActions.map((action, index) => (
+    <a href={action.href}>
+      <small aria-hidden="true">0{index + 1}</small>
+      <span>{action.label}</span>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 10h11m-4-4.5L15.5 10 11 14.5" /></svg>
+    </a>
+  ))}
+</nav>
