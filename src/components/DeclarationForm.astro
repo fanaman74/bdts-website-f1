@@ -3,7 +3,7 @@ import { COUNTRIES } from '../data/countries';
 import { t } from '../i18n/fr';
 
 const inputClass =
-  'w-full rounded-xl border-0 bg-white px-4 py-3 text-sm text-ink-900 ring-1 ring-ink-200 placeholder:text-ink-400 focus:ring-2 focus:ring-pulse-500';
+  'w-full rounded border-0 bg-white px-4 py-3 text-base text-ink-900 ring-1 ring-ink-300 placeholder:text-ink-400 focus:ring-2 focus:ring-ink-900';
 const selectClass = inputClass;
 const labelClass = 'mb-1.5 block text-sm font-semibold text-ink-800';
 const legendClass = 'font-display text-lg font-semibold tracking-tight text-ink-900';
@@ -159,7 +159,7 @@ const id = (name: string) => `declaration-${name}`;
       </select>
     </div>
 
-    <div data-section="witness" hidden class="space-y-5 rounded-2xl bg-white/50 p-5">
+    <div data-section="witness" hidden class="space-y-5 rounded border border-ink-200 bg-white p-5">
       <p class="eyebrow text-ink-500">Informations sur le témoin</p>
 
       <div class="grid gap-5 sm:grid-cols-3">
@@ -229,7 +229,7 @@ const id = (name: string) => `declaration-${name}`;
       </select>
     </div>
 
-    <div data-section="counterparty" hidden class="space-y-5 rounded-2xl bg-white/50 p-5">
+    <div data-section="counterparty" hidden class="space-y-5 rounded border border-ink-200 bg-white p-5">
       <p class="eyebrow text-ink-500">Coordonnées de la partie adverse</p>
 
       <div class="grid gap-5 sm:grid-cols-3">
@@ -320,7 +320,7 @@ const id = (name: string) => `declaration-${name}`;
         type="file"
         multiple
         accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,image/jpeg,image/png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        class="block w-full cursor-pointer rounded-xl bg-white px-4 py-3 text-sm text-ink-700 ring-1 ring-ink-200 file:mr-3 file:rounded-full file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink-700"
+        class="block w-full cursor-pointer rounded bg-white px-4 py-3 text-sm text-ink-700 ring-1 ring-ink-200 file:mr-3 file:rounded-full file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink-700"
         data-files
       />
       <span class={hintClass} data-files-hint>
@@ -365,7 +365,7 @@ const id = (name: string) => `declaration-${name}`;
     <p>Un gestionnaire sinistres examine votre dossier et vous recontacte rapidement. Gardez votre référence pour tout échange avec nous.</p>
     <p>En cas d'urgence, appelez-nous au <a href="tel:+3224631925" class="font-semibold text-ink-900 underline underline-offset-2">+32 2 463 19 25</a>.</p>
   </div>
-  <p class="hidden rounded-xl bg-coral-50 p-4 text-sm font-medium text-coral-800" data-status="error" role="alert">
+  <p class="hidden rounded bg-coral-50 p-4 text-sm font-medium text-coral-800" data-status="error" role="alert">
     {t.forms.error}
   </p>
 

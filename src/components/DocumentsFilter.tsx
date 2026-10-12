@@ -150,7 +150,7 @@ const CONTROL_TEXT: Record<InterfaceLanguage, {
 
 function PdfIcon() {
   return (
-    <svg class="h-8 w-8 shrink-0 text-[#c08e3a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg class="h-8 w-8 shrink-0 text-[#8a6100]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <path d="M14 2v6h6M9 13h6M9 17h6M9 9h2" />
     </svg>
@@ -166,15 +166,15 @@ function DocumentRow({ document, onChat, interfaceLanguage }: { document: Docume
   const accessAction = controls.accessActions[access.actionLabel] ?? access.actionLabel;
 
   return (
-    <article class="group flex items-center gap-3 rounded-2xl border border-[#d8cbb6] bg-[#f2e9d9] px-4 py-4 transition-all duration-200 hover:translate-x-0.5 hover:border-[#c08e3a] hover:shadow-sm sm:gap-4">
+    <article class="group flex items-center gap-3 rounded-md border border-[#dcd7cc] bg-[#ffffff] px-4 py-4 transition-all duration-200 hover:translate-x-0.5 hover:border-[#8a6100] hover:shadow-sm sm:gap-4">
       <PdfIcon />
 
       <div class="min-w-0 flex-1">
-        <h3 data-no-translate class="line-clamp-2 text-sm font-semibold leading-snug text-[#2f2b24]">{document.title}</h3>
-        <p data-no-translate={document.productType ? true : undefined} class="mt-1 truncate text-xs text-[#766952]">{document.productType || document.category}</p>
+        <h3 data-no-translate class="line-clamp-2 text-sm font-semibold leading-snug text-[#131313]">{document.title}</h3>
+        <p data-no-translate={document.productType ? true : undefined} class="mt-1 truncate text-xs text-[#6d6b66]">{document.productType || document.category}</p>
       </div>
 
-      <span data-no-translate class={`hidden min-w-[110px] shrink-0 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap sm:inline-flex ${COMPANY_COLOR[document.partner] ?? 'bg-[#606c38] text-[#f2e9d9]'}`}>
+      <span data-no-translate class={`hidden min-w-[110px] shrink-0 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap sm:inline-flex ${COMPANY_COLOR[document.partner] ?? 'bg-[#131313] text-[#ffffff]'}`}>
         {document.partner}
       </span>
 
@@ -182,11 +182,11 @@ function DocumentRow({ document, onChat, interfaceLanguage }: { document: Docume
         {TYPE_LABEL[document.documentType] ?? document.documentType}
       </span>
 
-      {assistantAvailable && <button type="button" onClick={() => onChat(document)} class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sky-600 transition-colors hover:border-sky-300 hover:bg-sky-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500" aria-label={`${controls.assistant} ${document.title}`} aria-haspopup="dialog">
+      {assistantAvailable && <button type="button" onClick={() => onChat(document)} class="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-sky-200 bg-sky-50 text-sky-600 transition-colors hover:border-sky-300 hover:bg-sky-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500" aria-label={`${controls.assistant} ${document.title}`} aria-haspopup="dialog">
         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
       </button>}
 
-      <a href={unavailable ? contactHref : access.href} target={access.opensExternally && !unavailable ? '_blank' : undefined} rel={access.opensExternally && !unavailable ? 'noopener noreferrer' : undefined} class={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors ${unavailable ? 'border-[#cbb990] bg-[#e8dcc7] text-[#766952] hover:bg-[#d4b895]' : 'border-orange-200 bg-orange-50 text-orange-600 hover:border-orange-300 hover:bg-orange-100'}`} aria-label={`${accessAction} : ${document.title}`} title={accessAction}>
+      <a href={unavailable ? contactHref : access.href} target={access.opensExternally && !unavailable ? '_blank' : undefined} rel={access.opensExternally && !unavailable ? 'noopener noreferrer' : undefined} class={`flex h-9 w-9 shrink-0 items-center justify-center rounded border transition-colors ${unavailable ? 'border-[#bbb7ad] bg-[#eeebe3] text-[#6d6b66] hover:bg-[#ffcc33]' : 'border-orange-200 bg-orange-50 text-orange-600 hover:border-orange-300 hover:bg-orange-100'}`} aria-label={`${accessAction} : ${document.title}`} title={accessAction}>
         {unavailable ? <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM4 7l8 6 8-6" /></svg> : <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" /></svg>}
       </a>
     </article>
@@ -256,22 +256,22 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
     return pages;
   }
 
-  const selectClass = 'rounded-xl border border-[#d8cbb6] bg-[#f2e9d9] px-3 py-2 text-sm text-[#2f2b24] focus:border-[#c08e3a] focus:outline-none';
+  const selectClass = 'rounded border border-[#dcd7cc] bg-[#ffffff] px-3 py-2 text-sm text-[#131313] focus:border-[#8a6100] focus:outline-none';
 
   return (
     <div class="space-y-6">
       <div class="relative">
-        <svg class="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-[#766952]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-        <input type="search" value={search} onInput={(event) => updateFilter(setSearch, (event.target as HTMLInputElement).value)} placeholder="Rechercher un document, une compagnie ou un produit…" aria-label="Rechercher un document" class="w-full rounded-2xl border border-[#d8cbb6] bg-[#f2e9d9] py-3 pr-4 pl-12 text-sm text-[#2f2b24] placeholder:text-[#766952] focus:border-[#c08e3a] focus:outline-none" />
+        <svg class="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-[#6d6b66]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+        <input type="search" value={search} onInput={(event) => updateFilter(setSearch, (event.target as HTMLInputElement).value)} placeholder="Rechercher un document, une compagnie ou un produit…" aria-label="Rechercher un document" class="w-full rounded-md border border-[#dcd7cc] bg-[#ffffff] py-3 pr-4 pl-12 text-sm text-[#131313] placeholder:text-[#6d6b66] focus:border-[#8a6100] focus:outline-none" />
       </div>
 
       <div class="flex flex-wrap gap-2" aria-label="Filtrer par domaine">
         {domains.map((domain) => {
           const active = selectedDomain === domain;
           const count = domain === 'Tous' ? documents.length : domainCounts[domain];
-          return <button type="button" key={domain} onClick={() => updateFilter(setSelectedDomain, domain)} class={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${active ? 'border-[#606c38] bg-[#606c38] text-[#f2e9d9]' : 'border-[#d8cbb6] bg-[#f2e9d9] text-[#554c3c] hover:border-[#606c38]'}`}>
+          return <button type="button" key={domain} onClick={() => updateFilter(setSelectedDomain, domain)} class={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${active ? 'border-[#131313] bg-[#131313] text-[#ffffff]' : 'border-[#dcd7cc] bg-[#ffffff] text-[#3e3e3b] hover:border-[#131313]'}`}>
             {domain === 'Tous' ? <span class="inline-flex gap-0.5"><span class="h-1.5 w-1.5 rounded-full bg-orange-400" /><span class="h-1.5 w-1.5 rounded-full bg-blue-500" /><span class="h-1.5 w-1.5 rounded-full bg-emerald-500" /></span> : <span class={`h-2 w-2 rounded-full ${DOMAIN_DOT[domain] ?? 'bg-stone-400'}`} />}
-            {domain}<span class={`text-[10px] font-normal ${active ? 'text-[#e8dcc7]' : 'text-[#766952]'}`}>{count.toLocaleString('fr-BE')}</span>
+            {domain}<span class={`text-[10px] font-normal ${active ? 'text-[#eeebe3]' : 'text-[#6d6b66]'}`}>{count.toLocaleString('fr-BE')}</span>
           </button>;
         })}
       </div>
@@ -292,10 +292,10 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
           {years.map((year) => <option key={year} value={year}>{year === 'Toutes' ? 'Toutes les années' : year}</option>)}
         </select>
 
-        {syncedAt && <p class="ml-auto text-xs text-[#766952]">{CONTROL_TEXT[interfaceLanguage].synced} {new Date(syncedAt).toLocaleDateString(numberLocale)}</p>}
+        {syncedAt && <p class="ml-auto text-xs text-[#6d6b66]">{CONTROL_TEXT[interfaceLanguage].synced} {new Date(syncedAt).toLocaleDateString(numberLocale)}</p>}
       </div>
 
-      <p class="text-sm text-[#766952]" role="status" aria-live="polite">
+      <p class="text-sm text-[#6d6b66]" role="status" aria-live="polite">
         {filtered.length === 0
           ? interfaceLanguage === 'nl' ? 'Geen documenten gevonden' : interfaceLanguage === 'en' ? 'No documents found' : 'Aucun document trouvé'
           : interfaceLanguage === 'nl'
@@ -305,12 +305,12 @@ export default function DocumentsFilter({ documents, syncedAt }: Props) {
               : `${(pageStart + 1).toLocaleString(numberLocale)}–${pageEnd.toLocaleString(numberLocale)} sur ${filtered.length.toLocaleString(numberLocale)} documents`}
       </p>
 
-      {filtered.length === 0 ? <div class="rounded-2xl bg-[#e8dcc7] p-10 text-center"><p class="font-semibold text-[#2f2b24]">Aucun document ne correspond à votre recherche.</p><button type="button" class="mt-4 text-sm font-semibold text-[#606c38] underline" onClick={() => { setSearch(''); setSelectedDomain('Tous'); setSelectedPartner('Tous'); setSelectedType('Tous'); setSelectedYear('Toutes'); setPage(1); }}>Réinitialiser les filtres</button></div> : <div class="space-y-2">{pageDocuments.map((document) => <DocumentRow key={document.id} document={document} onChat={setActiveDocument} interfaceLanguage={interfaceLanguage} />)}</div>}
+      {filtered.length === 0 ? <div class="rounded-md bg-[#eeebe3] p-10 text-center"><p class="font-semibold text-[#131313]">Aucun document ne correspond à votre recherche.</p><button type="button" class="mt-4 text-sm font-semibold text-[#131313] underline" onClick={() => { setSearch(''); setSelectedDomain('Tous'); setSelectedPartner('Tous'); setSelectedType('Tous'); setSelectedYear('Toutes'); setPage(1); }}>Réinitialiser les filtres</button></div> : <div class="space-y-2">{pageDocuments.map((document) => <DocumentRow key={document.id} document={document} onChat={setActiveDocument} interfaceLanguage={interfaceLanguage} />)}</div>}
 
       {totalPages > 1 && <nav class="flex items-center justify-center gap-1.5" aria-label="Pagination des documents">
-        <button type="button" onClick={() => setPage(Math.max(1, safePage - 1))} disabled={safePage === 1} class="rounded-xl border border-[#d8cbb6] bg-[#f2e9d9] px-3 py-2 text-sm font-medium text-[#2f2b24] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Page précédente">←</button>
-        {pageNumbers().map((number, index) => number === '…' ? <span key={`ellipsis-${index}`} class="px-2 text-sm text-[#766952]">…</span> : <button type="button" key={number} onClick={() => setPage(number)} class={`min-w-9 rounded-xl border px-3 py-2 text-sm font-medium ${number === safePage ? 'border-[#606c38] bg-[#606c38] text-[#f2e9d9]' : 'border-[#d8cbb6] bg-[#f2e9d9] text-[#2f2b24]'}`} aria-current={number === safePage ? 'page' : undefined}>{number}</button>)}
-        <button type="button" onClick={() => setPage(Math.min(totalPages, safePage + 1))} disabled={safePage === totalPages} class="rounded-xl border border-[#d8cbb6] bg-[#f2e9d9] px-3 py-2 text-sm font-medium text-[#2f2b24] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Page suivante">→</button>
+        <button type="button" onClick={() => setPage(Math.max(1, safePage - 1))} disabled={safePage === 1} class="rounded border border-[#dcd7cc] bg-[#ffffff] px-3 py-2 text-sm font-medium text-[#131313] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Page précédente">←</button>
+        {pageNumbers().map((number, index) => number === '…' ? <span key={`ellipsis-${index}`} class="px-2 text-sm text-[#6d6b66]">…</span> : <button type="button" key={number} onClick={() => setPage(number)} class={`min-w-9 rounded border px-3 py-2 text-sm font-medium ${number === safePage ? 'border-[#131313] bg-[#131313] text-[#ffffff]' : 'border-[#dcd7cc] bg-[#ffffff] text-[#131313]'}`} aria-current={number === safePage ? 'page' : undefined}>{number}</button>)}
+        <button type="button" onClick={() => setPage(Math.min(totalPages, safePage + 1))} disabled={safePage === totalPages} class="rounded border border-[#dcd7cc] bg-[#ffffff] px-3 py-2 text-sm font-medium text-[#131313] disabled:cursor-not-allowed disabled:opacity-40" aria-label="Page suivante">→</button>
       </nav>}
 
       {activeDocument && <DocumentChat documentId={activeDocument.id} docTitle={activeDocument.title} company={activeDocument.partner} onClose={() => setActiveDocument(null)} />}

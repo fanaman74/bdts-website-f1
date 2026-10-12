@@ -20,15 +20,11 @@ const partners = [
 
 <section class="partner-band" aria-labelledby="partners-title">
   <div><p class="organic-kicker">À découvrir</p><h2 id="partners-title">Nos compagnies partenaires</h2></div>
-  <div class="partner-marquee">
-    {[0, 1].map((copy) => (
-      <ul class="partner-marquee__track" aria-hidden={copy === 1 ? 'true' : undefined}>
-        {partners.map(({ name, logo }) => (
-          <li class="partner-logo">
-            {logo ? <img src={logo} alt={copy === 1 ? '' : name} loading="lazy" decoding="async" /> : <span>{name}</span>}
-          </li>
-        ))}
-      </ul>
+  <ul class="partner-grid">
+    {partners.map(({ name, logo }) => (
+      <li class="partner-logo">
+        {logo ? <img src={logo} alt={name} loading="lazy" decoding="async" /> : <span>{name}</span>}
+      </li>
     ))}
-  </div>
+  </ul>
 </section>

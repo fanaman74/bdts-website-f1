@@ -41,6 +41,16 @@ function localized(getter: (text: typeof navText) => string): Record<string, str
 ---
 
 <header class="site-header">
+  <div class="site-topbar">
+    <div class="site-topbar__inner">
+      <p><span>Rue de Wand 29</span> <span>1020 Bruxelles</span></p>
+      <div>
+        <a href="tel:+3224631925">+32 2 463 19 25</a>
+        <a href="mailto:bdts@bdts.be">bdts@bdts.be</a>
+        <a href={withLanguage('/declaration')} class="site-topbar__claim" {...localized((text) => text === navigationLanguages.en ? 'Report a claim' : text === navigationLanguages.nl ? 'Schade melden' : 'Déclarer un sinistre')}>Déclarer un sinistre</a>
+      </div>
+    </div>
+  </div>
   <div class="site-header__inner">
     <a href="/" class="site-brand" aria-label={t.site.name}>
       <img src="/images/logo-bdts.png" alt="" width="222" height="246" />
@@ -71,6 +81,7 @@ function localized(getter: (text: typeof navText) => string): Record<string, str
     </nav>
 
     <div class="site-header__actions">
+      <a href={withLanguage('/devis')} class="organic-button organic-button--clay site-header__cta" {...localized((text) => text === navigationLanguages.en ? 'Request a quote' : text === navigationLanguages.nl ? 'Offerte aanvragen' : 'Demander un devis')}>Demander un devis</a>
       <nav class="language-switcher" aria-label="Langue">
         {languages.map((item) => <a href={withLanguage(Astro.url.pathname, item.code)} lang={item.code} hreflang={item.code} data-language-code={item.code} aria-current={language === item.code ? 'true' : undefined}>{item.label}</a>)}
       </nav>

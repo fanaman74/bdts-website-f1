@@ -50,7 +50,7 @@ function ChatIcon({ kind }: { kind: 'document' | 'assistant' | 'user' | 'send' |
 function inlineMarkdown(value: string): Array<JSX.Element | string> {
   return value.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) => (
     part.startsWith('**') && part.endsWith('**')
-      ? <strong key={index} class="font-semibold text-[#2f2b24]">{part.slice(2, -2)}</strong>
+      ? <strong key={index} class="font-semibold text-[#131313]">{part.slice(2, -2)}</strong>
       : part
   ));
 }
@@ -59,8 +59,8 @@ function AssistantMessage({ content }: { content: string }) {
   return <div class="space-y-1.5">{content.split('\n').map((line, index) => {
     const trimmed = line.trim();
     if (!trimmed) return <span key={index} class="block h-1" />;
-    if (/^#{1,3}\s/.test(trimmed)) return <p key={index} class="font-semibold text-[#2f2b24]">{inlineMarkdown(trimmed.replace(/^#{1,3}\s+/, ''))}</p>;
-    if (/^[-*]\s/.test(trimmed)) return <p key={index} class="flex gap-2"><span aria-hidden="true" class="text-[#c08e3a]">•</span><span>{inlineMarkdown(trimmed.replace(/^[-*]\s+/, ''))}</span></p>;
+    if (/^#{1,3}\s/.test(trimmed)) return <p key={index} class="font-semibold text-[#131313]">{inlineMarkdown(trimmed.replace(/^#{1,3}\s+/, ''))}</p>;
+    if (/^[-*]\s/.test(trimmed)) return <p key={index} class="flex gap-2"><span aria-hidden="true" class="text-[#8a6100]">•</span><span>{inlineMarkdown(trimmed.replace(/^[-*]\s+/, ''))}</span></p>;
     return <p key={index}>{inlineMarkdown(trimmed)}</p>;
   })}</div>;
 }
@@ -245,72 +245,72 @@ export default function DocumentChat({ documentId, docTitle, company, onClose }:
   const connectionDot = connection === 'ok'
     ? 'bg-[#4c7a34]'
     : connection === 'checking'
-      ? 'bg-[#c08e3a] animate-pulse'
+      ? 'bg-[#8a6100] animate-pulse'
       : 'bg-[#b4552f]';
 
   const answeringModel = meta?.model ?? status?.models.primary ?? 'openai/gpt-5.6-luna';
 
   return (
     <div class="fixed inset-0 z-[100]">
-      <div class="absolute inset-0 bg-[#2f2b24]/55 backdrop-blur-[3px]" onClick={onClose} aria-hidden="true" />
+      <div class="absolute inset-0 bg-[#131313]/55 backdrop-blur-[3px]" onClick={onClose} aria-hidden="true" />
 
-      <aside ref={drawerRef} role="dialog" aria-modal="true" aria-labelledby="document-chat-title" class="absolute inset-y-0 right-0 flex w-full max-w-[560px] flex-col bg-[#f7f0e4] shadow-[-24px_0_70px_rgba(47,43,36,.28)]">
-        <header class="flex items-start gap-3 bg-[#2f2b24] px-5 py-5 text-[#f7f0e4]">
-          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#c08e3a]/20 text-[#d4b895]"><ChatIcon kind="document" /></span>
+      <aside ref={drawerRef} role="dialog" aria-modal="true" aria-labelledby="document-chat-title" class="absolute inset-y-0 right-0 flex w-full max-w-[560px] flex-col bg-[#f7f5f0] shadow-[-24px_0_70px_rgba(47,43,36,.28)]">
+        <header class="flex items-start gap-3 bg-[#131313] px-5 py-5 text-[#f7f5f0]">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded bg-[#8a6100]/20 text-[#ffcc33]"><ChatIcon kind="document" /></span>
           <div class="min-w-0 flex-1">
-            <p class="text-[11px] font-semibold tracking-[.12em] text-[#cbb990] uppercase">{company}</p>
+            <p class="text-[11px] font-semibold tracking-[.12em] text-[#bbb7ad] uppercase">{company}</p>
             <h2 id="document-chat-title" class="mt-1 line-clamp-2 text-sm font-semibold leading-snug">{docTitle}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fermer l’assistant" class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-[#d8cbb6] transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4b895]"><ChatIcon kind="close" /></button>
+          <button type="button" onClick={onClose} aria-label="Fermer l’assistant" class="grid h-10 w-10 shrink-0 place-items-center rounded text-[#dcd7cc] transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffcc33]"><ChatIcon kind="close" /></button>
         </header>
 
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#d8cbb6] bg-[#fbf6ec] px-5 py-2 text-[11px] text-[#6d6350]">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#dcd7cc] bg-[#f7f5f0] px-5 py-2 text-[11px] text-[#6d6b66]">
           <span class="inline-flex items-center gap-1.5">
             <span class={`h-2 w-2 shrink-0 rounded-full ${connectionDot}`} aria-hidden="true" />
             {connectionText[connection]}
           </span>
           <span class="inline-flex items-center gap-1.5">
-            <span class="text-[#8b806d]">Modèle</span>
-            <span data-no-translate class="rounded-full bg-[#606c38]/10 px-2 py-0.5 font-medium text-[#4c5730]">{answeringModel}</span>
+            <span class="text-[#908d86]">Modèle</span>
+            <span data-no-translate class="rounded-full bg-[#131313]/10 px-2 py-0.5 font-medium text-[#2b2b29]">{answeringModel}</span>
           </span>
           {meta?.routedFrom ? (
-            <span data-no-translate class="text-[#8b806d]">{`via ${meta.routedFrom}`}</span>
+            <span data-no-translate class="text-[#908d86]">{`via ${meta.routedFrom}`}</span>
           ) : null}
         </div>
 
         <div class="flex-1 space-y-4 overflow-y-auto px-4 py-5" aria-live="polite">
           {messages.length === 0 && (
             <div class="mx-auto max-w-sm py-10 text-center">
-              <span class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#606c38]/12 text-[#606c38]"><ChatIcon kind="assistant" /></span>
-              <h3 class="mt-4 font-semibold text-[#2f2b24]">Assistant documents BDTS</h3>
-              <p class="mt-2 text-sm leading-6 text-[#766952]">Posez une question précise. L’assistant lit ce document et répond uniquement à partir de son contenu.</p>
+              <span class="mx-auto grid h-14 w-14 place-items-center rounded-md bg-[#131313]/12 text-[#131313]"><ChatIcon kind="assistant" /></span>
+              <h3 class="mt-4 font-semibold text-[#131313]">Assistant documents BDTS</h3>
+              <p class="mt-2 text-sm leading-6 text-[#6d6b66]">Posez une question précise. L’assistant lit ce document et répond uniquement à partir de son contenu.</p>
               <div class="mt-5 flex flex-wrap justify-center gap-2">
-                {SUGGESTED_QUESTIONS.map((question) => <button type="button" key={question} onClick={(event) => { setInput(event.currentTarget.textContent?.trim() || question); inputRef.current?.focus(); }} class="rounded-full border border-[#d8cbb6] bg-white px-3 py-2 text-xs font-medium text-[#554c3c] transition-colors hover:border-[#c08e3a] hover:text-[#8b6126] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c08e3a]">{question}</button>)}
+                {SUGGESTED_QUESTIONS.map((question) => <button type="button" key={question} onClick={(event) => { setInput(event.currentTarget.textContent?.trim() || question); inputRef.current?.focus(); }} class="rounded-full border border-[#dcd7cc] bg-white px-3 py-2 text-xs font-medium text-[#3e3e3b] transition-colors hover:border-[#8a6100] hover:text-[#8b6126] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8a6100]">{question}</button>)}
               </div>
             </div>
           )}
 
           {messages.map((message, index) => (
             <div key={`${message.role}-${index}`} class={`flex gap-2.5 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              {message.role === 'assistant' && <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#606c38]/12 text-[#606c38]"><ChatIcon kind="assistant" /></span>}
-              <div class={`max-w-[82%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === 'user' ? 'rounded-tr-sm bg-[#2f2b24] text-[#f7f0e4]' : 'rounded-tl-sm border border-[#dfd2bd] bg-white text-[#403a30]'}`}>
-                {message.content ? (message.role === 'assistant' ? <AssistantMessage content={message.content} /> : message.content) : <span class="inline-flex items-center gap-2 text-[#766952]"><span class="h-2 w-2 animate-pulse rounded-full bg-[#c08e3a]" />Lecture du document…</span>}
+              {message.role === 'assistant' && <span class="grid h-8 w-8 shrink-0 place-items-center rounded bg-[#131313]/12 text-[#131313]"><ChatIcon kind="assistant" /></span>}
+              <div class={`max-w-[82%] whitespace-pre-wrap rounded-md px-4 py-3 text-sm leading-6 ${message.role === 'user' ? 'rounded-tr-sm bg-[#131313] text-[#f7f5f0]' : 'rounded-tl-sm border border-[#e9e6df] bg-white text-[#2b2b29]'}`}>
+                {message.content ? (message.role === 'assistant' ? <AssistantMessage content={message.content} /> : message.content) : <span class="inline-flex items-center gap-2 text-[#6d6b66]"><span class="h-2 w-2 animate-pulse rounded-full bg-[#8a6100]" />Lecture du document…</span>}
               </div>
-              {message.role === 'user' && <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#2f2b24]/10 text-[#2f2b24]"><ChatIcon kind="user" /></span>}
+              {message.role === 'user' && <span class="grid h-8 w-8 shrink-0 place-items-center rounded bg-[#131313]/10 text-[#131313]"><ChatIcon kind="user" /></span>}
             </div>
           ))}
 
-          {error && <div role="alert" class="rounded-xl border border-[#d69b83] bg-[#f7e4da] px-4 py-3 text-sm leading-5 text-[#7d402d]">{error}</div>}
+          {error && <div role="alert" class="rounded border border-[#d69b83] bg-[#f7e4da] px-4 py-3 text-sm leading-5 text-[#7d402d]">{error}</div>}
           <div ref={bottomRef} />
         </div>
 
-        <footer class="border-t border-[#d8cbb6] bg-white px-4 py-4">
+        <footer class="border-t border-[#dcd7cc] bg-white px-4 py-4">
           <form onSubmit={submit} class="flex items-end gap-2">
             <label class="sr-only" for="document-chat-input">Votre question sur le document</label>
-            <textarea id="document-chat-input" ref={inputRef} value={input} onInput={(event) => setInput((event.target as HTMLTextAreaElement).value)} onKeyDown={handleInputKey} disabled={loading} rows={2} maxLength={4000} placeholder="Posez une question sur ce document…" class="min-h-[48px] flex-1 resize-none rounded-xl border border-[#d8cbb6] bg-[#f7f0e4] px-3 py-2.5 text-sm text-[#2f2b24] placeholder:text-[#8b806d] focus:border-[#c08e3a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c08e3a]/30 disabled:opacity-60" />
-            <button type="submit" disabled={!input.trim() || loading} aria-label="Envoyer la question" class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#c08e3a] text-white transition-colors hover:bg-[#a8752f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c08e3a] disabled:cursor-not-allowed disabled:opacity-40"><ChatIcon kind="send" /></button>
+            <textarea id="document-chat-input" ref={inputRef} value={input} onInput={(event) => setInput((event.target as HTMLTextAreaElement).value)} onKeyDown={handleInputKey} disabled={loading} rows={2} maxLength={4000} placeholder="Posez une question sur ce document…" class="min-h-[48px] flex-1 resize-none rounded border border-[#dcd7cc] bg-[#f7f5f0] px-3 py-2.5 text-sm text-[#131313] placeholder:text-[#908d86] focus:border-[#8a6100] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8a6100]/30 disabled:opacity-60" />
+            <button type="submit" disabled={!input.trim() || loading} aria-label="Envoyer la question" class="grid h-12 w-12 shrink-0 place-items-center rounded bg-[#8a6100] text-white transition-colors hover:bg-[#a8752f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8a6100] disabled:cursor-not-allowed disabled:opacity-40"><ChatIcon kind="send" /></button>
           </form>
-          <p class="mt-2 text-center text-[11px] text-[#8b806d]">Entrée pour envoyer · Maj + Entrée pour une nouvelle ligne</p>
+          <p class="mt-2 text-center text-[11px] text-[#908d86]">Entrée pour envoyer · Maj + Entrée pour une nouvelle ligne</p>
         </footer>
       </aside>
     </div>
